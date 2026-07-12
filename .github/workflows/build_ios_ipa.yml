@@ -36,6 +36,9 @@ jobs:
            mv pubspec.yaml.bak pubspec.yaml
            mv lib.bak lib
            mv assets.bak assets || true
+           # Generate iOS files
+           flutter pub get
+           flutter build ios --config-only --no-codesign
          fi
 
      - name: Install Dependencies
