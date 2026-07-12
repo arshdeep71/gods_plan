@@ -27,9 +27,14 @@ jobs:
 
      - name: Create Flutter Project Templates (for no-ios repos)
        run: |
-         flutter create --org com.godsplan --project-name gods_plan temp_project
-         cp -R temp_project/ios ./ios
-         rm -rf temp_project
+         mv pubspec.yaml pubspec.yaml.bak
+         mv lib lib.bak
+         mv assets assets.bak || true
+         flutter create --org com.godsplan --project-name gods_plan .
+         rm -rf lib pubspec.yaml
+         mv pubspec.yaml.bak pubspec.yaml
+         mv lib.bak lib
+         mv assets.bak assets || true
 
      - name: Install Dependencies
        run: flutter pub get
