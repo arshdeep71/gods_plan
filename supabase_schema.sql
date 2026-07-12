@@ -1,0 +1,325 @@
+-- ==========================================
+-- GOD'S PLAN - DATABASE SCHEMA SCHEMA INITIALIZATION
+-- Run this script in your Supabase SQL Editor
+-- ==========================================
+
+-- 1. Create Public Profiles Table (Stores user metadata linked to Auth)
+CREATE TABLE IF NOT EXISTS public.profiles (
+    id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+    username TEXT NOT NULL,
+    email TEXT NOT NULL,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+-- Enable Row-Level Security for profiles
+ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
+
+-- Profiles Policies
+CREATE POLICY "Allow users to view their own profile" 
+ON public.profiles FOR SELECT 
+TO authenticated 
+USING (auth.uid() = id);
+
+CREATE POLICY "Allow users to update their own profile" 
+ON public.profiles FOR UPDATE 
+TO authenticated 
+USING (auth.uid() = id) 
+WITH CHECK (auth.uid() = id);
+
+CREATE POLICY "Allow users to insert their own profile" 
+ON public.profiles FOR INSERT 
+TO authenticated 
+WITH CHECK (auth.uid() = id);
+
+
+-- 2. Create Goals Table (Stores start/end dates for user journey)
+CREATE TABLE IF NOT EXISTS public.goals (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE UNIQUE,
+    start_date TIMESTAMP WITH TIME ZONE NOT NULL,
+    end_date TIMESTAMP WITH TIME ZONE NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+-- Enable Row-Level Security for goals
+ALTER TABLE public.goals ENABLE ROW LEVEL SECURITY;
+
+-- Goals Policies
+CREATE POLICY "Allow users to select their own goals" 
+ON public.goals FOR SELECT 
+TO authenticated 
+USING (auth.uid() = user_id);
+
+CREATE POLICY "Allow users to insert their own goals" 
+ON public.goals FOR INSERT 
+TO authenticated 
+WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Allow users to update their own goals" 
+ON public.goals FOR UPDATE 
+TO authenticated 
+USING (auth.uid() = user_id) 
+WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Allow users to delete their own goals" 
+ON public.goals FOR DELETE 
+TO authenticated 
+USING (auth.uid() = user_id);
+
+
+-- 3. Create Tasks Table (Stores checklist task items)
+CREATE TABLE IF NOT EXISTS public.tasks (
+    id UUID PRIMARY KEY,
+    user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+    title TEXT NOT NULL,
+    difficulty TEXT NOT NULL CHECK (difficulty IN ('easy', 'medium', 'hard')),
+    priority TEXT NOT NULL CHECK (priority IN ('low', 'medium', 'high')),
+    is_completed BOOLEAN NOT NULL DEFAULT FALSE,
+    is_recurring BOOLEAN NOT NULL DEFAULT FALSE,
+    streak_count INTEGER DEFAULT 0,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+-- Enable Row-Level Security for tasks
+ALTER TABLE public.tasks ENABLE ROW LEVEL SECURITY;
+
+-- Tasks Policies
+CREATE POLICY "Allow users to select their own tasks" 
+ON public.tasks FOR SELECT 
+TO authenticated 
+USING (auth.uid() = user_id);
+
+CREATE POLICY "Allow users to insert their own tasks" 
+ON public.tasks FOR INSERT 
+TO authenticated 
+WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Allow users to update their own tasks" 
+ON public.tasks FOR UPDATE 
+TO authenticated 
+USING (auth.uid() = user_id) 
+WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Allow users to delete their own tasks" 
+ON public.tasks FOR DELETE 
+TO authenticated 
+USING (auth.uid() = user_id);
+
+
+-- 4. Create Workouts Table (Stores training logs)
+CREATE TABLE IF NOT EXISTS public.workouts (
+    id UUID PRIMARY KEY,
+    user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+    activity_type TEXT NOT NULL CHECK (activity_type IN ('running', 'strength', 'yoga', 'sports', 'walking')),
+    duration INTEGER NOT NULL,
+    weight_kg NUMERIC NOT NULL,
+    calories_burned NUMERIC NOT NULL,
+    logged_at TIMESTAMP WITH TIME ZONE NOT NULL,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+-- Enable Row-Level Security for workouts
+ALTER TABLE public.workouts ENABLE ROW LEVEL SECURITY;
+
+-- Workouts Policies
+CREATE POLICY "Allow users to select their own workouts" 
+ON public.workouts FOR SELECT 
+TO authenticated 
+USING (auth.uid() = user_id);
+
+CREATE POLICY "Allow users to insert their own workouts" 
+ON public.workouts FOR INSERT 
+TO authenticated 
+WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Allow users to update their own workouts" 
+ON public.workouts FOR UPDATE 
+TO authenticated 
+USING (auth.uid() = user_id) 
+WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Allow users to delete their own workouts" 
+ON public.workouts FOR DELETE 
+TO authenticated 
+USING (auth.uid() = user_id);
+
+
+-- 5. Create Sleep Logs Table (Stores sleep telemetry)
+CREATE TABLE IF NOT EXISTS public.sleep_logs (
+    id UUID PRIMARY KEY,
+    user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+    sleep_time TIMESTAMP WITH TIME ZONE NOT NULL,
+    wake_time TIMESTAMP WITH TIME ZONE NOT NULL,
+    reported_quality NUMERIC NOT NULL,
+    caffeine_after_3pm BOOLEAN NOT NULL DEFAULT FALSE,
+    screen_time_in_bed BOOLEAN NOT NULL DEFAULT FALSE,
+    late_dinner BOOLEAN NOT NULL DEFAULT FALSE,
+    calculated_quality NUMERIC NOT NULL,
+    logged_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+-- Enable Row-Level Security for sleep logs
+ALTER TABLE public.sleep_logs ENABLE ROW LEVEL SECURITY;
+
+-- Sleep Logs Policies
+CREATE POLICY "Allow users to select their own sleep logs" 
+ON public.sleep_logs FOR SELECT 
+TO authenticated 
+USING (auth.uid() = user_id);
+
+CREATE POLICY "Allow users to insert their own sleep logs" 
+ON public.sleep_logs FOR INSERT 
+TO authenticated 
+WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Allow users to update their own sleep logs" 
+ON public.sleep_logs FOR UPDATE 
+TO authenticated 
+USING (auth.uid() = user_id) 
+WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Allow users to delete their own sleep logs" 
+ON public.sleep_logs FOR DELETE 
+TO authenticated 
+USING (auth.uid() = user_id);
+
+
+-- 6. Create Food Logs Table
+CREATE TABLE IF NOT EXISTS public.food_logs (
+    id UUID PRIMARY KEY,
+    user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+    food_name TEXT NOT NULL,
+    calories NUMERIC NOT NULL,
+    protein NUMERIC NOT NULL,
+    carbs NUMERIC NOT NULL,
+    fats NUMERIC NOT NULL,
+    logged_at TIMESTAMP WITH TIME ZONE NOT NULL,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+ALTER TABLE public.food_logs ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Allow users to select their own food logs" ON public.food_logs FOR SELECT TO authenticated USING (auth.uid() = user_id);
+CREATE POLICY "Allow users to insert their own food logs" ON public.food_logs FOR INSERT TO authenticated WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "Allow users to update their own food logs" ON public.food_logs FOR UPDATE TO authenticated USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "Allow users to delete their own food logs" ON public.food_logs FOR DELETE TO authenticated USING (auth.uid() = user_id);
+
+
+-- 7. Create Water Logs Table
+CREATE TABLE IF NOT EXISTS public.water_logs (
+    id UUID PRIMARY KEY,
+    user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+    glasses INTEGER NOT NULL,
+    logged_at TIMESTAMP WITH TIME ZONE NOT NULL,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+ALTER TABLE public.water_logs ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Allow users to select their own water logs" ON public.water_logs FOR SELECT TO authenticated USING (auth.uid() = user_id);
+CREATE POLICY "Allow users to insert their own water logs" ON public.water_logs FOR INSERT TO authenticated WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "Allow users to update their own water logs" ON public.water_logs FOR UPDATE TO authenticated USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "Allow users to delete their own water logs" ON public.water_logs FOR DELETE TO authenticated USING (auth.uid() = user_id);
+
+
+-- 8. Create Addiction Logs Table
+CREATE TABLE IF NOT EXISTS public.addiction_logs (
+    id UUID PRIMARY KEY,
+    user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+    feeling TEXT NOT NULL,
+    urge_level INTEGER NOT NULL,
+    trigger_tag TEXT NOT NULL,
+    helper_strategy TEXT NOT NULL,
+    is_relapse BOOLEAN NOT NULL DEFAULT FALSE,
+    notes TEXT,
+    logged_at TIMESTAMP WITH TIME ZONE NOT NULL,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+ALTER TABLE public.addiction_logs ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Allow users to select their own addiction logs" ON public.addiction_logs FOR SELECT TO authenticated USING (auth.uid() = user_id);
+CREATE POLICY "Allow users to insert their own addiction logs" ON public.addiction_logs FOR INSERT TO authenticated WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "Allow users to update their own addiction logs" ON public.addiction_logs FOR UPDATE TO authenticated USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "Allow users to delete their own addiction logs" ON public.addiction_logs FOR DELETE TO authenticated USING (auth.uid() = user_id);
+
+
+-- 9. Create Finance Transactions Table
+CREATE TABLE IF NOT EXISTS public.finance_transactions (
+    id UUID PRIMARY KEY,
+    user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+    type TEXT NOT NULL CHECK (type IN ('income', 'expense')),
+    category TEXT NOT NULL,
+    amount NUMERIC NOT NULL,
+    notes TEXT,
+    logged_at TIMESTAMP WITH TIME ZONE NOT NULL,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+ALTER TABLE public.finance_transactions ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Allow users to select their own transactions" ON public.finance_transactions FOR SELECT TO authenticated USING (auth.uid() = user_id);
+CREATE POLICY "Allow users to insert their own transactions" ON public.finance_transactions FOR INSERT TO authenticated WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "Allow users to update their own transactions" ON public.finance_transactions FOR UPDATE TO authenticated USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "Allow users to delete their own transactions" ON public.finance_transactions FOR DELETE TO authenticated USING (auth.uid() = user_id);
+
+
+-- 10. Create Learning Subjects Table
+CREATE TABLE IF NOT EXISTS public.learning_subjects (
+    id UUID PRIMARY KEY,
+    user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+    name TEXT NOT NULL,
+    daily_target_minutes INTEGER NOT NULL,
+    total_target_hours INTEGER NOT NULL,
+    logged_at TIMESTAMP WITH TIME ZONE NOT NULL,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+ALTER TABLE public.learning_subjects ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Allow users to select their own learning subjects" ON public.learning_subjects FOR SELECT TO authenticated USING (auth.uid() = user_id);
+CREATE POLICY "Allow users to insert their own learning subjects" ON public.learning_subjects FOR INSERT TO authenticated WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "Allow users to update their own learning subjects" ON public.learning_subjects FOR UPDATE TO authenticated USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "Allow users to delete their own learning subjects" ON public.learning_subjects FOR DELETE TO authenticated USING (auth.uid() = user_id);
+
+
+-- 11. Create Study Logs Table
+CREATE TABLE IF NOT EXISTS public.study_logs (
+    id UUID PRIMARY KEY,
+    user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+    subject_id UUID NOT NULL REFERENCES public.learning_subjects(id) ON DELETE CASCADE,
+    duration_minutes INTEGER NOT NULL,
+    logged_at TIMESTAMP WITH TIME ZONE NOT NULL,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+ALTER TABLE public.study_logs ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Allow users to select their own study logs" ON public.study_logs FOR SELECT TO authenticated USING (auth.uid() = user_id);
+CREATE POLICY "Allow users to insert their own study logs" ON public.study_logs FOR INSERT TO authenticated WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "Allow users to update their own study logs" ON public.study_logs FOR UPDATE TO authenticated USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "Allow users to delete their own study logs" ON public.study_logs FOR DELETE TO authenticated USING (auth.uid() = user_id);
+
+
+-- 12. Create Social Contacts Table
+CREATE TABLE IF NOT EXISTS public.social_contacts (
+    id UUID PRIMARY KEY,
+    user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+    name TEXT NOT NULL,
+    last_contacted TIMESTAMP WITH TIME ZONE NOT NULL,
+    notes TEXT,
+    logged_at TIMESTAMP WITH TIME ZONE NOT NULL,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+ALTER TABLE public.social_contacts ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Allow users to select their own social contacts" ON public.social_contacts FOR SELECT TO authenticated USING (auth.uid() = user_id);
+CREATE POLICY "Allow users to insert their own social contacts" ON public.social_contacts FOR INSERT TO authenticated WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "Allow users to update their own social contacts" ON public.social_contacts FOR UPDATE TO authenticated USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "Allow users to delete their own social contacts" ON public.social_contacts FOR DELETE TO authenticated USING (auth.uid() = user_id);
+
+
