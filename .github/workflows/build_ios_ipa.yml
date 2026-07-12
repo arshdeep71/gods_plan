@@ -27,14 +27,16 @@ jobs:
 
      - name: Create Flutter Project Templates (for no-ios repos)
        run: |
-         mv pubspec.yaml pubspec.yaml.bak
-         mv lib lib.bak
-         mv assets assets.bak || true
-         flutter create --org com.godsplan --project-name gods_plan .
-         rm -rf lib pubspec.yaml
-         mv pubspec.yaml.bak pubspec.yaml
-         mv lib.bak lib
-         mv assets.bak assets || true
+         if [ ! -d "ios" ]; then
+           mv pubspec.yaml pubspec.yaml.bak
+           mv lib lib.bak
+           mv assets assets.bak || true
+           flutter create --org com.godsplan --project-name gods_plan .
+           rm -rf lib pubspec.yaml
+           mv pubspec.yaml.bak pubspec.yaml
+           mv lib.bak lib
+           mv assets.bak assets || true
+         fi
 
      - name: Install Dependencies
        run: flutter pub get
