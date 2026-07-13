@@ -34,6 +34,12 @@ jobs:
      - name: Install Dependencies
        run: flutter pub get
 
+     - name: Generate iOS Configuration
+       run: flutter build ios --config-only
+
+     - name: Disable iOS Code Signing
+       run: python disable_ios_signing.py
+
      - name: Build iOS App (Unsigned)
        run: flutter build ios --release --no-codesign
 
