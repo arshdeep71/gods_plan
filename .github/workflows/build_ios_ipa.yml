@@ -1,11 +1,14 @@
 name: Build iOS IPA
 
 on:
- push:
-   branches:
-     - main
-     - master
- workflow_dispatch:
+  push:
+    branches:
+      - main
+      - master
+  workflow_dispatch:
+
+permissions:
+  contents: write
 
 jobs:
  build-ios:
@@ -50,6 +53,16 @@ jobs:
        with:
          name: build-log
          path: build_output.log
+
+     - name: Commit build log on failure
+       if: failure()
+       run: |
+         git config --global user.name "github-actions[bot]"
+         git config --global user.email "github-actions[bot]@users.noreply.github.com"
+         cp build_output.log build_error.txt
+         git add build_error.txt
+         git commit -m "chore: add build log [skip ci]" || true
+         git push || true
 
      - name: Create IPA for Sideloading
        run: |
