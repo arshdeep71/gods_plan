@@ -28,17 +28,7 @@ jobs:
      - name: Create Flutter Project Templates (for no-ios repos)
        run: |
          if [ ! -d "ios" ]; then
-           mv pubspec.yaml pubspec.yaml.bak
-           mv lib lib.bak
-           mv assets assets.bak || true
            flutter create --org com.godsplan --project-name gods_plan .
-           rm -rf lib pubspec.yaml
-           mv pubspec.yaml.bak pubspec.yaml
-           mv lib.bak lib
-           mv assets.bak assets || true
-           # Generate iOS files
-           flutter pub get
-           flutter build ios --config-only --no-codesign
          fi
 
      - name: Install Dependencies
@@ -52,6 +42,7 @@ jobs:
          cd ios
          pod install --repo-update
          cd ..
+
      - name: Build iOS App (Unsigned)
        run: flutter build ios --release --no-codesign
 
@@ -60,6 +51,7 @@ jobs:
          mkdir -p Payload
          mv build/ios/iphoneos/Runner.app Payload/
          zip -qr app.ipa Payload
+
      - name: Upload IPA Artifact
        uses: actions/upload-artifact@v4
        with:
