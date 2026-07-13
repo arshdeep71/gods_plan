@@ -1,0 +1,457 @@
+Warning: Building for device with codesigning disabled. You will have to manually codesign before deploying to device.
+Building com.godsplan.godsPlan for device (ios-release)...
+Running Xcode build...                                          
+Xcode build done.                                           25.7s
+Failed to build iOS app
+Error output from Xcode build:
+↳
+    ** BUILD FAILED **
+
+
+Xcode's output:
+↳
+    Writing result bundle at path:
+    	/var/folders/g3/pffjr_y96bq06blnkf72x_hw0000gn/T/flutter_tools.xwkFmz/flutter_ios_build_temp_dir5QM3q3/temporary_xcresult_bundle
+
+    lib/providers/health_provider.dart:96:22: Error: The method 'SyncItem' isn't defined for the type 'HealthProvider'.
+     - 'HealthProvider' is from 'package:gods_plan/providers/health_provider.dart' ('lib/providers/health_provider.dart').
+    Try correcting the name to the name of an existing method, or defining a method named 'SyncItem'.
+        final syncItem = SyncItem(
+                         ^^^^^^^^
+    lib/providers/health_provider.dart:118:22: Error: The method 'SyncItem' isn't defined for the type 'HealthProvider'.
+     - 'HealthProvider' is from 'package:gods_plan/providers/health_provider.dart' ('lib/providers/health_provider.dart').
+    Try correcting the name to the name of an existing method, or defining a method named 'SyncItem'.
+        final syncItem = SyncItem(
+                         ^^^^^^^^
+    lib/providers/health_provider.dart:178:22: Error: The method 'SyncItem' isn't defined for the type 'HealthProvider'.
+     - 'HealthProvider' is from 'package:gods_plan/providers/health_provider.dart' ('lib/providers/health_provider.dart').
+    Try correcting the name to the name of an existing method, or defining a method named 'SyncItem'.
+        final syncItem = SyncItem(
+                         ^^^^^^^^
+    lib/providers/health_provider.dart:200:22: Error: The method 'SyncItem' isn't defined for the type 'HealthProvider'.
+     - 'HealthProvider' is from 'package:gods_plan/providers/health_provider.dart' ('lib/providers/health_provider.dart').
+    Try correcting the name to the name of an existing method, or defining a method named 'SyncItem'.
+        final syncItem = SyncItem(
+                         ^^^^^^^^
+    lib/providers/nutrition_provider.dart:165:22: Error: The method 'SyncItem' isn't defined for the type 'NutritionProvider'.
+     - 'NutritionProvider' is from 'package:gods_plan/providers/nutrition_provider.dart' ('lib/providers/nutrition_provider.dart').
+    Try correcting the name to the name of an existing method, or defining a method named 'SyncItem'.
+        final syncItem = SyncItem(
+                         ^^^^^^^^
+    lib/providers/nutrition_provider.dart:186:22: Error: The method 'SyncItem' isn't defined for the type 'NutritionProvider'.
+     - 'NutritionProvider' is from 'package:gods_plan/providers/nutrition_provider.dart' ('lib/providers/nutrition_provider.dart').
+    Try correcting the name to the name of an existing method, or defining a method named 'SyncItem'.
+        final syncItem = SyncItem(
+                         ^^^^^^^^
+    lib/providers/nutrition_provider.dart:234:22: Error: The method 'SyncItem' isn't defined for the type 'NutritionProvider'.
+     - 'NutritionProvider' is from 'package:gods_plan/providers/nutrition_provider.dart' ('lib/providers/nutrition_provider.dart').
+    Try correcting the name to the name of an existing method, or defining a method named 'SyncItem'.
+        final syncItem = SyncItem(
+                         ^^^^^^^^
+    lib/providers/learning_provider.dart:70:22: Error: The method 'queueSyncItem' isn't defined for the type 'DatabaseService'.
+     - 'DatabaseService' is from 'package:gods_plan/services/database_service.dart' ('lib/services/database_service.dart').
+    Try correcting the name to the name of an existing method, or defining a method named 'queueSyncItem'.
+        await _dbService.queueSyncItem(syncItem);
+                         ^^^^^^^^^^^^^
+    lib/providers/learning_provider.dart:100:22: Error: The method 'queueSyncItem' isn't defined for the type 'DatabaseService'.
+     - 'DatabaseService' is from 'package:gods_plan/services/database_service.dart' ('lib/services/database_service.dart').
+    Try correcting the name to the name of an existing method, or defining a method named 'queueSyncItem'.
+        await _dbService.queueSyncItem(syncItem);
+                         ^^^^^^^^^^^^^
+    lib/providers/social_provider.dart:66:22: Error: The method 'queueSyncItem' isn't defined for the type 'DatabaseService'.
+     - 'DatabaseService' is from 'package:gods_plan/services/database_service.dart' ('lib/services/database_service.dart').
+    Try correcting the name to the name of an existing method, or defining a method named 'queueSyncItem'.
+        await _dbService.queueSyncItem(syncItem);
+                         ^^^^^^^^^^^^^
+    lib/providers/social_provider.dart:100:22: Error: The method 'queueSyncItem' isn't defined for the type 'DatabaseService'.
+     - 'DatabaseService' is from 'package:gods_plan/services/database_service.dart' ('lib/services/database_service.dart').
+    Try correcting the name to the name of an existing method, or defining a method named 'queueSyncItem'.
+        await _dbService.queueSyncItem(syncItem);
+                         ^^^^^^^^^^^^^
+    lib/screens/dashboard.dart:141:72: Error: Member not found: 'accent'.
+                icon: const Icon(Icons.bar_chart_rounded, color: AppColors.accent),
+                                                                           ^^^^^^
+    lib/screens/dashboard.dart:210:40: Error: Member not found: 'accent'.
+                          color: AppColors.accent.withOpacity(0.1),
+                                           ^^^^^^
+    lib/screens/dashboard.dart:212:59: Error: Member not found: 'accent'.
+                          border: Border.all(color: AppColors.accent.withOpacity(0.3)),
+                                                              ^^^^^^
+    lib/screens/dashboard.dart:216:81: Error: Member not found: 'accent'.
+                            const Icon(Icons.emoji_events_rounded, color: AppColors.accent, size: 18),
+                                                                                    ^^^^^^
+    lib/screens/dashboard.dart:220:67: Error: Member not found: 'accent'.
+                              style: const TextStyle(color: AppColors.accent, fontWeight: FontWeight.bold, fontSize: 12),
+                                                                      ^^^^^^
+    lib/screens/dashboard.dart:650:42: Error: Member not found: 'accent'.
+                            color: AppColors.accent.withOpacity(0.1),
+                                             ^^^^^^
+    lib/screens/dashboard.dart:656:42: Error: Member not found: 'accent'.
+                            color: AppColors.accent,
+                                             ^^^^^^
+    lib/screens/dashboard.dart:870:41: Error: Member not found: 'accent'.
+                                : AppColors.accent.withOpacity(0.1),
+                                            ^^^^^^
+    lib/screens/dashboard.dart:876:76: Error: Member not found: 'accent'.
+                            color: hasNeglected ? Colors.redAccent : AppColors.accent,
+                                                                               ^^^^^^
+    lib/screens/auth/passcode_screen.dart:67:37: Error: Member not found: 'accent'.
+            color: isActive ? AppColors.accent : AppColors.border,
+                                        ^^^^^^
+    lib/screens/auth/passcode_screen.dart:100:61: Error: Member not found: 'accent'.
+                const Icon(Icons.lock_rounded, color: AppColors.accent, size: 64),
+                                                                ^^^^^^
+    lib/services/sync_service.dart:101:90: Error: The getter 'ConflictAlgorithm' isn't defined for the type 'SyncService'.
+     - 'SyncService' is from 'package:gods_plan/services/sync_service.dart' ('lib/services/sync_service.dart').
+    Try correcting the name to the name of an existing getter, or defining a getter or field named 'ConflictAlgorithm'.
+                await txn.insert('local_tasks', remoteTask.toSqliteMap(), conflictAlgorithm: ConflictAlgorithm.replace);
+                                                                                          ^^^^^^^^^^^^^^^^^
+    lib/services/sync_service.dart:105:92: Error: The getter 'ConflictAlgorithm' isn't defined for the type 'SyncService'.
+     - 'SyncService' is from 'package:gods_plan/services/sync_service.dart' ('lib/services/sync_service.dart').
+    Try correcting the name to the name of an existing getter, or defining a getter or field named 'ConflictAlgorithm'.
+                  await txn.insert('local_tasks', remoteTask.toSqliteMap(), conflictAlgorithm: ConflictAlgorithm.replace);
+                                                                                          ^^^^^^^^^^^^^^^^^
+    lib/services/sync_service.dart:130:96: Error: The getter 'ConflictAlgorithm' isn't defined for the type 'SyncService'.
+     - 'SyncService' is from 'package:gods_plan/services/sync_service.dart' ('lib/services/sync_service.dart').
+    Try correcting the name to the name of an existing getter, or defining a getter or field named 'ConflictAlgorithm'.
+                await txn.insert('local_workouts', remoteWorkout.toSqliteMap(), conflictAlgorithm: ConflictAlgorithm.replace);
+                                                                                          ^^^^^^^^^^^^^^^^^
+    lib/services/sync_service.dart:134:98: Error: The getter 'ConflictAlgorithm' isn't defined for the type 'SyncService'.
+     - 'SyncService' is from 'package:gods_plan/services/sync_service.dart' ('lib/services/sync_service.dart').
+    Try correcting the name to the name of an existing getter, or defining a getter or field named 'ConflictAlgorithm'.
+                  await txn.insert('local_workouts', remoteWorkout.toSqliteMap(), conflictAlgorithm: ConflictAlgorithm.replace);
+                                                                                          ^^^^^^^^^^^^^^^^^
+    lib/services/sync_service.dart:159:96: Error: The getter 'ConflictAlgorithm' isn't defined for the type 'SyncService'.
+     - 'SyncService' is from 'package:gods_plan/services/sync_service.dart' ('lib/services/sync_service.dart').
+    Try correcting the name to the name of an existing getter, or defining a getter or field named 'ConflictAlgorithm'.
+                await txn.insert('local_sleep_logs', remoteSleep.toSqliteMap(), conflictAlgorithm: ConflictAlgorithm.replace);
+                                                                                          ^^^^^^^^^^^^^^^^^
+    lib/services/sync_service.dart:163:98: Error: The getter 'ConflictAlgorithm' isn't defined for the type 'SyncService'.
+     - 'SyncService' is from 'package:gods_plan/services/sync_service.dart' ('lib/services/sync_service.dart').
+    Try correcting the name to the name of an existing getter, or defining a getter or field named 'ConflictAlgorithm'.
+                  await txn.insert('local_sleep_logs', remoteSleep.toSqliteMap(), conflictAlgorithm: ConflictAlgorithm.replace);
+                                                                                          ^^^^^^^^^^^^^^^^^
+    lib/services/sync_service.dart:188:94: Error: The getter 'ConflictAlgorithm' isn't defined for the type 'SyncService'.
+     - 'SyncService' is from 'package:gods_plan/services/sync_service.dart' ('lib/services/sync_service.dart').
+    Try correcting the name to the name of an existing getter, or defining a getter or field named 'ConflictAlgorithm'.
+                await txn.insert('local_food_logs', remoteFood.toSqliteMap(), conflictAlgorithm: ConflictAlgorithm.replace);
+                                                                                          ^^^^^^^^^^^^^^^^^
+    lib/services/sync_service.dart:192:96: Error: The getter 'ConflictAlgorithm' isn't defined for the type 'SyncService'.
+     - 'SyncService' is from 'package:gods_plan/services/sync_service.dart' ('lib/services/sync_service.dart').
+    Try correcting the name to the name of an existing getter, or defining a getter or field named 'ConflictAlgorithm'.
+                  await txn.insert('local_food_logs', remoteFood.toSqliteMap(), conflictAlgorithm: ConflictAlgorithm.replace);
+                                                                                          ^^^^^^^^^^^^^^^^^
+    lib/services/sync_service.dart:217:96: Error: The getter 'ConflictAlgorithm' isn't defined for the type 'SyncService'.
+     - 'SyncService' is from 'package:gods_plan/services/sync_service.dart' ('lib/services/sync_service.dart').
+    Try correcting the name to the name of an existing getter, or defining a getter or field named 'ConflictAlgorithm'.
+                await txn.insert('local_water_logs', remoteWater.toSqliteMap(), conflictAlgorithm: ConflictAlgorithm.replace);
+                                                                                          ^^^^^^^^^^^^^^^^^
+    lib/services/sync_service.dart:221:98: Error: The getter 'ConflictAlgorithm' isn't defined for the type 'SyncService'.
+     - 'SyncService' is from 'package:gods_plan/services/sync_service.dart' ('lib/services/sync_service.dart').
+    Try correcting the name to the name of an existing getter, or defining a getter or field named 'ConflictAlgorithm'.
+                  await txn.insert('local_water_logs', remoteWater.toSqliteMap(), conflictAlgorithm: ConflictAlgorithm.replace);
+                                                                                          ^^^^^^^^^^^^^^^^^
+    lib/services/sync_service.dart:246:104: Error: The getter 'ConflictAlgorithm' isn't defined for the type 'SyncService'.
+     - 'SyncService' is from 'package:gods_plan/services/sync_service.dart' ('lib/services/sync_service.dart').
+    Try correcting the name to the name of an existing getter, or defining a getter or field named 'ConflictAlgorithm'.
+                await txn.insert('local_addiction_logs', remoteAddiction.toSqliteMap(), conflictAlgorithm: ConflictAlgorithm.replace);
+                                                                                          ^^^^^^^^^^^^^^^^^
+    lib/services/sync_service.dart:250:106: Error: The getter 'ConflictAlgorithm' isn't defined for the type 'SyncService'.
+     - 'SyncService' is from 'package:gods_plan/services/sync_service.dart' ('lib/services/sync_service.dart').
+    Try correcting the name to the name of an existing getter, or defining a getter or field named 'ConflictAlgorithm'.
+                  await txn.insert('local_addiction_logs', remoteAddiction.toSqliteMap(), conflictAlgorithm: ConflictAlgorithm.replace);
+                                                                                          ^^^^^^^^^^^^^^^^^
+    lib/services/sync_service.dart:275:108: Error: The getter 'ConflictAlgorithm' isn't defined for the type 'SyncService'.
+     - 'SyncService' is from 'package:gods_plan/services/sync_service.dart' ('lib/services/sync_service.dart').
+    Try correcting the name to the name of an existing getter, or defining a getter or field named 'ConflictAlgorithm'.
+                await txn.insert('local_finance_transactions', remoteFinance.toSqliteMap(), conflictAlgorithm: ConflictAlgorithm.replace);
+                                                                                          ^^^^^^^^^^^^^^^^^
+    lib/services/sync_service.dart:279:110: Error: The getter 'ConflictAlgorithm' isn't defined for the type 'SyncService'.
+     - 'SyncService' is from 'package:gods_plan/services/sync_service.dart' ('lib/services/sync_service.dart').
+    Try correcting the name to the name of an existing getter, or defining a getter or field named 'ConflictAlgorithm'.
+                  await txn.insert('local_finance_transactions', remoteFinance.toSqliteMap(), conflictAlgorithm: ConflictAlgorithm.replace);
+                                                                                          ^^^^^^^^^^^^^^^^^
+    lib/services/sync_service.dart:304:103: Error: The getter 'ConflictAlgorithm' isn't defined for the type 'SyncService'.
+     - 'SyncService' is from 'package:gods_plan/services/sync_service.dart' ('lib/services/sync_service.dart').
+    Try correcting the name to the name of an existing getter, or defining a getter or field named 'ConflictAlgorithm'.
+                await txn.insert('local_social_contacts', remoteContact.toSqliteMap(), conflictAlgorithm: ConflictAlgorithm.replace);
+                                                                                          ^^^^^^^^^^^^^^^^^
+    lib/services/sync_service.dart:308:105: Error: The getter 'ConflictAlgorithm' isn't defined for the type 'SyncService'.
+     - 'SyncService' is from 'package:gods_plan/services/sync_service.dart' ('lib/services/sync_service.dart').
+    Try correcting the name to the name of an existing getter, or defining a getter or field named 'ConflictAlgorithm'.
+                  await txn.insert('local_social_contacts', remoteContact.toSqliteMap(), conflictAlgorithm: ConflictAlgorithm.replace);
+                                                                                          ^^^^^^^^^^^^^^^^^
+    lib/services/sync_service.dart:333:105: Error: The getter 'ConflictAlgorithm' isn't defined for the type 'SyncService'.
+     - 'SyncService' is from 'package:gods_plan/services/sync_service.dart' ('lib/services/sync_service.dart').
+    Try correcting the name to the name of an existing getter, or defining a getter or field named 'ConflictAlgorithm'.
+                await txn.insert('local_learning_subjects', remoteSubject.toSqliteMap(), conflictAlgorithm: ConflictAlgorithm.replace);
+                                                                                          ^^^^^^^^^^^^^^^^^
+    lib/services/sync_service.dart:337:107: Error: The getter 'ConflictAlgorithm' isn't defined for the type 'SyncService'.
+     - 'SyncService' is from 'package:gods_plan/services/sync_service.dart' ('lib/services/sync_service.dart').
+    Try correcting the name to the name of an existing getter, or defining a getter or field named 'ConflictAlgorithm'.
+                  await txn.insert('local_learning_subjects', remoteSubject.toSqliteMap(), conflictAlgorithm: ConflictAlgorithm.replace);
+                                                                                          ^^^^^^^^^^^^^^^^^
+    lib/services/sync_service.dart:362:94: Error: The getter 'ConflictAlgorithm' isn't defined for the type 'SyncService'.
+     - 'SyncService' is from 'package:gods_plan/services/sync_service.dart' ('lib/services/sync_service.dart').
+    Try correcting the name to the name of an existing getter, or defining a getter or field named 'ConflictAlgorithm'.
+                await txn.insert('local_study_logs', remoteLog.toSqliteMap(), conflictAlgorithm: ConflictAlgorithm.replace);
+                                                                                          ^^^^^^^^^^^^^^^^^
+    lib/services/sync_service.dart:366:96: Error: The getter 'ConflictAlgorithm' isn't defined for the type 'SyncService'.
+     - 'SyncService' is from 'package:gods_plan/services/sync_service.dart' ('lib/services/sync_service.dart').
+    Try correcting the name to the name of an existing getter, or defining a getter or field named 'ConflictAlgorithm'.
+                  await txn.insert('local_study_logs', remoteLog.toSqliteMap(), conflictAlgorithm: ConflictAlgorithm.replace);
+                                                                                          ^^^^^^^^^^^^^^^^^
+    lib/screens/addiction/addiction_view.dart:59:76: Error: Member not found: 'accent'.
+              ? const Center(child: CircularProgressIndicator(color: AppColors.accent))
+                                                                               ^^^^^^
+    lib/screens/addiction/addiction_view.dart:72:37: Error: Member not found: 'accent'.
+                              AppColors.accent.withOpacity(0.95),
+                                        ^^^^^^
+    lib/screens/addiction/addiction_view.dart:73:37: Error: Member not found: 'accent'.
+                              AppColors.accent.withOpacity(0.7),
+                                        ^^^^^^
+    lib/screens/addiction/addiction_view.dart:81:44: Error: Member not found: 'accent'.
+                              color: AppColors.accent.withOpacity(0.3),
+                                               ^^^^^^
+    lib/screens/addiction/addiction_view.dart:151:93: Error: Member not found: 'accent'.
+                            icon: const Icon(Icons.add_circle_outline_rounded, color: AppColors.accent),
+                                                                                          ^^^^^^
+    lib/screens/addiction/addiction_view.dart:154:61: Error: Member not found: 'accent'.
+                              style: TextStyle(color: AppColors.accent, fontWeight: FontWeight.bold),
+                                                                ^^^^^^
+    lib/screens/addiction/addiction_view.dart:229:51: Error: Member not found: 'accent'.
+                                          : AppColors.accent.withOpacity(0.1),
+                                                      ^^^^^^
+    lib/screens/addiction/addiction_view.dart:234:83: Error: Member not found: 'accent'.
+                                        color: log.isRelapse ? Colors.red : AppColors.accent,
+                                                                                      ^^^^^^
+    lib/screens/addiction/addiction_view.dart:275:62: Error: Member not found: 'accent'.
+                                                color: AppColors.accent,
+                                                                 ^^^^^^
+    lib/screens/addiction/addiction_view.dart:182:40: Error: The argument type 'Type' can't be assigned to the parameter type 'TextAlign?'.
+     - 'Type' is from 'dart:core'.
+     - 'TextAlign' is from 'dart:ui'.
+                                textAlign: Center,
+                                           ^
+    lib/screens/addiction/addiction_view.dart:339:55: Error: Member not found: 'accent'.
+                            color: isUnlocked ? AppColors.accent : Colors.transparent,
+                                                          ^^^^^^
+    lib/screens/addiction/addiction_view.dart:342:57: Error: Member not found: 'accent'.
+                              color: isUnlocked ? AppColors.accent : AppColors.textMuted,
+                                                            ^^^^^^
+    lib/screens/addiction/addiction_view.dart:355:43: Error: Member not found: 'accent'.
+                                  ? AppColors.accent
+                                              ^^^^^^
+    lib/screens/addiction/addiction_view.dart:534:40: Error: Member not found: 'accent'.
+                    activeColor: AppColors.accent,
+                                           ^^^^^^
+    lib/screens/addiction/addiction_view.dart:676:72: Error: Member not found: 'accent'.
+                      backgroundColor: _isRelapse ? Colors.red : AppColors.accent,
+                                                                           ^^^^^^
+    lib/screens/finance/finance_view.dart:88:76: Error: Member not found: 'accent'.
+              ? const Center(child: CircularProgressIndicator(color: AppColors.accent))
+                                                                               ^^^^^^
+    lib/screens/finance/finance_view.dart:320:40: Error: The argument type 'Type' can't be assigned to the parameter type 'TextAlign?'.
+     - 'Type' is from 'dart:core'.
+     - 'TextAlign' is from 'dart:ui'.
+                                textAlign: Center,
+                                           ^
+    lib/screens/finance/finance_view.dart:784:46: Error: Member not found: 'accent'.
+                      backgroundColor: AppColors.accent,
+                                                 ^^^^^^
+    lib/screens/learning/learning_view.dart:54:99: Error: Member not found: 'accent'.
+                          focusedBorder: UnderlineInputBorder(borderSide: BorderSide(color: AppColors.accent)),
+                                                                                          ^^^^^^
+    lib/screens/learning/learning_view.dart:67:99: Error: Member not found: 'accent'.
+                          focusedBorder: UnderlineInputBorder(borderSide: BorderSide(color: AppColors.accent)),
+                                                                                          ^^^^^^
+    lib/screens/learning/learning_view.dart:80:99: Error: Member not found: 'accent'.
+                          focusedBorder: UnderlineInputBorder(borderSide: BorderSide(color: AppColors.accent)),
+                                                                                          ^^^^^^
+    lib/screens/learning/learning_view.dart:94:74: Error: Member not found: 'accent'.
+                  style: ElevatedButton.styleFrom(backgroundColor: AppColors.accent),
+                                                                             ^^^^^^
+    lib/screens/learning/learning_view.dart:140:93: Error: Member not found: 'accent'.
+                    focusedBorder: UnderlineInputBorder(borderSide: BorderSide(color: AppColors.accent)),
+                                                                                          ^^^^^^
+    lib/screens/learning/learning_view.dart:151:74: Error: Member not found: 'accent'.
+                  style: ElevatedButton.styleFrom(backgroundColor: AppColors.accent),
+                                                                             ^^^^^^
+    lib/screens/learning/learning_view.dart:189:76: Error: Member not found: 'accent'.
+              ? const Center(child: CircularProgressIndicator(color: AppColors.accent))
+                                                                               ^^^^^^
+    lib/screens/learning/learning_view.dart:197:58: Error: Member not found: 'between'.
+                        mainAxisAlignment: MainAxisAlignment.between,
+                                                             ^^^^^^^
+    lib/screens/learning/learning_view.dart:209:93: Error: Member not found: 'accent'.
+                            icon: const Icon(Icons.add_circle_outline_rounded, color: AppColors.accent, size: 28),
+                                                                                          ^^^^^^
+    lib/screens/learning/learning_view.dart:266:70: Error: Member not found: 'between'.
+                                    mainAxisAlignment: MainAxisAlignment.between,
+                                                                         ^^^^^^^
+    lib/screens/learning/learning_view.dart:284:62: Error: Member not found: 'accent'.
+                                                color: AppColors.accent,
+                                                                 ^^^^^^
+    lib/screens/learning/learning_view.dart:290:106: Error: Member not found: 'accent'.
+                                            const Icon(Icons.local_fire_department_rounded, color: AppColors.accent, size: 18),
+                                                                                          ^^^^^^
+    lib/screens/learning/learning_view.dart:311:93: Error: Member not found: 'accent'.
+                                      valueColor: const AlwaysStoppedAnimation<Color>(AppColors.accent),
+                                                                                          ^^^^^^
+    lib/screens/learning/learning_view.dart:318:70: Error: Member not found: 'between'.
+                                    mainAxisAlignment: MainAxisAlignment.between,
+                                                                         ^^^^^^^
+    lib/screens/learning/learning_view.dart:340:66: Error: Member not found: 'accent'.
+                                          backgroundColor: AppColors.accent.withOpacity(0.1),
+                                                                     ^^^^^^
+    lib/screens/learning/learning_view.dart:341:66: Error: Member not found: 'accent'.
+                                          foregroundColor: AppColors.accent,
+                                                                     ^^^^^^
+    lib/screens/learning/learning_view.dart:345:81: Error: Member not found: 'accent'.
+                                            side: const BorderSide(color: AppColors.accent),
+                                                                                    ^^^^^^
+    lib/screens/social/social_view.dart:52:97: Error: Member not found: 'accent'.
+                        focusedBorder: UnderlineInputBorder(borderSide: BorderSide(color: AppColors.accent)),
+                                                                                          ^^^^^^
+    lib/screens/social/social_view.dart:64:97: Error: Member not found: 'accent'.
+                        focusedBorder: UnderlineInputBorder(borderSide: BorderSide(color: AppColors.accent)),
+                                                                                          ^^^^^^
+    lib/screens/social/social_view.dart:76:74: Error: Member not found: 'accent'.
+                  style: ElevatedButton.styleFrom(backgroundColor: AppColors.accent),
+                                                                             ^^^^^^
+    lib/screens/social/social_view.dart:138:79: Error: Member not found: 'accent'.
+                          leading: Icon(act["icon"] as IconData, color: AppColors.accent),
+                                                                                  ^^^^^^
+    lib/screens/social/social_view.dart:185:76: Error: Member not found: 'accent'.
+              ? const Center(child: CircularProgressIndicator(color: AppColors.accent))
+                                                                               ^^^^^^
+    lib/screens/social/social_view.dart:193:58: Error: Member not found: 'between'.
+                        mainAxisAlignment: MainAxisAlignment.between,
+                                                             ^^^^^^^
+    lib/screens/social/social_view.dart:205:92: Error: Member not found: 'accent'.
+                            icon: const Icon(Icons.person_add_alt_1_outlined, color: AppColors.accent, size: 28),
+                                                                                          ^^^^^^
+    lib/screens/social/social_view.dart:254:53: Error: Member not found: 'accent'.
+                                            : AppColors.accent.withOpacity(0.1),
+                                                        ^^^^^^
+    lib/screens/social/social_view.dart:258:89: Error: Member not found: 'accent'.
+                                          color: isNeglected ? Colors.redAccent : AppColors.accent,
+                                                                                          ^^^^^^
+    lib/screens/widgets/ai_coach_card.dart:69:68: Error: Member not found: 'accent'.
+                      Icon(Icons.chat_bubble_rounded, color: AppColors.accent),
+                                                                       ^^^^^^
+    lib/screens/widgets/ai_coach_card.dart:91:79: Error: Member not found: 'accent'.
+                                    color: isCoach ? AppColors.border : AppColors.accent,
+                                                                                  ^^^^^^
+    lib/screens/widgets/ai_coach_card.dart:134:81: Error: Member not found: 'accent'.
+                              icon: const Icon(Icons.send_rounded, color: AppColors.accent),
+                                                                                    ^^^^^^
+    lib/screens/widgets/ai_coach_card.dart:196:81: Error: Member not found: 'accent'.
+                          leading: const Icon(Icons.alarm_rounded, color: AppColors.accent),
+                                                                                    ^^^^^^
+    lib/screens/widgets/ai_coach_card.dart:233:36: Error: Member not found: 'accent'.
+                      color: AppColors.accent.withOpacity(0.1),
+                                       ^^^^^^
+    lib/screens/widgets/ai_coach_card.dart:236:78: Error: Member not found: 'accent'.
+                    child: const Icon(Icons.psychology_rounded, color: AppColors.accent, size: 24),
+                                                                                 ^^^^^^
+    lib/screens/widgets/ai_coach_card.dart:269:76: Error: Member not found: 'accent'.
+                const Center(child: CircularProgressIndicator(color: AppColors.accent))
+                                                                               ^^^^^^
+    lib/screens/widgets/ai_coach_card.dart:279:74: Error: Member not found: 'accent'.
+                          const Text("• ", style: TextStyle(color: AppColors.accent, fontSize: 14, fontWeight: FontWeight.bold)),
+                                                                             ^^^^^^
+    lib/screens/widgets/ai_coach_card.dart:301:82: Error: Member not found: 'accent'.
+                    icon: const Icon(Icons.chat_outlined, size: 16, color: AppColors.accent),
+                                                                                     ^^^^^^
+    lib/screens/widgets/ai_coach_card.dart:302:82: Error: Member not found: 'accent'.
+                    label: const Text("Ask Coach", style: TextStyle(color: AppColors.accent, fontWeight: FontWeight.bold)),
+                                                                                     ^^^^^^
+    lib/screens/settings/app_lock_view.dart:92:55: Error: Member not found: 'accent'.
+                        color: _isLockEnabled ? AppColors.accent : AppColors.textMuted,
+                                                          ^^^^^^
+    lib/screens/settings/app_lock_view.dart:139:101: Error: Member not found: 'accent'.
+                            focusedBorder: UnderlineInputBorder(borderSide: BorderSide(color: AppColors.accent)),
+                                                                                          ^^^^^^
+    lib/screens/settings/app_lock_view.dart:159:101: Error: Member not found: 'accent'.
+                            focusedBorder: UnderlineInputBorder(borderSide: BorderSide(color: AppColors.accent)),
+                                                                                          ^^^^^^
+    lib/screens/settings/app_lock_view.dart:173:54: Error: Member not found: 'accent'.
+                              backgroundColor: AppColors.accent,
+                                                         ^^^^^^
+    lib/services/analytics_service.dart:88:52: Error: The getter 'qualityScore' isn't defined for the type 'SleepLog'.
+     - 'SleepLog' is from 'package:gods_plan/models/sleep_log.dart' ('lib/models/sleep_log.dart').
+    Try correcting the name to the name of an existing getter, or defining a getter or field named 'qualityScore'.
+          final hasEarlySleep = sleepLogs.any((l) => l.qualityScore >= 8);
+                                                       ^^^^^^^^^^^^
+    lib/services/analytics_service.dart:147:28: Error: The getter 'loggedAt' isn't defined for the type 'Task'.
+     - 'Task' is from 'package:gods_plan/models/task.dart' ('lib/models/task.dart').
+    Try correcting the name to the name of an existing getter, or defining a getter or field named 'loggedAt'.
+              final logged = t.loggedAt;
+                               ^^^^^^^^
+    lib/services/analytics_service.dart:181:25: Error: The getter 'qualityScore' isn't defined for the type 'SleepLog'.
+     - 'SleepLog' is from 'package:gods_plan/models/sleep_log.dart' ('lib/models/sleep_log.dart').
+    Try correcting the name to the name of an existing getter, or defining a getter or field named 'qualityScore'.
+            quality.add(log.qualityScore.toDouble());
+                            ^^^^^^^^^^^^
+    lib/screens/dashboard/badges_view.dart:81:76: Error: Member not found: 'accent'.
+              ? const Center(child: CircularProgressIndicator(color: AppColors.accent))
+                                                                               ^^^^^^
+    lib/screens/dashboard/badges_view.dart:101:58: Error: Member not found: 'accent'.
+                                  backgroundColor: AppColors.accent.withOpacity(0.2),
+                                                             ^^^^^^
+    lib/screens/dashboard/badges_view.dart:105:52: Error: Member not found: 'accent'.
+                                      color: AppColors.accent,
+                                                       ^^^^^^
+    lib/screens/dashboard/badges_view.dart:128:56: Error: Member not found: 'accent'.
+                                          color: AppColors.accent.withOpacity(0.1),
+                                                           ^^^^^^
+    lib/screens/dashboard/badges_view.dart:134:58: Error: Member not found: 'accent'.
+                                            color: AppColors.accent,
+                                                             ^^^^^^
+    lib/screens/dashboard/badges_view.dart:166:87: Error: Member not found: 'accent'.
+                                valueColor: const AlwaysStoppedAnimation<Color>(AppColors.accent),
+                                                                                          ^^^^^^
+    lib/screens/dashboard/badges_view.dart:200:59: Error: Member not found: 'accent'.
+                                color: isUnlocked ? AppColors.accent.withOpacity(0.5) : AppColors.border,
+                                                              ^^^^^^
+    lib/screens/dashboard/badges_view.dart:208:63: Error: Member not found: 'accent'.
+                                    color: isUnlocked ? AppColors.accent.withOpacity(0.1) : Colors.grey.withOpacity(0.05),
+                                                                  ^^^^^^
+    lib/screens/dashboard/badges_view.dart:213:63: Error: Member not found: 'accent'.
+                                    color: isUnlocked ? AppColors.accent : AppColors.textMuted,
+                                                                  ^^^^^^
+    lib/screens/dashboard/analytics_view.dart:189:76: Error: Member not found: 'accent'.
+              ? const Center(child: CircularProgressIndicator(color: AppColors.accent))
+                                                                               ^^^^^^
+    lib/screens/dashboard/analytics_view.dart:202:88: Error: Member not found: 'accent'.
+                      _buildBarChart("Habit Completion Compliance", _compliance, AppColors.accent),
+                                                                                          ^^^^^^
+    lib/services/ai_service.dart:36:33: Error: The getter 'targetProtein' isn't defined for the type 'NutritionProfile'.
+     - 'NutritionProfile' is from 'package:gods_plan/models/nutrition_profile.dart' ('lib/models/nutrition_profile.dart').
+    Try correcting the name to the name of an existing getter, or defining a getter or field named 'targetProtein'.
+            targetProtein = profile.targetProtein.toDouble();
+                                    ^^^^^^^^^^^^^
+    lib/services/ai_service.dart:53:48: Error: The getter 'qualityScore' isn't defined for the type 'SleepLog'.
+     - 'SleepLog' is from 'package:gods_plan/models/sleep_log.dart' ('lib/models/sleep_log.dart').
+    Try correcting the name to the name of an existing getter, or defining a getter or field named 'qualityScore'.
+            final double scoreToday = sleepLogs[0].qualityScore.toDouble();
+                                                   ^^^^^^^^^^^^
+    lib/services/ai_service.dart:54:47: Error: The getter 'qualityScore' isn't defined for the type 'SleepLog'.
+     - 'SleepLog' is from 'package:gods_plan/models/sleep_log.dart' ('lib/models/sleep_log.dart').
+    Try correcting the name to the name of an existing getter, or defining a getter or field named 'qualityScore'.
+            final double scorePrev = sleepLogs[2].qualityScore.toDouble();
+                                                  ^^^^^^^^^^^^
+    lib/services/notification_service.dart:61:79: Error: Member not found: 'accent'.
+                  const Icon(Icons.notifications_active_rounded, color: AppColors.accent),
+                                                                                  ^^^^^^
+    lib/services/notification_service.dart:79:74: Error: Member not found: 'accent'.
+                  style: ElevatedButton.styleFrom(backgroundColor: AppColors.accent),
+                                                                             ^^^^^^
+    Target kernel_snapshot_program failed: Exception
+    Failed to package /Users/runner/work/gods_plan/gods_plan.
+    Command PhaseScriptExecution failed with a nonzero exit code
+    note: Run script build phase 'Run Script' will be run during every build because the option to run the script phase "Based on dependency analysis" is unchecked. (in target 'Runner' from project 'Runner')
+    note: Run script build phase 'Thin Binary' will be run during every build because the option to run the script phase "Based on dependency analysis" is unchecked. (in target 'Runner' from project 'Runner')
+
+Encountered error while building for device.
