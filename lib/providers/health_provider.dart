@@ -4,6 +4,7 @@ import '../models/workout.dart';
 import '../models/sleep_log.dart';
 import '../services/database_service.dart';
 import '../services/sync_service.dart';
+import '../models/sync_item.dart';
 
 class HealthProvider extends ChangeNotifier {
   final DatabaseService _dbService = DatabaseService();

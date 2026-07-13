@@ -317,7 +317,7 @@ class _FinanceViewState extends State<FinanceView> {
                           Text(
                             "Track your tutoring, freelance income, and food or commute expenses.",
                             style: TextStyle(color: AppColors.textMuted, fontSize: 13),
-                            textAlign: Center,
+                            textAlign: TextAlign.center,
                           ),
                         ],
                       ),

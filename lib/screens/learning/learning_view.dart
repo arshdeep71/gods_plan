@@ -194,7 +194,7 @@ class _LearningViewState extends State<LearningView> {
                 children: [
                   // Title Header
                   Row(
-                    mainAxisAlignment: MainAxisAlignment.between,
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       const Text(
                         "Study Tracker",
@@ -263,7 +263,7 @@ class _LearningViewState extends State<LearningView> {
                             children: [
                               // Subject Header
                               Row(
-                                mainAxisAlignment: MainAxisAlignment.between,
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                 children: [
                                   Expanded(
                                     child: Text(
@@ -315,7 +315,7 @@ class _LearningViewState extends State<LearningView> {
 
                               // Total info & Actions
                               Row(
-                                mainAxisAlignment: MainAxisAlignment.between,
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                 children: [
                                   Column(
                                     crossAxisAlignment: CrossAxisAlignment.start,

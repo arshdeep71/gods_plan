@@ -10,6 +10,7 @@ class AppColors {
 
   // Brand Accents
   static const Color primary = Color(0xFF6366F1);       // Electric Indigo
+  static const Color accent = primary;                  // Fallback for accent
   static const Color primaryLight = Color(0xFF818CF8);  // Soft Violet
   static const Color secondary = Color(0xFFF59E0B);     // Amber Gold
   

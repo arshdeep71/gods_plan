@@ -190,7 +190,7 @@ class _SocialViewState extends State<SocialView> {
                 children: [
                   // Social Status Header
                   Row(
-                    mainAxisAlignment: MainAxisAlignment.between,
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       const Text(
                         "Friend Contacts Log",

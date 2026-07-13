@@ -63,7 +63,7 @@ class SocialProvider with ChangeNotifier {
       recordId: contact.id,
       payload: contact.toJson(),
     );
-    await _dbService.queueSyncItem(syncItem);
+    await _dbService.queueMutation(syncItem);
 
     // Sync remote
     _syncService.sync(userId).then((_) => fetchContacts(userId));
@@ -97,7 +97,7 @@ class SocialProvider with ChangeNotifier {
       recordId: updated.id,
       payload: updated.toJson(),
     );
-    await _dbService.queueSyncItem(syncItem);
+    await _dbService.queueMutation(syncItem);
 
     // Sync remote
     _syncService.sync(userId).then((_) => fetchContacts(userId));

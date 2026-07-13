@@ -85,7 +85,7 @@ class AnalyticsService {
     try {
       // 1. Check Sleep
       final sleepLogs = await _dbService.getLocalSleepLogs(userId);
-      final hasEarlySleep = sleepLogs.any((l) => l.qualityScore >= 8);
+      final hasEarlySleep = sleepLogs.any((l) => l.calculatedQuality >= 8);
       if (hasEarlySleep) {
         badges[0]['unlocked'] = true;
       }
@@ -144,7 +144,7 @@ class AnalyticsService {
 
         final dailyTasks = tasks.where((t) {
           // If task has logged timestamp matching date
-          final logged = t.loggedAt;
+          final logged = t.createdAt;
           return logged.year == date.year && logged.month == date.month && logged.day == date.day;
         }).toList();
 
@@ -178,7 +178,7 @@ class AnalyticsService {
       sleepLogs.sort((a, b) => a.loggedAt.compareTo(b.loggedAt));
       final recent = sleepLogs.take(7);
       for (final log in recent) {
-        quality.add(log.qualityScore.toDouble());
+        quality.add(log.calculatedQuality.toDouble());
       }
     } catch (_) {}
 

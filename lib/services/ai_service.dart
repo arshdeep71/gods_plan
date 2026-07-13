@@ -33,7 +33,7 @@ class AiService {
           rawProfile is String ? jsonDecode(rawProfile) : rawProfile,
         );
         final profile = NutritionProfile.fromJson(jsonMap);
-        targetProtein = profile.targetProtein.toDouble();
+        targetProtein = profile.targetProteinGrams.toDouble();
       }
 
       if (yesterdayProtein < (0.8 * targetProtein)) {
@@ -50,8 +50,8 @@ class AiService {
       sleepLogs.sort((a, b) => b.loggedAt.compareTo(a.loggedAt));
 
       if (sleepLogs.length >= 3) {
-        final double scoreToday = sleepLogs[0].qualityScore.toDouble();
-        final double scorePrev = sleepLogs[2].qualityScore.toDouble();
+        final double scoreToday = sleepLogs[0].calculatedQuality.toDouble();
+        final double scorePrev = sleepLogs[2].calculatedQuality.toDouble();
         
         if (scorePrev - scoreToday >= 2.0) {
           tips.add(

@@ -11,6 +11,7 @@ import '../models/addiction_log.dart';
 import '../models/finance_transaction.dart';
 import '../models/social.dart';
 import '../models/learning.dart';
+import 'package:sqflite/sqflite.dart';
 
 class SyncService {
   final DatabaseService _dbService = DatabaseService();

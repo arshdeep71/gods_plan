@@ -6,6 +6,7 @@ import '../models/food_log.dart';
 import '../models/water_log.dart';
 import '../services/database_service.dart';
 import '../services/sync_service.dart';
+import '../models/sync_item.dart';
 
 class NutritionProvider extends ChangeNotifier {
   final DatabaseService _dbService = DatabaseService();

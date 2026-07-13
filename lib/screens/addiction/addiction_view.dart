@@ -179,7 +179,7 @@ class _AddictionViewState extends State<AddictionView> {
                           Text(
                             "Log urges to map triggers and build defense strategies.",
                             style: TextStyle(color: AppColors.textMuted, fontSize: 13),
-                            textAlign: Center,
+                            textAlign: TextAlign.center,
                           ),
                         ],
                       ),

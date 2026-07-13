@@ -67,7 +67,7 @@ class LearningProvider with ChangeNotifier {
       recordId: subject.id,
       payload: subject.toJson(),
     );
-    await _dbService.queueSyncItem(syncItem);
+    await _dbService.queueMutation(syncItem);
 
     // Trigger sync
     _syncService.sync(userId).then((_) => fetchLearningData(userId));
@@ -97,7 +97,7 @@ class LearningProvider with ChangeNotifier {
       recordId: log.id,
       payload: log.toJson(),
     );
-    await _dbService.queueSyncItem(syncItem);
+    await _dbService.queueMutation(syncItem);
 
     // Trigger sync
     _syncService.sync(userId).then((_) => fetchLearningData(userId));
