@@ -7,10 +7,10 @@ if os.path.exists(pbxproj_path):
     with open(pbxproj_path, "r", encoding="utf-8") as f:
         content = f.read()
     
-    # Disable code signing in Runner project settings
+    # Disable code signing and set a dummy Development Team in Runner project settings
     content = content.replace(
         "buildSettings = {",
-        'buildSettings = {\n\t\t\t\tCODE_SIGNING_ALLOWED = NO;\n\t\t\t\tCODE_SIGNING_REQUIRED = NO;\n\t\t\t\tCODE_SIGN_IDENTITY = "";\n\t\t\t\tDEVELOPMENT_TEAM = "";'
+        'buildSettings = {\n\t\t\t\tCODE_SIGNING_ALLOWED = NO;\n\t\t\t\tCODE_SIGNING_REQUIRED = NO;\n\t\t\t\tCODE_SIGN_IDENTITY = "";\n\t\t\t\tDEVELOPMENT_TEAM = "AB12345XYZ";'
     )
     with open(pbxproj_path, "w", encoding="utf-8") as f:
         f.write(content)
@@ -30,14 +30,14 @@ if os.path.exists(podfile_path):
         "    target.build_configurations.each do |config|\n"
         "      config.build_settings['CODE_SIGNING_ALLOWED'] = 'NO'\n"
         "      config.build_settings['CODE_SIGNING_REQUIRED'] = 'NO'\n"
-        "      config.build_settings['DEVELOPMENT_TEAM'] = ''\n"
+        "      config.build_settings['DEVELOPMENT_TEAM'] = 'AB12345XYZ'\n"
         "    end"
     )
     if target_str in content:
         content = content.replace(target_str, replacement_str)
     else:
         # Fallback if the structure is different
-        content += "\n\npost_install do |installer|\n  installer.pods_project.targets.each do |target|\n    target.build_configurations.each do |config|\n      config.build_settings['CODE_SIGNING_ALLOWED'] = 'NO'\n      config.build_settings['CODE_SIGNING_REQUIRED'] = 'NO'\n      config.build_settings['DEVELOPMENT_TEAM'] = ''\n    end\n  end\nend\n"
+        content += "\n\npost_install do |installer|\n  installer.pods_project.targets.each do |target|\n    target.build_configurations.each do |config|\n      config.build_settings['CODE_SIGNING_ALLOWED'] = 'NO'\n      config.build_settings['CODE_SIGNING_REQUIRED'] = 'NO'\n      config.build_settings['DEVELOPMENT_TEAM'] = 'AB12345XYZ'\n    end\n  end\nend\n"
         
     with open(podfile_path, "w", encoding="utf-8") as f:
         f.write(content)
