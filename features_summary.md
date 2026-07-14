@@ -1,76 +1,138 @@
-# God's Plan - Personal Life Operating System
+# God's Plan - Personal Life Operating System (Detailed Feature Specification)
 
-Welcome to **God's Plan**, a premium personal tracker and life operating system. The app is built as an offline-first mobile and web application using **Flutter**, powered by a local database (SQLite + Hive) and synced in the background to a secure cloud database (**Supabase**).
-
-Below is the complete list of features and modules currently implemented in your application:
+Welcome to the full feature specification for **God's Plan**. This document covers every single user-facing feature, mathematical calculation, XP reward metric, security control, and offline database synchronization rule implemented in the system.
 
 ---
 
-## 1. Gamification & Progression System
-*   **XP (Experience Points) Engine**: Earn XP automatically by logging workouts, hitting sleep targets, drinking water, completing tasks, saving money, and studying.
-*   **Leveling System**: Level up (`LVL 1`, `LVL 2`, etc.) based on your accumulated XP. 
-*   **Badges Showcase**: An achievements panel displaying earned badges like:
-    *   *Early Bird* (Sleep quality > 85%)
-    *   *Hydration Hero* (Drank target water glasses)
-    *   *Saver Master* (Achieved daily savings targets)
-    *   *Clean Slate* (Addiction-free streaks)
+## 1. Core Architecture & Database Engine
+*   **Offline-First Strategy**: The application acts as a local-first client. All reads and writes happen instantly on the device, ensuring the UI is highly responsive and works offline without internet dependencies.
+*   **SQLite Storage Layer (`sqflite`)**: Stores relational user logs:
+    *   Workouts, Sleep logs, Food logs, Water intake logs, Addiction logs, Finance transactions, Study logs, Tasks, and Social contacts.
+*   **Hive Key-Value Cache**: Manages settings, flags, and persistent configuration:
+    *   `settingsBox`: Onboarding state (`is_onboarded`), goal period (`goal_start_date`, `goal_end_date`), theme preferences, passcode locks (`is_passcode_enabled`, `app_passcode`), and badge unlocks.
+*   **Conflict-Resistant Synchronization (`SyncService`)**:
+    *   Pipes local changes to a database mutation queue.
+    *   Once a connection is established, changes are sent to **Supabase** via `upsert` queries with `onConflict` clauses to avoid duplicate constraints.
+    *   Performs timestamp-based resolution to merge data updated across multiple devices.
 
 ---
 
-## 2. Onboarding & Goal Period
-*   **Goal Cycle Settings**: Set a dynamic start and end date for your current self-improvement journey.
-*   **Journey Progress**: Visual timeline progress bar on the dashboard showing the elapsed vs. remaining days (e.g., *"Day 15 of 90"*).
+## 2. Onboarding & Journey Management
+*   **Goal Cycle Settings**:
+    *   Allows you to establish a timeline (Start Date & End Date) for your self-improvement cycle.
+    *   Restricts start and end dates dynamically: Start Date must be within a year, and End Date must be after the Start Date up to a maximum of 5 years.
+*   **Journey Progress Gauge**:
+    *   Displays progress dynamically: `(Days Elapsed / Total Days) * 100`.
+    *   Calculates and showcases **Days Elapsed** and **Days Remaining** on the dashboard.
+    *   Helps maintain user focus with a visual linear progress bar.
 
 ---
 
-## 3. Core Tracking Modules
+## 3. Gamification, Leveling & XP Engine
+The gamification engine calculates actions and updates levels:
+*   **Level Calculation Formula**: `Level = (Total XP / 1000) + 1`
+*   **XP Earning Events**:
+    *   **Tasks**: Complete Easy (+10 XP), Medium (+20 XP), Hard (+50 XP).
+    *   **Workouts**: +1 XP per active minute, +5 XP per 100 calories burned.
+    *   **Sleep**: +50 XP for sleeping > 7 hours with sleep score > 7.5.
+    *   **Water**: +2 XP per glass logged (+20 XP bonus on hitting daily target of 8 glasses).
+    *   **Nutrition**: +10 XP for logging a meal.
+    *   **Addiction**: +10 XP for logging urges (successfully resisting triggers).
+    *   **Finance**: +10 XP for logging transactions, +30 XP bonus if daily savings target is achieved.
+    *   **Learning**: +2 XP per study minute logged.
+    *   **Social**: +30 XP for reaching out to a neglected contact.
 
-### 📋 Tasks Checklist
-*   **Multi-Priority Tasks**: Create tasks categorized by **Priority** (Low, Medium, High) and **Difficulty** (Easy, Medium, Hard).
-*   **Difficulty Multipliers**: Harder tasks reward you with more XP.
-*   **Recurring Tasks**: Toggle tasks to reset daily for establishing routines.
-*   **Streak Tracking**: Real-time streak tracking for recurring tasks to maintain momentum.
+### Badges & Achievements
+*   **Early Bird**: Unlocked by logging a sleep quality index > 8.5/10.
+*   **Hydration Hero**: Unlocked by drinking 8 or more glasses of water in a single day.
+*   **Saver Master**: Unlocked by hitting your daily savings goal.
+*   **Clean Slate**: Unlocked by maintaining a 7-day clean streak in the Sobriety Tracker.
 
-### 🏃 Exercise Tracker
-*   **Activity Logging**: Log different activity types (Running, Strength training, Yoga, Sports, Walking).
-*   **Telemetry**: Track duration (minutes), weight (kg), and calories burned.
-*   **Progress Indicators**: Circular progress widget tracking active minutes against the daily 30-minute target.
+---
+
+## 4. Modules Specification
+
+### 📋 Tasks Checklist Module
+*   **Task Creation**:
+    *   Fields: Title, Priority dropdown (Low, Medium, High), Difficulty dropdown (Easy, Medium, Hard), and Recurring toggle.
+*   **Priority Categorization**:
+    *   Filter tasks in tabs: "All", "High", "Medium", "Low".
+*   **Recurring Routines**:
+    *   If marked recurring, tasks automatically reset daily at midnight to help you build consistency.
+*   **Task Streaks**:
+    *   Every consecutive day you complete a recurring task increments its streak.
+*   **Multipliers & XP**: Completing higher difficulty tasks grants higher XP multipliers.
+*   **Swipe to Delete**: Swipe a task left to instantly remove it from local cache and sync queue.
+
+### 🏃 Exercise & Workout Tracker
+*   **Workout Log Form**:
+    *   Fields: Activity type (Running, Strength, Yoga, Sports, Walking), Duration (minutes), Weight (kg), and Calories Burned.
+*   **Target Active Time Indicator**:
+    *   Circular ring visualizer showing actual logged minutes today against the default 30-minute target.
+*   **History Logs**:
+    *   Displays list of recent exercises with calculated calories-per-minute statistics.
 
 ### 🛌 Sleep Tracker
-*   **Sleep Quality Index (SQI)**: Calculate sleep quality based on sleep duration and sleep hygiene factors.
-*   **Hygiene Checklists**: Log factors that negatively affect sleep:
-    *   Caffeine consumption after 3:00 PM
-    *   Screen time/phone usage in bed
-    *   Late dinner/eating close to bedtime
-*   **Analytics**: View sleep duration and calculated sleep score from the previous night.
+*   **Sleep Log Form**:
+    *   Fields: Sleep Date/Time, Wake Date/Time, reported subjective sleep quality (1-10 slider), and three hygiene checklist toggles.
+*   **Sleep Quality Index (SQI) Formula**:
+    *   Base Score: `(Hours Slept / 8.0) * 10` (capped at 10.0).
+    *   Hygiene Penalties:
+        *   Caffeine consumed after 3:00 PM: `-1.5 points`
+        *   Used phone/screen in bed: `-2.0 points`
+        *   Ate late dinner: `-1.0 points`
+    *   Final Calculated SQI: `Base Score - Penalties` (bounded between 0.0 and 10.0).
+*   **Logs**: Shows sleep duration, wake timing, and color-coded score circles (Green = Great, Amber = Medium, Red = Poor).
 
 ### 🍏 Nutrition & Water
-*   **Calorie Counter**: Log food items, calories, and macronutrient distributions (Protein, Carbs, Fats).
-*   **Macronutrient Progress**: Visual bar gauges showing your protein, carb, and fat intake compared to targets.
-*   **Hydration Tracker**: Easy click-to-log water glasses tracking target completion.
+*   **Food Logging**:
+    *   Fields: Food Name, Calories (kcal), Protein (g), Carbs (g), and Fats (g).
+*   **Calorie Target Visualizer**:
+    *   Linear progress tracker showing total calories logged today vs. daily calorie budget.
+*   **Macronutrient Bar Charts**:
+    *   Individual bar meters showing protein, carbohydrate, and fat intakes compared against nutritional goals.
+*   **Water Tracker Widget**:
+    *   Tap `+` or `-` buttons to increment water intake by the glass.
+    *   Displays target count (e.g., target 8 glasses) and tracks daily progress.
 
 ### 🔥 Sobriety & Addiction Tracker
-*   **Urge Logging**: Log triggers, feelings, urge levels (1-10), and helpful coping strategies.
-*   **Clean Counter**: Tracks your current and longest streak of sober days.
-*   **Relapse Analysis**: Flag entries as relapses to reset streaks and analyze triggers.
+*   **Urge/Relapse Log Form**:
+    *   Fields: Current feeling, urge level (1-10 scale), trigger category tag (Stress, Boredom, Social, Routine, etc.), helper strategy used to bypass urge, notes, and a "Relapse" checkbox.
+*   **Dynamic Streak Counters**:
+    *   **Current Streak**: Computes days elapsed since the most recent relapse log (or since your goal start date if no relapse is logged).
+    *   **Longest Streak**: Evaluates all historical relapse logs, calculates the gaps between them, and persists the maximum clean streak.
+*   **Urge Index Chart**:
+    *   Visual representation of recent urges to help you identify repeating trigger tags and patterns.
 
 ### 💰 Money & Finance
-*   **Transaction Logging**: Quick income and expense logger with custom category tags and notes.
-*   **Daily Savings Target**: Set a daily savings goal.
-*   **Savings Progress**: Real-time daily savings tracker showing if you are in surplus or deficit.
+*   **Transaction Logging**:
+    *   Fields: Type toggle (Income or Expense), Category dropdown (Salary, Food, Rent, Entertainment, Bills, Investment, etc.), Amount, and notes.
+*   **Daily Savings Target**:
+    *   Custom daily savings target input in options.
+*   **Daily Surplus/Deficit Overview**:
+    *   Displays `Daily Income - Daily Expenses` vs. your Savings Target.
+    *   Alerts you with color indicators (Green for savings target met, Red for overspending).
 
 ### 📚 Learning & Skills
-*   **Subject Creation**: Add subjects you are studying with custom daily study minutes and total target hours.
-*   **Study Session Timer**: Log minutes studied for each subject.
-*   **Progress Gauges**: Tracks actual study time against daily and lifetime goals.
+*   **Subject Creation**:
+    *   Fields: Subject Name, daily study target (minutes), and lifetime study target (hours).
+*   **Study Logs**:
+    *   Select a subject and log the minutes studied.
+*   **Progress Indicators**:
+    *   Tracks daily completion percentages and counts total hours logged toward mastering a skill (e.g., *"10 hours logged of 100-hour goal"*).
 
 ### 🤝 Social Connections
-*   **Contact Management**: Add friends, family members, or professional contacts.
-*   **Last Contacted Tracker**: Logs the exact timestamp when you last reached out.
-*   **Neglected Friend Alert**: Flags contacts you haven't reached out to in a while to help you maintain relationships.
+*   **Contacts Logging**:
+    *   Fields: Contact Name, Last Contacted Date/Time, and notes.
+*   **Relationship Health Alert**:
+    *   The app calculates: `Days Since Last Contact = Today - Last Contacted Date`.
+    *   If the contact has not been contacted for more than **7 days**, they are highlighted in **Red** as a "Neglected Connection" on the UI to remind you to check in.
 
 ---
 
-## 4. Settings & Security
-*   **Passcode App Lock**: Turn on an optional security passcode lock screen to protect your logs from prying eyes.
-*   **Data Control**: Clear local caches and reset onboarding settings directly from the settings menu.
+## 5. App Security & Settings
+*   **Passcode Lock Screen**:
+    *   Secures the app with a 4-digit passcode.
+    *   If enabled in settings, the lock screen displays immediately on app startup, blocking access to all modules until the correct code is entered.
+*   **Data Management**:
+    *   **Clear Local Cache**: Wipes all local SQLite tables and Hive boxes, allowing you to start fresh.
