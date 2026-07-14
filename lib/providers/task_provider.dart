@@ -11,10 +11,14 @@ class TaskProvider extends ChangeNotifier {
   final _uuid = const Uuid();
 
   List<Task> _tasks = [];
+  List<Map<String, dynamic>> _completions = [];
+  List<Map<String, dynamic>> _exceptions = [];
   bool _isLoading = false;
   bool _isSyncing = false;
 
   List<Task> get tasks => _tasks;
+  List<Map<String, dynamic>> get completions => _completions;
+  List<Map<String, dynamic>> get exceptions => _exceptions;
   bool get isLoading => _isLoading;
   bool get isSyncing => _isSyncing;
 
@@ -27,14 +31,22 @@ class TaskProvider extends ChangeNotifier {
   // Get active tasks for a specific date
   List<Task> getActiveTasksForDate(DateTime date) {
     final formattedDate = "${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}";
-    return _tasks.where((t) {
+    
+    // Sort tasks by order_index
+    final sortedTasks = List<Task>.from(_tasks)..sort((a, b) => a.orderIndex.compareTo(b.orderIndex));
+    
+    return sortedTasks.where((t) {
       if (t.isPaused) return false;
+      
+      // Check if deleted for this date (exception)
+      final isException = _exceptions.any((e) => e['task_id'] == t.id && e['exception_date'] == formattedDate && e['is_deleted'] == 1);
+      if (isException) return false;
+
       final isScheduled = t.isRecurring || (t.scheduledDate == formattedDate);
       if (!isScheduled) return false;
       
-      final isComp = t.isRecurring
-          ? t.lastCompletedDate == formattedDate
-          : t.isCompleted;
+      // Check if completed
+      final isComp = _completions.any((c) => c['task_id'] == t.id && c['completed_date'] == formattedDate);
       return !isComp;
     }).toList();
   }
@@ -42,14 +54,19 @@ class TaskProvider extends ChangeNotifier {
   // Get completed tasks for a specific date
   List<Task> getCompletedTasksForDate(DateTime date) {
     final formattedDate = "${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}";
-    return _tasks.where((t) {
+    
+    final sortedTasks = List<Task>.from(_tasks)..sort((a, b) => a.orderIndex.compareTo(b.orderIndex));
+
+    return sortedTasks.where((t) {
       if (t.isPaused) return false;
+      
+      final isException = _exceptions.any((e) => e['task_id'] == t.id && e['exception_date'] == formattedDate && e['is_deleted'] == 1);
+      if (isException) return false;
+
       final isScheduled = t.isRecurring || (t.scheduledDate == formattedDate);
       if (!isScheduled) return false;
 
-      final isComp = t.isRecurring
-          ? t.lastCompletedDate == formattedDate
-          : t.isCompleted;
+      final isComp = _completions.any((c) => c['task_id'] == t.id && c['completed_date'] == formattedDate);
       return isComp;
     }).toList();
   }
@@ -62,6 +79,8 @@ class TaskProvider extends ChangeNotifier {
     try {
       // 1. Fetch from local cache instantly
       _tasks = await _dbService.getLocalTasks(userId);
+      _completions = await _dbService.getLocalTaskCompletions(userId);
+      _exceptions = await _dbService.getLocalTaskExceptions(userId);
       _isLoading = false;
       notifyListeners();
 
@@ -73,6 +92,8 @@ class TaskProvider extends ChangeNotifier {
       
       // 3. Reload local cache in case background sync pulled updates
       _tasks = await _dbService.getLocalTasks(userId);
+      _completions = await _dbService.getLocalTaskCompletions(userId);
+      _exceptions = await _dbService.getLocalTaskExceptions(userId);
     } catch (e) {
       print("Error loading tasks: $e");
     } finally {
@@ -82,23 +103,29 @@ class TaskProvider extends ChangeNotifier {
     }
   }
 
-  // Create a new task
   Future<void> addTask({
     required String userId,
     required String title,
     required bool isRecurring,
+    String repeatType = 'daily',
+    String? reminderTime,
     String? dueTime,
     String? scheduledDate,
   }) async {
     final now = DateTime.now().toUtc();
+    
+    // Assign orderIndex at the end
+    int nextOrderIndex = _tasks.isNotEmpty ? _tasks.map((t) => t.orderIndex).reduce((a, b) => a > b ? a : b) + 1 : 0;
+    
     final newTask = Task(
       id: _uuid.v4(),
       userId: userId,
       title: title,
-      difficulty: 'medium',
-      priority: 'medium',
       isCompleted: false,
       isRecurring: isRecurring,
+      repeatType: repeatType,
+      reminderTime: reminderTime,
+      orderIndex: nextOrderIndex,
       streakCount: 0,
       createdAt: now,
       updatedAt: now,
@@ -134,62 +161,51 @@ class TaskProvider extends ChangeNotifier {
     final targetDate = date ?? DateTime.now();
     final formattedDate = "${targetDate.year}-${targetDate.month.toString().padLeft(2, '0')}-${targetDate.day.toString().padLeft(2, '0')}";
     
-    final bool isCurrentlyCompleted = task.isRecurring
-        ? task.lastCompletedDate == formattedDate
-        : task.isCompleted;
+    final bool isCurrentlyCompleted = _completions.any((c) => c['task_id'] == task.id && c['completed_date'] == formattedDate);
 
-    Task updatedTask;
-    if (task.isRecurring) {
-      if (isCurrentlyCompleted) {
-        updatedTask = task.copyWith(
-          lastCompletedDate: null,
-          streakCount: task.streakCount > 0 ? task.streakCount - 1 : 0,
-          updatedAt: DateTime.now().toUtc(),
-        );
-      } else {
-        updatedTask = task.copyWith(
-          lastCompletedDate: formattedDate,
-          streakCount: task.streakCount + 1,
-          updatedAt: DateTime.now().toUtc(),
-        );
-      }
-    } else {
-      if (isCurrentlyCompleted) {
-        updatedTask = task.copyWith(
-          isCompleted: false,
-          lastCompletedDate: null,
-          updatedAt: DateTime.now().toUtc(),
-        );
-      } else {
-        updatedTask = task.copyWith(
-          isCompleted: true,
-          lastCompletedDate: formattedDate,
-          updatedAt: DateTime.now().toUtc(),
-        );
-      }
-    }
-
-    // Find and replace in memory list
-    final index = _tasks.indexWhere((t) => t.id == task.id);
-    if (index != -1) {
-      _tasks[index] = updatedTask;
+    if (isCurrentlyCompleted) {
+      // Remove completion
+      _completions.removeWhere((c) => c['task_id'] == task.id && c['completed_date'] == formattedDate);
       notifyListeners();
+      
+      await _dbService.deleteLocalTaskCompletion(task.id, formattedDate);
+      
+      // Queue delete mutation
+      final syncItem = SyncItem(
+        actionType: 'DELETE',
+        tableName: 'task_completions',
+        recordId: '${task.id}_$formattedDate', // Using composite key conceptually
+      );
+      await _dbService.queueMutation(syncItem);
+    } else {
+      // Add completion
+      final completionId = _uuid.v4();
+      final completion = {
+        'id': completionId,
+        'task_id': task.id,
+        'user_id': task.userId,
+        'completed_date': formattedDate,
+        'created_at': DateTime.now().toUtc().toIso8601String(),
+      };
+      
+      _completions.add(completion);
+      notifyListeners();
+      
+      await _dbService.upsertLocalTaskCompletion(completion);
+      
+      // Queue insert mutation
+      final syncItem = SyncItem(
+        actionType: 'INSERT',
+        tableName: 'task_completions',
+        recordId: completionId,
+        payload: completion,
+      );
+      await _dbService.queueMutation(syncItem);
     }
-
-    await _dbService.upsertLocalTask(updatedTask);
-
-    // Queue mutation for sync
-    final syncItem = SyncItem(
-      actionType: 'UPDATE',
-      tableName: 'tasks',
-      recordId: updatedTask.id,
-      payload: updatedTask.toJson(),
-    );
-    await _dbService.queueMutation(syncItem);
 
     // Trigger background sync flush
     _syncService.sync(task.userId).then((_) async {
-      _tasks = await _dbService.getLocalTasks(task.userId);
+      _completions = await _dbService.getLocalTaskCompletions(task.userId);
       notifyListeners();
     });
   }
@@ -199,6 +215,8 @@ class TaskProvider extends ChangeNotifier {
     required String taskId,
     required String title,
     required bool isRecurring,
+    String? repeatType,
+    String? reminderTime,
     String? dueTime,
     String? scheduledDate,
     bool? isPaused,
@@ -210,6 +228,8 @@ class TaskProvider extends ChangeNotifier {
     final updatedTask = task.copyWith(
       title: title,
       isRecurring: isRecurring,
+      repeatType: repeatType ?? task.repeatType,
+      reminderTime: reminderTime ?? task.reminderTime,
       dueTime: dueTime,
       scheduledDate: scheduledDate,
       isPaused: isPaused ?? task.isPaused,
@@ -285,5 +305,70 @@ class TaskProvider extends ChangeNotifier {
       _tasks = await _dbService.getLocalTasks(task.userId);
       notifyListeners();
     });
+  }
+  // Delete a specific occurrence
+  Future<void> deleteTaskOccurrence(Task task, DateTime date) async {
+    final formattedDate = "${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}";
+    
+    final exceptionId = _uuid.v4();
+    final exception = {
+      'id': exceptionId,
+      'task_id': task.id,
+      'user_id': task.userId,
+      'exception_date': formattedDate,
+      'is_deleted': 1,
+      'created_at': DateTime.now().toUtc().toIso8601String(),
+    };
+    
+    _exceptions.add(exception);
+    notifyListeners();
+    
+    await _dbService.upsertLocalTaskException(exception);
+    
+    final syncItem = SyncItem(
+      actionType: 'INSERT',
+      tableName: 'task_exceptions',
+      recordId: exceptionId,
+      payload: exception,
+    );
+    await _dbService.queueMutation(syncItem);
+    _syncService.sync(task.userId);
+  }
+
+  // Reorder tasks
+  Future<void> reorderTasks(int oldIndex, int newIndex, DateTime selectedDate) async {
+    final active = getActiveTasksForDate(selectedDate);
+    if (oldIndex < newIndex) {
+      newIndex -= 1;
+    }
+    
+    final task = active.removeAt(oldIndex);
+    active.insert(newIndex, task);
+    
+    // Update order indices for all tasks in active list
+    for (int i = 0; i < active.length; i++) {
+      final t = active[i];
+      final updatedTask = t.copyWith(orderIndex: i, updatedAt: DateTime.now().toUtc());
+      
+      final index = _tasks.indexWhere((item) => item.id == t.id);
+      if (index != -1) {
+        _tasks[index] = updatedTask;
+      }
+      
+      await _dbService.upsertLocalTask(updatedTask);
+      
+      final syncItem = SyncItem(
+        actionType: 'UPDATE',
+        tableName: 'tasks',
+        recordId: updatedTask.id,
+        payload: updatedTask.toJson(),
+      );
+      await _dbService.queueMutation(syncItem);
+    }
+    
+    notifyListeners();
+    if (_tasks.isNotEmpty) {
+      _syncService.sync(_tasks.first.userId);
+    }
   }
 }

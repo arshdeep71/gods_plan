@@ -2,10 +2,11 @@ class Task {
   final String id;
   final String userId;
   final String title;
-  final String difficulty; // 'easy', 'medium', 'hard'
-  final String priority;   // 'low', 'medium', 'high'
   final bool isCompleted;
   final bool isRecurring;
+  final String repeatType; // 'never', 'daily', 'weekly', 'monthly'
+  final String? reminderTime;
+  final int orderIndex;
   final int streakCount;
   final DateTime createdAt;
   final DateTime updatedAt;
@@ -18,10 +19,11 @@ class Task {
     required this.id,
     required this.userId,
     required this.title,
-    required this.difficulty,
-    required this.priority,
     required this.isCompleted,
     required this.isRecurring,
+    this.repeatType = 'daily',
+    this.reminderTime,
+    this.orderIndex = 0,
     this.streakCount = 0,
     required this.createdAt,
     required this.updatedAt,
@@ -37,10 +39,11 @@ class Task {
       'id': id,
       'user_id': userId,
       'title': title,
-      'difficulty': difficulty,
-      'priority': priority,
       'is_completed': isCompleted,
       'is_recurring': isRecurring,
+      'repeat_type': repeatType,
+      'reminder_time': reminderTime,
+      'order_index': orderIndex,
       'streak_count': streakCount,
       'created_at': createdAt.toUtc().toIso8601String(),
       'updated_at': updatedAt.toUtc().toIso8601String(),
@@ -57,10 +60,11 @@ class Task {
       'id': id,
       'user_id': userId,
       'title': title,
-      'difficulty': difficulty,
-      'priority': priority,
       'is_completed': isCompleted ? 1 : 0,
       'is_recurring': isRecurring ? 1 : 0,
+      'repeat_type': repeatType,
+      'reminder_time': reminderTime,
+      'order_index': orderIndex,
       'streak_count': streakCount,
       'created_at': createdAt.toUtc().toIso8601String(),
       'updated_at': updatedAt.toUtc().toIso8601String(),
@@ -77,10 +81,11 @@ class Task {
       id: json['id'] as String,
       userId: json['user_id'] as String,
       title: json['title'] as String,
-      difficulty: json['difficulty'] as String? ?? 'medium',
-      priority: json['priority'] as String? ?? 'medium',
       isCompleted: json['is_completed'] as bool? ?? false,
       isRecurring: json['is_recurring'] as bool? ?? false,
+      repeatType: json['repeat_type'] as String? ?? 'daily',
+      reminderTime: json['reminder_time'] as String?,
+      orderIndex: json['order_index'] as int? ?? 0,
       streakCount: json['streak_count'] as int? ?? 0,
       createdAt: DateTime.parse(json['created_at'] as String),
       updatedAt: DateTime.parse(json['updated_at'] as String),
@@ -97,10 +102,11 @@ class Task {
       id: map['id'] as String,
       userId: map['user_id'] as String,
       title: map['title'] as String,
-      difficulty: map['difficulty'] as String? ?? 'medium',
-      priority: map['priority'] as String? ?? 'medium',
       isCompleted: (map['is_completed'] as int? ?? 0) == 1,
       isRecurring: (map['is_recurring'] as int? ?? 0) == 1,
+      repeatType: map['repeat_type'] as String? ?? 'daily',
+      reminderTime: map['reminder_time'] as String?,
+      orderIndex: map['order_index'] as int? ?? 0,
       streakCount: map['streak_count'] as int? ?? 0,
       createdAt: DateTime.parse(map['created_at'] as String),
       updatedAt: DateTime.parse(map['updated_at'] as String),
@@ -114,10 +120,11 @@ class Task {
   // CopyWith helper method
   Task copyWith({
     String? title,
-    String? difficulty,
-    String? priority,
     bool? isCompleted,
     bool? isRecurring,
+    String? repeatType,
+    String? reminderTime,
+    int? orderIndex,
     int? streakCount,
     DateTime? updatedAt,
     bool? isPaused,
@@ -129,10 +136,11 @@ class Task {
       id: id,
       userId: userId,
       title: title ?? this.title,
-      difficulty: difficulty ?? this.difficulty,
-      priority: priority ?? this.priority,
       isCompleted: isCompleted ?? this.isCompleted,
       isRecurring: isRecurring ?? this.isRecurring,
+      repeatType: repeatType ?? this.repeatType,
+      reminderTime: reminderTime ?? this.reminderTime,
+      orderIndex: orderIndex ?? this.orderIndex,
       streakCount: streakCount ?? this.streakCount,
       createdAt: createdAt,
       updatedAt: updatedAt ?? this.updatedAt,

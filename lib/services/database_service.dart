@@ -71,10 +71,11 @@ class DatabaseService {
             id TEXT PRIMARY KEY,
             user_id TEXT NOT NULL,
             title TEXT NOT NULL,
-            difficulty TEXT NOT NULL,
-            priority TEXT NOT NULL,
             is_completed INTEGER NOT NULL,
             is_recurring INTEGER NOT NULL,
+            repeat_type TEXT NOT NULL,
+            reminder_time TEXT,
+            order_index INTEGER DEFAULT 0,
             streak_count INTEGER DEFAULT 0,
             created_at TEXT NOT NULL,
             updated_at TEXT NOT NULL,
@@ -82,6 +83,29 @@ class DatabaseService {
             due_time TEXT,
             scheduled_date TEXT,
             last_completed_date TEXT
+          )
+        ''');
+
+        // Create local task completions table
+        await db.execute('''
+          CREATE TABLE local_task_completions (
+            id TEXT PRIMARY KEY,
+            task_id TEXT NOT NULL,
+            user_id TEXT NOT NULL,
+            completed_date TEXT NOT NULL,
+            created_at TEXT NOT NULL
+          )
+        ''');
+
+        // Create local task exceptions table
+        await db.execute('''
+          CREATE TABLE local_task_exceptions (
+            id TEXT PRIMARY KEY,
+            task_id TEXT NOT NULL,
+            user_id TEXT NOT NULL,
+            exception_date TEXT NOT NULL,
+            is_deleted INTEGER NOT NULL,
+            created_at TEXT NOT NULL
           )
         ''');
 
@@ -236,6 +260,15 @@ class DatabaseService {
     try {
       await db.execute("ALTER TABLE local_tasks ADD COLUMN last_completed_date TEXT");
     } catch (_) {}
+    try {
+      await db.execute("ALTER TABLE local_tasks ADD COLUMN repeat_type TEXT DEFAULT 'daily'");
+    } catch (_) {}
+    try {
+      await db.execute("ALTER TABLE local_tasks ADD COLUMN reminder_time TEXT");
+    } catch (_) {}
+    try {
+      await db.execute("ALTER TABLE local_tasks ADD COLUMN order_index INTEGER DEFAULT 0");
+    } catch (_) {}
 
     return db;
   }
@@ -270,6 +303,59 @@ class DatabaseService {
       'local_tasks',
       where: 'id = ?',
       whereArgs: [taskId],
+    );
+  }
+
+  // ==========================================
+  // LOCAL TASK COMPLETIONS CRUD
+  // ==========================================
+
+  Future<List<Map<String, dynamic>>> getLocalTaskCompletions(String userId) async {
+    final db = await database;
+    return await db.query(
+      'local_task_completions',
+      where: 'user_id = ?',
+      whereArgs: [userId],
+    );
+  }
+
+  Future<void> upsertLocalTaskCompletion(Map<String, dynamic> completion) async {
+    final db = await database;
+    await db.insert(
+      'local_task_completions',
+      completion,
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
+  }
+
+  Future<void> deleteLocalTaskCompletion(String taskId, String date) async {
+    final db = await database;
+    await db.delete(
+      'local_task_completions',
+      where: 'task_id = ? AND completed_date = ?',
+      whereArgs: [taskId, date],
+    );
+  }
+
+  // ==========================================
+  // LOCAL TASK EXCEPTIONS CRUD
+  // ==========================================
+
+  Future<List<Map<String, dynamic>>> getLocalTaskExceptions(String userId) async {
+    final db = await database;
+    return await db.query(
+      'local_task_exceptions',
+      where: 'user_id = ?',
+      whereArgs: [userId],
+    );
+  }
+
+  Future<void> upsertLocalTaskException(Map<String, dynamic> exception) async {
+    final db = await database;
+    await db.insert(
+      'local_task_exceptions',
+      exception,
+      conflictAlgorithm: ConflictAlgorithm.replace,
     );
   }
 
@@ -607,6 +693,8 @@ class DatabaseService {
     await settingsBox.clear();
     final db = await database;
     await db.delete('local_tasks');
+    await db.delete('local_task_completions');
+    await db.delete('local_task_exceptions');
     await db.delete('local_workouts');
     await db.delete('local_sleep_logs');
     await db.delete('local_food_logs');

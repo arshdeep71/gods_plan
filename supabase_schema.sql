@@ -73,10 +73,11 @@ CREATE TABLE IF NOT EXISTS public.tasks (
     id UUID PRIMARY KEY,
     user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
     title TEXT NOT NULL,
-    difficulty TEXT NOT NULL CHECK (difficulty IN ('easy', 'medium', 'hard')),
-    priority TEXT NOT NULL CHECK (priority IN ('low', 'medium', 'high')),
     is_completed BOOLEAN NOT NULL DEFAULT FALSE,
     is_recurring BOOLEAN NOT NULL DEFAULT FALSE,
+    repeat_type TEXT DEFAULT 'daily' CHECK (repeat_type IN ('never', 'daily', 'weekly', 'monthly')),
+    reminder_time TEXT,
+    order_index INTEGER DEFAULT 0,
     streak_count INTEGER DEFAULT 0,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
@@ -106,6 +107,36 @@ CREATE POLICY "Allow users to delete their own tasks"
 ON public.tasks FOR DELETE 
 TO authenticated 
 USING (auth.uid() = user_id);
+
+-- 3.1 Create Task Completions Table (Permanent History)
+CREATE TABLE IF NOT EXISTS public.task_completions (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    task_id UUID NOT NULL REFERENCES public.tasks(id) ON DELETE CASCADE,
+    user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+    completed_date TEXT NOT NULL, -- Format: YYYY-MM-DD
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+ALTER TABLE public.task_completions ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Select own task completions" ON public.task_completions FOR SELECT TO authenticated USING (auth.uid() = user_id);
+CREATE POLICY "Insert own task completions" ON public.task_completions FOR INSERT TO authenticated WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "Delete own task completions" ON public.task_completions FOR DELETE TO authenticated USING (auth.uid() = user_id);
+
+-- 3.2 Create Task Exceptions Table (Deleted occurrences)
+CREATE TABLE IF NOT EXISTS public.task_exceptions (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    task_id UUID NOT NULL REFERENCES public.tasks(id) ON DELETE CASCADE,
+    user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+    exception_date TEXT NOT NULL, -- Format: YYYY-MM-DD
+    is_deleted BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+ALTER TABLE public.task_exceptions ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Select own task exceptions" ON public.task_exceptions FOR SELECT TO authenticated USING (auth.uid() = user_id);
+CREATE POLICY "Insert own task exceptions" ON public.task_exceptions FOR INSERT TO authenticated WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "Delete own task exceptions" ON public.task_exceptions FOR DELETE TO authenticated USING (auth.uid() = user_id);
+
 
 
 -- 4. Create Workouts Table (Stores training logs)
@@ -328,6 +359,8 @@ CREATE POLICY "Allow users to delete their own social contacts" ON public.social
 alter publication supabase_realtime add table public.profiles;
 alter publication supabase_realtime add table public.goals;
 alter publication supabase_realtime add table public.tasks;
+alter publication supabase_realtime add table public.task_completions;
+alter publication supabase_realtime add table public.task_exceptions;
 alter publication supabase_realtime add table public.workouts;
 alter publication supabase_realtime add table public.sleep_logs;
 alter publication supabase_realtime add table public.food_logs;

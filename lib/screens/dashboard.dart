@@ -477,74 +477,93 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  // Redesigned main home dashboard layout
+  // Redesigned main home dashboard layout strictly showing Current Week data
   Widget _buildHomeDashboard(BuildContext context, String username) {
-    final user = context.read<AuthProvider>().user;
-    final healthProvider = context.watch<HealthProvider>();
-    final minutesToday = healthProvider.exerciseMinutesLoggedToday;
-    final latestSleep = healthProvider.lastNightSleepLog;
-    final nutritionProvider = context.watch<NutritionProvider>();
-    final caloriesLogged = nutritionProvider.caloriesLoggedToday;
-    final caloriesTarget = nutritionProvider.profile.targetCalories;
-    final addictionProvider = context.watch<AddictionProvider>();
-    final currentStreak = addictionProvider.currentStreak;
-    final financeProvider = context.watch<FinanceProvider>();
-    final todayNetSaved = financeProvider.todayNetSavings;
-    final dailySavingsTarget = financeProvider.dailySavingsTarget;
-    final learningProvider = context.watch<LearningProvider>();
-    final socialProvider = context.watch<SocialProvider>();
-    final hasNeglected = socialProvider.hasNeglectedContacts;
-    
-    final todayStudyMins = learningProvider.studyLogs
-        .where((log) =>
-            log.loggedAt.year == DateTime.now().year &&
-            log.loggedAt.month == DateTime.now().month &&
-            log.loggedAt.day == DateTime.now().day)
-        .fold(0, (sum, log) => sum + log.durationMinutes);
-
     final taskProvider = context.watch<TaskProvider>();
-    final completedCount = taskProvider.completedTasks.length;
-    final totalCount = taskProvider.tasks.length;
-    final progressVal = totalCount > 0 ? completedCount / totalCount : 0.0;
+    final user = context.read<AuthProvider>().user;
+    
+    // Calculate Today's stats
+    final activeToday = taskProvider.activeTasks.length;
+    final completedToday = taskProvider.completedTasks.length;
+    final totalToday = activeToday + completedToday;
+    final todayProgress = totalToday > 0 ? (completedToday / totalToday * 100).toInt() : 0;
+    
+    // Calculate Current Week stats (Monday to Sunday)
+    final now = DateTime.now();
+    final currentDayOfWeek = now.weekday; // 1 = Monday, 7 = Sunday
+    final startOfWeek = now.subtract(Duration(days: currentDayOfWeek - 1));
+    
+    int weeklyCompleted = 0;
+    int weeklyPending = 0;
+    int weeklyMissed = 0;
+    
+    for (int i = 0; i < 7; i++) {
+      final checkDate = startOfWeek.add(Duration(days: i));
+      final dateString = "${checkDate.year}-${checkDate.month.toString().padLeft(2, '0')}-${checkDate.day.toString().padLeft(2, '0')}";
+      
+      final activeForDay = taskProvider.getActiveTasksForDate(checkDate);
+      final completedForDay = taskProvider.getCompletedTasksForDate(checkDate);
+      
+      weeklyCompleted += completedForDay.length;
+      
+      if (checkDate.isBefore(DateTime(now.year, now.month, now.day))) {
+        weeklyMissed += activeForDay.length;
+      } else {
+        weeklyPending += activeForDay.length;
+      }
+    }
+    
+    final totalWeekly = weeklyCompleted + weeklyPending + weeklyMissed;
+    final weeklyProgress = totalWeekly > 0 ? (weeklyCompleted / totalWeekly * 100).toInt() : 0;
+    
+    // Calculate Global Streak
+    int currentStreak = 0;
+    DateTime streakCheckDate = DateTime(now.year, now.month, now.day);
+    
+    final todayActive = taskProvider.getActiveTasksForDate(streakCheckDate);
+    final todayCompleted = taskProvider.getCompletedTasksForDate(streakCheckDate);
+    if (todayActive.isEmpty && todayCompleted.isNotEmpty) {
+      currentStreak++;
+    }
+    
+    streakCheckDate = streakCheckDate.subtract(const Duration(days: 1));
+    while (true) {
+      final active = taskProvider.getActiveTasksForDate(streakCheckDate);
+      final completed = taskProvider.getCompletedTasksForDate(streakCheckDate);
+      
+      if (active.isEmpty && completed.isNotEmpty) {
+        currentStreak++;
+        streakCheckDate = streakCheckDate.subtract(const Duration(days: 1));
+      } else if (active.isEmpty && completed.isEmpty) {
+        streakCheckDate = streakCheckDate.subtract(const Duration(days: 1));
+        if (streakCheckDate.isBefore(now.subtract(const Duration(days: 365)))) break;
+      } else {
+        break;
+      }
+    }
+
+    final endOfWeek = startOfWeek.add(const Duration(days: 6));
+    final monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    final weekString = "${startOfWeek.day} ${monthNames[startOfWeek.month - 1]} - ${endOfWeek.day} ${monthNames[endOfWeek.month - 1]}";
 
     return SingleChildScrollView(
-      padding: const EdgeInsets.only(left: 24.0, right: 24.0, top: 16.0, bottom: 120.0),
+      padding: const EdgeInsets.only(left: 24.0, right: 24.0, top: 40.0, bottom: 120.0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // 1. App Bar Header (matches Apple Fitness style)
+          // Good Morning Header
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      const Text(
-                        "Summary",
-                        style: TextStyle(
-                          color: AppColors.textPrimary,
-                          fontSize: 32,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      _buildStreakBadge(taskProvider.tasks),
-                    ],
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    _getCurrentFormattedDate(),
-                    style: const TextStyle(
-                      color: AppColors.textSecondary,
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ],
+              Text(
+                "Good Morning,\n$username",
+                style: const TextStyle(
+                  color: AppColors.textPrimary,
+                  fontSize: 28,
+                  fontWeight: FontWeight.bold,
+                  height: 1.2,
+                ),
               ),
-              // Profile Circle
               GestureDetector(
                 onTap: () {
                   if (user != null) {
@@ -555,503 +574,163 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   }
                 },
                 child: Container(
-                  width: 40,
-                  height: 40,
+                  width: 48,
+                  height: 48,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    border: Border.all(color: AppColors.primary, width: 1.5),
+                    border: Border.all(color: AppColors.primary, width: 2),
                     gradient: AppColors.primaryGradient,
                   ),
                   child: Center(
                     child: Text(
                       username.isNotEmpty ? username[0].toUpperCase() : 'U',
-                      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
+                      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 20),
                     ),
                   ),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 28),
+          const SizedBox(height: 40),
 
-          // 2. Custom Tabs Row (Overview & Productivity)
-          Row(
-            children: [
-              GestureDetector(
-                onTap: () => setState(() => _activeTab = 0),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-                  decoration: BoxDecoration(
-                    color: _activeTab == 0 ? const Color(0xFF1C1C1E) : Colors.transparent,
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: _activeTab == 0 ? AppColors.accent : Colors.transparent),
-                  ),
-                  child: Text(
-                    "Overview",
-                    style: TextStyle(
-                      color: _activeTab == 0 ? AppColors.accent : AppColors.textSecondary,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 14,
-                    ),
-                  ),
-                ),
+          // Current Week Banner
+          Container(
+            padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 20),
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                colors: [Color(0xFF2C2C2E), Color(0xFF1C1C1E)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
               ),
-              const SizedBox(width: 12),
-              GestureDetector(
-                onTap: () => setState(() => _activeTab = 1),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-                  decoration: BoxDecoration(
-                    color: _activeTab == 1 ? const Color(0xFF1C1C1E) : Colors.transparent,
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: _activeTab == 1 ? AppColors.accent : Colors.transparent),
-                  ),
-                  child: Text(
-                    "Productivity",
-                    style: TextStyle(
-                      color: _activeTab == 1 ? AppColors.accent : AppColors.textSecondary,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 14,
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 24),
-
-          // 3. Render Tab Content
-          if (_activeTab == 0) ...[
-            _buildHorizontalCalendar(context),
-            const SizedBox(height: 20),
-            _buildSelectedDayTasks(context),
-            const SizedBox(height: 24),
-            const Divider(color: AppColors.border, height: 1),
-            const SizedBox(height: 24),
-            // Overview Content:
-            // A. Priority Task Progress Card (Journey progress in purple/pink gradient)
-            Container(
-              padding: const EdgeInsets.all(24),
-              decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  colors: [Color(0xFF8E2DE2), Color(0xFFF000FF)],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-                borderRadius: BorderRadius.circular(24),
-                boxShadow: [
-                  BoxShadow(
-                    color: const Color(0xFFF000FF).withOpacity(0.2),
-                    blurRadius: 15,
-                    offset: const Offset(0, 5),
-                  )
-                ],
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    "Journey Goal Cycle Progress",
-                    style: TextStyle(color: Colors.white70, fontSize: 13, fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 10),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      Text(
-                        "${_progressPercentage.toStringAsFixed(0)}% is completed",
-                        style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold),
-                      ),
-                      Text(
-                        "Day $_daysElapsed of $_totalDays",
-                        style: const TextStyle(color: Colors.white70, fontSize: 12, fontWeight: FontWeight.w600),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(8),
-                    child: LinearProgressIndicator(
-                      value: _totalDays > 0 ? (_daysElapsed / _totalDays) : 0.0,
-                      minHeight: 8,
-                      backgroundColor: Colors.white.withOpacity(0.25),
-                      valueColor: const AlwaysStoppedAnimation<Color>(Colors.white),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 20),
-
-            // B. Daily Goal card (Graphite background with Pink Progress indicator on the right)
-            Container(
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: AppColors.surface,
-                borderRadius: BorderRadius.circular(24),
-                border: Border.all(color: AppColors.border),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Text(
-                        "Activity Ring",
-                        style: TextStyle(color: AppColors.textPrimary, fontSize: 16, fontWeight: FontWeight.bold),
-                      ),
-                      GestureDetector(
-                        onTap: () => setState(() => _selectedIndex = 1),
-                        child: const Icon(Icons.arrow_forward_ios_rounded, color: AppColors.textSecondary, size: 14),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-                  Row(
-                    children: [
-                      // Circular Activity Ring
-                      Stack(
-                        alignment: Alignment.center,
-                        children: [
-                          SizedBox(
-                            width: 80,
-                            height: 80,
-                            child: CircularProgressIndicator(
-                              value: progressVal,
-                              strokeWidth: 12,
-                              backgroundColor: AppColors.primary.withOpacity(0.15),
-                              valueColor: const AlwaysStoppedAnimation<Color>(AppColors.primary),
-                              strokeCap: StrokeCap.round,
-                            ),
-                          ),
-                          const Icon(
-                            Icons.arrow_forward_rounded,
-                            color: Colors.white,
-                            size: 20,
-                          ),
-                        ],
-                      ),
-                      const SizedBox(width: 24),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text(
-                              "Move / Tasks completed",
-                              style: TextStyle(color: AppColors.textSecondary, fontSize: 13, fontWeight: FontWeight.w600),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              "$completedCount/$totalCount TASKS",
-                              style: const TextStyle(
-                                color: AppColors.primary,
-                                fontSize: 20,
-                                fontWeight: FontWeight.bold,
-                                letterSpacing: 0.5,
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              "${(progressVal * 100).toStringAsFixed(0)}% of daily goal completed",
-                              style: const TextStyle(color: AppColors.textSecondary, fontSize: 11),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 20),
-
-            // C. Completed in the last 7 Days bar chart
-            Container(
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: AppColors.surface,
-                borderRadius: BorderRadius.circular(24),
-                border: Border.all(color: AppColors.border),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    "Completed in the last 7 Days",
-                    style: TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.bold, fontSize: 14),
-                  ),
-                  const SizedBox(height: 20),
-                  _buildCustomWeeklyBarChart(taskProvider.tasks),
-                  const SizedBox(height: 16),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        "$completedCount Tasks Done",
-                        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
-                      ),
-                      Text(
-                        "${totalCount - completedCount} Active Tasks",
-                        style: const TextStyle(color: Color(0xFFD586FF), fontWeight: FontWeight.bold, fontSize: 13),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 20),
-
-            // D. Quick stats box row
-            Row(
-              children: [
-                _buildStatsBox("Total Task", "$totalCount", Colors.orangeAccent),
-                const SizedBox(width: 12),
-                _buildStatsBox("Completed", "$completedCount", Colors.greenAccent),
-                const SizedBox(width: 12),
-                _buildStatsBox("Active", "${totalCount - completedCount}", Colors.purpleAccent),
+              borderRadius: BorderRadius.circular(24),
+              border: Border.all(color: AppColors.border),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.4),
+                  blurRadius: 15,
+                  offset: const Offset(0, 8),
+                )
               ],
             ),
-            const SizedBox(height: 20),
-            
-            if (user != null)
-              AiCoachCard(
-                userId: user.id,
-                username: username,
-                remainingDays: _daysRemaining,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text(
+                      "Current Week",
+                      style: TextStyle(color: AppColors.textSecondary, fontSize: 14, fontWeight: FontWeight.w600),
+                    ),
+                    Text(
+                      weekString,
+                      style: const TextStyle(color: AppColors.textPrimary, fontSize: 14, fontWeight: FontWeight.bold),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 24),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      "Progress",
+                      style: TextStyle(color: Colors.white.withOpacity(0.9), fontSize: 24, fontWeight: FontWeight.bold),
+                    ),
+                    Text(
+                      "$weeklyProgress%",
+                      style: const TextStyle(color: AppColors.primary, fontSize: 28, fontWeight: FontWeight.w900),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(8),
+                  child: LinearProgressIndicator(
+                    value: totalWeekly > 0 ? (weeklyCompleted / totalWeekly) : 0.0,
+                    minHeight: 12,
+                    backgroundColor: Colors.white.withOpacity(0.1),
+                    valueColor: const AlwaysStoppedAnimation<Color>(AppColors.primary),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 20),
+
+          // Stats Grid
+          Row(
+            children: [
+              Expanded(
+                child: _buildStatCard("Today's Tasks", "$completedToday / $totalToday", Icons.check_circle_outline, AppColors.primary),
               ),
-          ] else ...[
-            // Productivity Tab Content: All Individual Module Trackers
-            // 1. Tasks Card
-            _buildProductivityCard(
-              Icons.playlist_add_check_rounded,
-              "Tasks Checklist",
-              "Manage checklist routines & streaks",
-              AppColors.primary,
-              () => Navigator.push(context, MaterialPageRoute(builder: (_) => const TasksView())),
-            ),
-            const SizedBox(height: 16),
-            // 2. Exercise Card
-            _buildProductivityCard(
-              Icons.directions_run_rounded,
-              "Exercise Tracker",
-              "Active today: $minutesToday / 30 mins",
-              AppColors.info,
-              () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ExerciseView())),
-            ),
-            const SizedBox(height: 16),
-            // 3. Sleep Card
-            _buildProductivityCard(
-              Icons.bedtime_rounded,
-              "Sleep Tracker",
-              latestSleep != null
-                  ? "${latestSleep.durationHours.toStringAsFixed(1)} hrs logged last night"
-                  : "No logs recorded last night",
-              AppColors.secondary,
-              () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SleepView())),
-            ),
-            const SizedBox(height: 16),
-            // 4. Nutrition Card
-            _buildProductivityCard(
-              Icons.restaurant_rounded,
-              "Nutrition & Water",
-              "${caloriesLogged.toStringAsFixed(0)} / ${caloriesTarget.toStringAsFixed(0)} kcal logged today",
-              AppColors.success,
-              () => Navigator.push(context, MaterialPageRoute(builder: (_) => const NutritionView())),
-            ),
-            const SizedBox(height: 16),
-            // 5. Sobriety Card
-            _buildProductivityCard(
-              Icons.local_fire_department_rounded,
-              "Sobriety & Addiction",
-              "Sober Streak: $currentStreak days 🔥",
-              AppColors.error,
-              () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AddictionView())),
-            ),
-            const SizedBox(height: 16),
-            // 6. Finance Card
-            _buildProductivityCard(
-              Icons.payments_rounded,
-              "Money & Savings",
-              "Saved: ₹${todayNetSaved.toStringAsFixed(0)} / ₹${dailySavingsTarget.toStringAsFixed(0)} today",
-              Colors.green,
-              () => Navigator.push(context, MaterialPageRoute(builder: (_) => const FinanceView())),
-            ),
-            const SizedBox(height: 16),
-            // 7. Study Card
-            _buildProductivityCard(
-              Icons.menu_book_rounded,
-              "Learning & Skills",
-              "Logged: $todayStudyMins mins studied today",
-              Colors.blue,
-              () => Navigator.push(context, MaterialPageRoute(builder: (_) => const LearningView())),
-            ),
-            const SizedBox(height: 16),
-            // 8. Social Card
-            _buildProductivityCard(
-              Icons.people_alt_rounded,
-              "Social & Friends",
-              hasNeglected ? "⚠️ Neglected contact warning!" : "All contacts up to date",
-              hasNeglected ? Colors.redAccent : AppColors.accent,
-              () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SocialView())),
-            ),
-          ],
+              const SizedBox(width: 16),
+              Expanded(
+                child: _buildStatCard("Today's Progress", "$todayProgress%", Icons.trending_up, Colors.greenAccent),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              Expanded(
+                child: _buildStatCard("Weekly Completed", "$weeklyCompleted", Icons.done_all, Colors.blueAccent),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: _buildStatCard("Pending", "$weeklyPending", Icons.hourglass_empty, Colors.orangeAccent),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              Expanded(
+                child: _buildStatCard("Missed", "$weeklyMissed", Icons.close, Colors.redAccent),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: GestureDetector(
+                  onTap: () {
+                    // Navigate to Streak View
+                  },
+                  child: _buildStatCard("Current Streak", "$currentStreak Days", Icons.local_fire_department, Colors.orange),
+                ),
+              ),
+            ],
+          ),
         ],
       ),
     );
   }
 
-  Widget _buildProductivityCard(IconData icon, String title, String subtitle, Color color, VoidCallback onTap) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          color: AppColors.surface,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: AppColors.border),
-        ),
-        child: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: color.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(14),
-              ),
-              child: Icon(icon, color: color, size: 28),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: const TextStyle(color: AppColors.textPrimary, fontSize: 16, fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    subtitle,
-                    style: const TextStyle(color: AppColors.textSecondary, fontSize: 12),
-                  ),
-                ],
-              ),
-            ),
-            const Icon(Icons.arrow_forward_ios_rounded, color: AppColors.textMuted, size: 14),
-          ],
-        ),
+  Widget _buildStatCard(String title, String value, IconData icon, Color color) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: const Color(0xFF1C1C1E),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.white.withOpacity(0.05)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, color: color, size: 28),
+          const SizedBox(height: 16),
+          Text(
+            value,
+            style: const TextStyle(color: AppColors.textPrimary, fontSize: 22, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            title,
+            style: const TextStyle(color: AppColors.textSecondary, fontSize: 13, fontWeight: FontWeight.w500),
+          ),
+        ],
       ),
     );
   }
 
-  Widget _buildStatsBox(String title, String count, Color accentColor) {
-    return Expanded(
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: AppColors.surface,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: AppColors.border),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Container(
-              width: 10,
-              height: 10,
-              decoration: BoxDecoration(
-                color: accentColor,
-                shape: BoxShape.circle,
-              ),
-            ),
-            const SizedBox(height: 12),
-            Text(
-              count,
-              style: const TextStyle(color: AppColors.textPrimary, fontSize: 20, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              title,
-              style: const TextStyle(color: AppColors.textSecondary, fontSize: 11, fontWeight: FontWeight.bold),
-            )
-          ],
-        ),
-      ),
-    );
-  }
 
-  // Draw 7-day custom vertical bar chart
-  Widget _buildCustomWeeklyBarChart(List<dynamic> tasks) {
-    final data = _getWeeklyChartData(tasks);
-    // Find max value for scaling
-    int maxVal = 1;
-    for (final e in data) {
-      if (e['count'] > maxVal) maxVal = e['count'];
-    }
-
-    return SizedBox(
-      height: 120,
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-        crossAxisAlignment: CrossAxisAlignment.end,
-        children: data.map((e) {
-          final int count = e['count'];
-          final double ratio = count / maxVal;
-          // Set a minimum height for zero values so the bar baseline caps are visible
-          final double heightFactor = count == 0 ? 0.05 : ratio;
-          
-          return Expanded(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
-                Expanded(
-                  child: Center(
-                    child: Container(
-                      width: 14,
-                      decoration: BoxDecoration(
-                        color: AppColors.border,
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      alignment: Alignment.bottomCenter,
-                      child: FractionallySizedBox(
-                        heightFactor: heightFactor,
-                        child: Container(
-                          decoration: BoxDecoration(
-                            gradient: const LinearGradient(
-                              colors: [Color(0xFFBB52FA), Color(0xFFD586FF)],
-                              begin: Alignment.bottomCenter,
-                              end: Alignment.topCenter,
-                            ),
-                            borderRadius: BorderRadius.circular(8),
-                            boxShadow: [
-                              BoxShadow(
-                                color: const Color(0xFFBB52FA).withOpacity(0.4),
-                                blurRadius: 4,
-                                spreadRadius: 0.5,
-                              )
-                            ]
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  e['day'],
-                  style: const TextStyle(color: AppColors.textSecondary, fontSize: 10, fontWeight: FontWeight.bold),
-                )
-              ],
-            ),
-          );
-        }).toList(),
-      ),
-    );
-  }
-
-  // Settings Tab Screen content
   Widget _buildSettingsTab(BuildContext context, String username) {
     final user = Provider.of<AuthProvider>(context, listen: false).user;
     return SingleChildScrollView(

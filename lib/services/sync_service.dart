@@ -103,6 +103,50 @@ class SyncService {
       });
     }
 
+    // A.1 Sync Task Completions
+    final List<dynamic> remoteCompletions = await _supabase
+        .from('task_completions')
+        .select()
+        .eq('user_id', userId)
+        .gt('created_at', lastSyncString);
+
+    if (remoteCompletions.isNotEmpty) {
+      await db.transaction((txn) async {
+        for (final row in remoteCompletions) {
+          final List<Map<String, dynamic>> localMatch = await txn.query(
+            'local_task_completions',
+            where: 'id = ?',
+            whereArgs: [row['id']],
+          );
+          if (localMatch.isEmpty) {
+            await txn.insert('local_task_completions', Map<String, dynamic>.from(row), conflictAlgorithm: ConflictAlgorithm.replace);
+          }
+        }
+      });
+    }
+
+    // A.2 Sync Task Exceptions
+    final List<dynamic> remoteExceptions = await _supabase
+        .from('task_exceptions')
+        .select()
+        .eq('user_id', userId)
+        .gt('created_at', lastSyncString);
+
+    if (remoteExceptions.isNotEmpty) {
+      await db.transaction((txn) async {
+        for (final row in remoteExceptions) {
+          final List<Map<String, dynamic>> localMatch = await txn.query(
+            'local_task_exceptions',
+            where: 'id = ?',
+            whereArgs: [row['id']],
+          );
+          if (localMatch.isEmpty) {
+            await txn.insert('local_task_exceptions', Map<String, dynamic>.from(row), conflictAlgorithm: ConflictAlgorithm.replace);
+          }
+        }
+      });
+    }
+
     // B. Sync Workouts
     final List<dynamic> remoteWorkouts = await _supabase
         .from('workouts')
