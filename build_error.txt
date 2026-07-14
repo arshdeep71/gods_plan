@@ -1,0 +1,46 @@
+Warning: Building for device with codesigning disabled. You will have to manually codesign before deploying to device.
+Building com.godsplan.godsPlan for device (ios-release)...
+Running Xcode build...                                          
+Xcode build done.                                           29.4s
+Failed to build iOS app
+Error output from Xcode build:
+↳
+    ** BUILD FAILED **
+
+
+Xcode's output:
+↳
+    Writing result bundle at path:
+    	/var/folders/g3/pffjr_y96bq06blnkf72x_hw0000gn/T/flutter_tools.z876Ld/flutter_ios_build_temp_dirBpsBtJ/temporary_xcresult_bundle
+
+    lib/screens/dashboard.dart:1339:33: Error: Type 'Task' not found.
+      Widget _buildStreakBadge(List<Task> tasks) {
+                                    ^^^^
+    lib/screens/dashboard.dart:1532:30: Error: Type 'Task' not found.
+      void _showTaskOptionsSheet(Task task) {
+                                 ^^^^
+    lib/screens/dashboard.dart:1654:27: Error: Type 'Task' not found.
+      void _showEditTaskSheet(Task task) {
+                              ^^^^
+    lib/screens/dashboard.dart:1772:25: Error: Type 'Task' not found.
+      Widget _buildTaskTile(Task task, String formattedDate) {
+                            ^^^^
+    lib/screens/dashboard.dart:1339:33: Error: 'Task' isn't a type.
+      Widget _buildStreakBadge(List<Task> tasks) {
+                                    ^^^^
+    lib/screens/dashboard.dart:1532:30: Error: 'Task' isn't a type.
+      void _showTaskOptionsSheet(Task task) {
+                                 ^^^^
+    lib/screens/dashboard.dart:1654:27: Error: 'Task' isn't a type.
+      void _showEditTaskSheet(Task task) {
+                              ^^^^
+    lib/screens/dashboard.dart:1772:25: Error: 'Task' isn't a type.
+      Widget _buildTaskTile(Task task, String formattedDate) {
+                            ^^^^
+    Target kernel_snapshot_program failed: Exception
+    Failed to package /Users/runner/work/gods_plan/gods_plan.
+    Command PhaseScriptExecution failed with a nonzero exit code
+    note: Run script build phase 'Run Script' will be run during every build because the option to run the script phase "Based on dependency analysis" is unchecked. (in target 'Runner' from project 'Runner')
+    note: Run script build phase 'Thin Binary' will be run during every build because the option to run the script phase "Based on dependency analysis" is unchecked. (in target 'Runner' from project 'Runner')
+
+Encountered error while building for device.
