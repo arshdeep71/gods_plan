@@ -952,7 +952,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
               if (confirm == true) {
                 await _dbService.clearAllDatabases();
-                if (context.mounted) {
+                if (mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(content: Text("Databases cleared successfully. Resetting application...")),
                   );
