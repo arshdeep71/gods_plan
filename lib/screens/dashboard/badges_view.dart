@@ -80,7 +80,7 @@ class _BadgesViewState extends State<BadgesView> {
       body: _isLoading
           ? const Center(child: CircularProgressIndicator(color: AppColors.accent))
           : SingleChildScrollView(
-              padding: const EdgeInsets.all(24),
+              padding: const EdgeInsets.only(left: 24.0, right: 24.0, top: 24.0, bottom: 120.0),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [

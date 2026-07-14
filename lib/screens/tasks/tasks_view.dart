@@ -93,7 +93,7 @@ class _TasksViewState extends State<TasksView> {
           : taskProvider.tasks.isEmpty
               ? _buildEmptyState(context)
               : ListView(
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                  padding: const EdgeInsets.only(left: 20.0, right: 20.0, top: 12.0, bottom: 120.0),
                   children: [
                     if (active.isNotEmpty) ...[
                       const Text(

@@ -1,3 +1,4 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
@@ -456,7 +457,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
     return Scaffold(
       backgroundColor: AppColors.background,
+      extendBody: true,
       body: SafeArea(
+        bottom: false,
         child: pages[_selectedIndex],
       ),
       bottomNavigationBar: _buildBottomNavigationBar(),
@@ -494,7 +497,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final progressVal = totalCount > 0 ? completedCount / totalCount : 0.0;
 
     return SingleChildScrollView(
-      padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
+      padding: const EdgeInsets.only(left: 24.0, right: 24.0, top: 16.0, bottom: 120.0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -1029,7 +1032,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Widget _buildSettingsTab(BuildContext context, String username) {
     final user = Provider.of<AuthProvider>(context, listen: false).user;
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(24.0),
+      padding: const EdgeInsets.only(left: 24.0, right: 24.0, top: 24.0, bottom: 120.0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -1195,61 +1198,71 @@ class _DashboardScreenState extends State<DashboardScreen> {
   // Draw navigation bar matching the inspiration mockup style
   Widget _buildBottomNavigationBar() {
     return SafeArea(
+      top: false,
       child: Container(
         margin: const EdgeInsets.fromLTRB(16, 0, 16, 12),
         decoration: BoxDecoration(
-          color: const Color(0xFF1C1C1E),
           borderRadius: BorderRadius.circular(36),
-          border: Border.all(
-            color: Colors.white.withOpacity(0.08),
-            width: 1.0,
-          ),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.4),
-              blurRadius: 10,
+              color: Colors.black.withOpacity(0.35),
+              blurRadius: 15,
               offset: const Offset(0, 4),
             ),
           ],
         ),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: [
-              _buildNavItem(0, Icons.grid_view_rounded, "Summary"),
-              _buildNavItem(1, Icons.assignment_turned_in_rounded, "Tasks"),
-              
-              // Central plus log item
-              GestureDetector(
-                onTap: _showQuickLogSheet,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        Icons.add_rounded,
-                        color: Colors.white.withOpacity(0.8),
-                        size: 24,
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        "Log",
-                        style: TextStyle(
-                          color: Colors.white.withOpacity(0.8),
-                          fontSize: 10,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ],
-                  ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(36),
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
+            child: Container(
+              padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+              decoration: BoxDecoration(
+                color: const Color(0xFF101012).withOpacity(0.65),
+                borderRadius: BorderRadius.circular(36),
+                border: Border.all(
+                  color: Colors.white.withOpacity(0.08),
+                  width: 1.0,
                 ),
               ),
-              
-              _buildNavItem(3, Icons.emoji_events_rounded, "Awards"),
-              _buildNavItem(4, Icons.settings_rounded, "Settings"),
-            ],
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceAround,
+                children: [
+                  _buildNavItem(0, Icons.grid_view_rounded, "Summary"),
+                  _buildNavItem(1, Icons.assignment_turned_in_rounded, "Tasks"),
+                  
+                  // Central plus log item
+                  GestureDetector(
+                    onTap: _showQuickLogSheet,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.add_rounded,
+                            color: Colors.white.withOpacity(0.8),
+                            size: 24,
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            "Log",
+                            style: TextStyle(
+                              color: Colors.white.withOpacity(0.8),
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  
+                  _buildNavItem(3, Icons.emoji_events_rounded, "Awards"),
+                  _buildNavItem(4, Icons.settings_rounded, "Settings"),
+                ],
+              ),
+            ),
           ),
         ),
       ),
