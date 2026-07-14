@@ -112,7 +112,7 @@ class _GoalSetupScreenState extends State<GoalSetupScreen> {
         'end_date': _endDate!.toIso8601String(),
         'created_at': DateTime.now().toUtc().toIso8601String(),
         'updated_at': DateTime.now().toUtc().toIso8601String(),
-      });
+      }, onConflict: 'user_id');
 
       // 2. Cache locally to Hive
       await _dbService.setLocalGoalDates(
