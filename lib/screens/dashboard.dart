@@ -24,6 +24,9 @@ import 'settings/app_lock_view.dart';
 import '../services/analytics_service.dart';
 import 'dashboard/badges_view.dart';
 import 'dashboard/analytics_view.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import '../services/sync_service.dart';
+
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -46,6 +49,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
   double _progressPercentage = 0.0;
   int _totalXp = 0;
 
+  // Real-time synchronization channels
+  final List<RealtimeChannel> _realtimeSyncChannels = [];
+
+
   @override
   void initState() {
     super.initState();
@@ -61,8 +68,192 @@ class _DashboardScreenState extends State<DashboardScreen> {
         Provider.of<LearningProvider>(context, listen: false).fetchLearningData(user.id);
         Provider.of<SocialProvider>(context, listen: false).fetchContacts(user.id);
         Provider.of<TaskProvider>(context, listen: false).fetchTasks(user.id);
+        
+        _setupRealtimeSyncListeners(user.id);
       }
     });
+  }
+
+  @override
+  void dispose() {
+    for (final channel in _realtimeSyncChannels) {
+      channel.unsubscribe();
+    }
+    super.dispose();
+  }
+
+  void _setupRealtimeSyncListeners(String userId) {
+    // Unsubscribe existing first
+    for (final channel in _realtimeSyncChannels) {
+      channel.unsubscribe();
+    }
+    _realtimeSyncChannels.clear();
+
+    final client = Supabase.instance.client;
+    final syncService = SyncService();
+
+    final tables = [
+      'tasks',
+      'workouts',
+      'sleep_logs',
+      'food_logs',
+      'water_logs',
+      'addiction_logs',
+      'finance_transactions',
+      'social_contacts',
+      'learning_subjects',
+      'study_logs',
+      'goals'
+    ];
+
+    for (final table in tables) {
+      final channelName = 'public:$table:$userId';
+      final channel = client.channel(channelName).onPostgresChanges(
+        event: PostgresChangeEvent.all,
+        schema: 'public',
+        table: table,
+        filter: PostgresChangeFilter(
+          type: PostgresChangeFilterType.eq,
+          column: 'user_id',
+          value: userId,
+        ),
+        callback: (payload) async {
+          // Trigger pull sync
+          await syncService.sync(userId);
+          // Refresh local providers
+          _refreshAllProviders(userId);
+        },
+      );
+      channel.subscribe();
+      _realtimeSyncChannels.add(channel);
+    }
+  }
+
+  void _refreshAllProviders(String userId) {
+    if (!mounted) return;
+    Provider.of<TaskProvider>(context, listen: false).fetchTasks(userId);
+    Provider.of<HealthProvider>(context, listen: false).fetchHealthData(userId);
+    Provider.of<NutritionProvider>(context, listen: false).fetchNutritionData(userId);
+    Provider.of<AddictionProvider>(context, listen: false).fetchAddictionLogs(userId);
+    Provider.of<FinanceProvider>(context, listen: false).fetchTransactions(userId);
+    Provider.of<LearningProvider>(context, listen: false).fetchLearningData(userId);
+    Provider.of<SocialProvider>(context, listen: false).fetchContacts(userId);
+  }
+
+  void _showEditProfileDialog() {
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    final user = authProvider.user;
+    if (user == null) return;
+
+    final controller = TextEditingController(text: authProvider.username);
+    final formKey = GlobalKey<FormState>();
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              backgroundColor: AppColors.surface,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+              title: const Text(
+                "Edit Profile Name",
+                style: TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.bold),
+              ),
+              content: Form(
+                key: formKey,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    const Text(
+                      "Your Account Information",
+                      style: TextStyle(color: AppColors.textSecondary, fontSize: 12, fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(height: 12),
+                    // Read-only email field
+                    TextFormField(
+                      initialValue: user.email,
+                      enabled: false,
+                      style: const TextStyle(color: AppColors.textMuted),
+                      decoration: InputDecoration(
+                        labelText: "Email Address",
+                        labelStyle: const TextStyle(color: AppColors.textMuted),
+                        filled: true,
+                        fillColor: AppColors.background.withOpacity(0.5),
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
+                        prefixIcon: const Icon(Icons.email_outlined, color: AppColors.textMuted),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    // Username editable field
+                    TextFormField(
+                      controller: controller,
+                      style: const TextStyle(color: AppColors.textPrimary),
+                      decoration: InputDecoration(
+                        labelText: "Username / Name",
+                        labelStyle: const TextStyle(color: AppColors.textSecondary),
+                        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: const BorderSide(color: AppColors.border)),
+                        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: const BorderSide(color: AppColors.primary)),
+                        errorBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: const BorderSide(color: Colors.redAccent)),
+                        focusedErrorBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: const BorderSide(color: Colors.redAccent)),
+                        prefixIcon: const Icon(Icons.person_outline_rounded, color: AppColors.textSecondary),
+                      ),
+                      validator: (value) {
+                        if (value == null || value.trim().isEmpty) {
+                          return "Name cannot be empty";
+                        }
+                        return null;
+                      },
+                    ),
+                  ],
+                ),
+              ),
+              actionsPadding: const EdgeInsets.only(bottom: 20, right: 20, left: 20),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text("Cancel", style: TextStyle(color: AppColors.textSecondary)),
+                ),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                  ),
+                  onPressed: () async {
+                    if (formKey.currentState!.validate()) {
+                      final newName = controller.text.trim();
+                      Navigator.pop(context);
+                      
+                      final success = await authProvider.updateUsername(newName);
+                      if (context.mounted) {
+                        if (success) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text("Profile name updated successfully!"),
+                              backgroundColor: AppColors.success,
+                            ),
+                          );
+                        } else {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text("Failed to update name: ${authProvider.errorMessage}"),
+                              backgroundColor: AppColors.error,
+                            ),
+                          );
+                        }
+                      }
+                    }
+                  },
+                  child: const Text("Save Changes", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
   }
 
   void _calculateTimeline() {
@@ -245,7 +436,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   @override
   Widget build(BuildContext context) {
     final user = context.watch<AuthProvider>().user;
-    final username = user?.userMetadata?['username'] ?? 'User';
+    final username = context.watch<AuthProvider>().username;
 
     // Build the bottom nav pages
     final List<Widget> pages = [
@@ -920,6 +1111,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
           const SizedBox(height: 24),
 
           // Settings Options
+          const Text("Account Details", style: TextStyle(color: AppColors.textSecondary, fontSize: 13, fontWeight: FontWeight.bold, letterSpacing: 0.5)),
+          const SizedBox(height: 12),
+          _buildSettingsTile(
+            Icons.person_rounded,
+            "Edit Profile Name",
+            "Change your profile display name",
+            _showEditProfileDialog,
+          ),
+          const SizedBox(height: 16),
           const Text("Security & Setup", style: TextStyle(color: AppColors.textSecondary, fontSize: 13, fontWeight: FontWeight.bold, letterSpacing: 0.5)),
           const SizedBox(height: 12),
           _buildSettingsTile(

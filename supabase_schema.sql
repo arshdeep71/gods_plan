@@ -322,4 +322,18 @@ CREATE POLICY "Allow users to insert their own social contacts" ON public.social
 CREATE POLICY "Allow users to update their own social contacts" ON public.social_contacts FOR UPDATE TO authenticated USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
 CREATE POLICY "Allow users to delete their own social contacts" ON public.social_contacts FOR DELETE TO authenticated USING (auth.uid() = user_id);
 
-
+-- ==========================================
+-- 13. Enable Realtime Publications for all Tables
+-- ==========================================
+alter publication supabase_realtime add table public.profiles;
+alter publication supabase_realtime add table public.goals;
+alter publication supabase_realtime add table public.tasks;
+alter publication supabase_realtime add table public.workouts;
+alter publication supabase_realtime add table public.sleep_logs;
+alter publication supabase_realtime add table public.food_logs;
+alter publication supabase_realtime add table public.water_logs;
+alter publication supabase_realtime add table public.addiction_logs;
+alter publication supabase_realtime add table public.finance_transactions;
+alter publication supabase_realtime add table public.social_contacts;
+alter publication supabase_realtime add table public.learning_subjects;
+alter publication supabase_realtime add table public.study_logs;

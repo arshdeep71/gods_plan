@@ -161,6 +161,17 @@ class MyApp extends StatelessWidget {
     final authProvider = Provider.of<AuthProvider>(context);
     final dbService = DatabaseService();
 
+    if (!authProvider.isInitialized) {
+      return const Scaffold(
+        backgroundColor: AppColors.background,
+        body: Center(
+          child: CircularProgressIndicator(
+            valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary),
+          ),
+        ),
+      );
+    }
+
     if (authProvider.isAuthenticated) {
       if (dbService.isOnboarded) {
         return const AppLockWrapper();
