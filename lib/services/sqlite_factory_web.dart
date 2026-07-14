@@ -6,7 +6,12 @@ Future<Database> openSqliteDatabase(
   required int version,
   required Future<void> Function(Database, int) onCreate,
 }) async {
-  var databaseFactory = databaseFactoryFfiWeb;
+  var databaseFactory = createDatabaseFactoryFfiWeb(
+    options: SqfliteFfiWebOptions(
+      sharedWorkerUri: Uri.parse('sqflite_sw.js'),
+      forceAsBasicWorker: true,
+    ),
+  );
   return await databaseFactory.openDatabase(
     path,
     options: OpenDatabaseOptions(
