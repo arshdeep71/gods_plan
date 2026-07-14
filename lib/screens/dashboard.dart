@@ -1104,7 +1104,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       ),
                     ],
                   ),
-                )
+                ),
+                IconButton(
+                  icon: const Icon(Icons.edit_rounded, color: AppColors.primaryLight, size: 20),
+                  tooltip: "Edit Profile Name",
+                  onPressed: _showEditProfileDialog,
+                ),
               ],
             ),
           ),
