@@ -25,12 +25,17 @@ class SupabaseService {
     
     // Create database entry in public.profiles table after sign up
     if (response.user != null) {
-      await _client.from('profiles').upsert({
-        'id': response.user!.id,
-        'username': username,
-        'email': email,
-        'updated_at': DateTime.now().toUtc().toIso8601String(),
-      });
+      try {
+        await _client.from('profiles').upsert({
+          'id': response.user!.id,
+          'username': username,
+          'email': email,
+          'updated_at': DateTime.now().toUtc().toIso8601String(),
+        });
+      } catch (e) {
+        // Log database profile creation failure but do not crash the signup process
+        print('Profile upsert warning: $e');
+      }
     }
     
     return response;
