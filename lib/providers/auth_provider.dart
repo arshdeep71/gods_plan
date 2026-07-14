@@ -74,7 +74,7 @@ class AuthProvider extends ChangeNotifier {
       notifyListeners();
       return false;
     } catch (e) {
-      _errorMessage = 'An unexpected error occurred during registration.';
+      _errorMessage = 'Registration error: $e';
       _isLoading = false;
       notifyListeners();
       return false;
