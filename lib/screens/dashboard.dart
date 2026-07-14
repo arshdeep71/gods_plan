@@ -256,6 +256,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
+  String _getCurrentFormattedDate() {
+    final now = DateTime.now();
+    final weekdays = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+    final months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    return "${weekdays[now.weekday - 1]}, ${now.day} ${months[now.month - 1]}";
+  }
+
   void _calculateTimeline() {
     final dates = _dbService.getLocalGoalDates();
     if (dates == null) return;
@@ -491,79 +498,59 @@ class _DashboardScreenState extends State<DashboardScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // 1. App Bar Header (matches Derek Doyle style)
+          // 1. App Bar Header (matches Apple Fitness style)
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text(
-                "Dashboard",
-                style: TextStyle(color: AppColors.textSecondary, fontSize: 14, fontWeight: FontWeight.bold, letterSpacing: 0.5),
-              ),
-              Row(
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Stack(
-                    children: [
-                      IconButton(
-                        icon: const Icon(Icons.notifications_outlined, color: AppColors.textPrimary, size: 24),
-                        onPressed: () {
-                          if (user != null) {
-                            Navigator.push(context, MaterialPageRoute(builder: (_) => AnalyticsView(userId: user.id)));
-                          }
-                        },
-                      ),
-                      Positioned(
-                        right: 12,
-                        top: 12,
-                        child: Container(
-                          width: 8,
-                          height: 8,
-                          decoration: const BoxDecoration(
-                            color: Colors.redAccent,
-                            shape: BoxShape.circle,
-                          ),
-                        ),
-                      )
-                    ],
+                  const Text(
+                    "Summary",
+                    style: TextStyle(
+                      color: AppColors.textPrimary,
+                      fontSize: 32,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
-                  const SizedBox(width: 8),
-                  GestureDetector(
-                    onTap: () {
-                      if (user != null) {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(builder: (_) => BadgesView(userId: user.id, username: username)),
-                        );
-                      }
-                    },
-                    child: Container(
-                      width: 36,
-                      height: 36,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        border: Border.all(color: AppColors.primary, width: 1.5),
-                        gradient: AppColors.primaryGradient,
-                      ),
-                      child: Center(
-                        child: Text(
-                          username.isNotEmpty ? username[0].toUpperCase() : 'U',
-                          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15),
-                        ),
-                      ),
+                  const SizedBox(height: 4),
+                  Text(
+                    _getCurrentFormattedDate(),
+                    style: const TextStyle(
+                      color: AppColors.textSecondary,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
                 ],
               ),
+              // Profile Circle
+              GestureDetector(
+                onTap: () {
+                  if (user != null) {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => BadgesView(userId: user.id, username: username)),
+                    );
+                  }
+                },
+                child: Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    border: Border.all(color: AppColors.primary, width: 1.5),
+                    gradient: AppColors.primaryGradient,
+                  ),
+                  child: Center(
+                    child: Text(
+                      username.isNotEmpty ? username[0].toUpperCase() : 'U',
+                      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
+                    ),
+                  ),
+                ),
+              ),
             ],
-          ),
-          const SizedBox(height: 12),
-          Text(
-            "Hello,\n$username 👋",
-            style: const TextStyle(
-              color: AppColors.textPrimary,
-              fontSize: 32,
-              fontWeight: FontWeight.bold,
-              height: 1.2,
-            ),
           ),
           const SizedBox(height: 28),
 
@@ -575,13 +562,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
                   decoration: BoxDecoration(
-                    color: _activeTab == 0 ? const Color(0xFF2E6BFF) : Colors.transparent,
+                    color: _activeTab == 0 ? const Color(0xFF1C1C1E) : Colors.transparent,
                     borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: _activeTab == 0 ? AppColors.accent : Colors.transparent),
                   ),
                   child: Text(
                     "Overview",
                     style: TextStyle(
-                      color: _activeTab == 0 ? Colors.white : AppColors.textSecondary,
+                      color: _activeTab == 0 ? AppColors.accent : AppColors.textSecondary,
                       fontWeight: FontWeight.bold,
                       fontSize: 14,
                     ),
@@ -594,13 +582,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
                   decoration: BoxDecoration(
-                    color: _activeTab == 1 ? const Color(0xFF2E6BFF) : Colors.transparent,
+                    color: _activeTab == 1 ? const Color(0xFF1C1C1E) : Colors.transparent,
                     borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: _activeTab == 1 ? AppColors.accent : Colors.transparent),
                   ),
                   child: Text(
                     "Productivity",
                     style: TextStyle(
-                      color: _activeTab == 1 ? Colors.white : AppColors.textSecondary,
+                      color: _activeTab == 1 ? AppColors.accent : AppColors.textSecondary,
                       fontWeight: FontWeight.bold,
                       fontSize: 14,
                     ),
@@ -669,7 +658,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             ),
             const SizedBox(height: 20),
 
-            // B. Daily Goal card (Graphite background with Cyan Progress indicator on the right)
+            // B. Daily Goal card (Graphite background with Pink Progress indicator on the right)
             Container(
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
@@ -677,89 +666,75 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 borderRadius: BorderRadius.circular(24),
                 border: Border.all(color: AppColors.border),
               ),
-              child: Row(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          "Daily Goal",
-                          style: TextStyle(color: AppColors.textSecondary, fontSize: 12, fontWeight: FontWeight.bold),
-                        ),
-                        const SizedBox(height: 12),
-                        // Green tag pill
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: AppColors.success.withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: AppColors.success.withOpacity(0.2)),
-                          ),
-                          child: Text(
-                            "$completedCount/$totalCount tasks",
-                            style: const TextStyle(color: AppColors.success, fontWeight: FontWeight.bold, fontSize: 12),
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        Text(
-                          totalCount > 0 
-                              ? "You marked $completedCount/$totalCount tasks are done! 🎉"
-                              : "No tasks created for today yet.",
-                          style: const TextStyle(color: AppColors.textPrimary, fontSize: 14, fontWeight: FontWeight.w600),
-                        ),
-                        const SizedBox(height: 16),
-                        GestureDetector(
-                          onTap: () => setState(() => _selectedIndex = 1),
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                            decoration: BoxDecoration(
-                              gradient: const LinearGradient(
-                                colors: [Color(0xFF6B21A8), Color(0xFFC084FC)],
-                              ),
-                              borderRadius: BorderRadius.circular(16),
-                            ),
-                            child: const Text(
-                              "All Task",
-                              style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text(
+                        "Activity Ring",
+                        style: TextStyle(color: AppColors.textPrimary, fontSize: 16, fontWeight: FontWeight.bold),
+                      ),
+                      GestureDetector(
+                        onTap: () => setState(() => _selectedIndex = 1),
+                        child: const Icon(Icons.arrow_forward_ios_rounded, color: AppColors.textSecondary, size: 14),
+                      ),
+                    ],
                   ),
-                  const SizedBox(width: 16),
-                  // Progress ring
-                  SizedBox(
-                    width: 72,
-                    height: 72,
-                    child: Stack(
-                      children: [
-                        Center(
-                          child: SizedBox(
-                            width: 64,
-                            height: 64,
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      // Circular Activity Ring
+                      Stack(
+                        alignment: Alignment.center,
+                        children: [
+                          SizedBox(
+                            width: 80,
+                            height: 80,
                             child: CircularProgressIndicator(
                               value: progressVal,
-                              strokeWidth: 8,
-                              backgroundColor: AppColors.border,
-                              valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF4BF3C3)),
+                              strokeWidth: 12,
+                              backgroundColor: AppColors.primary.withOpacity(0.15),
+                              valueColor: const AlwaysStoppedAnimation<Color>(AppColors.primary),
+                              strokeCap: StrokeCap.round,
                             ),
                           ),
+                          const Icon(
+                            Icons.arrow_forward_rounded,
+                            color: Colors.white,
+                            size: 20,
+                          ),
+                        ],
+                      ),
+                      const SizedBox(width: 24),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              "Move / Tasks completed",
+                              style: TextStyle(color: AppColors.textSecondary, fontSize: 13, fontWeight: FontWeight.w600),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              "$completedCount/$totalCount TASKS",
+                              style: const TextStyle(
+                                color: AppColors.primary,
+                                fontSize: 20,
+                                fontWeight: FontWeight.bold,
+                                letterSpacing: 0.5,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              "${(progressVal * 100).toStringAsFixed(0)}% of daily goal completed",
+                              style: const TextStyle(color: AppColors.textSecondary, fontSize: 11),
+                            ),
+                          ],
                         ),
-                        Center(
-                          child: Container(
-                            width: 44,
-                            height: 44,
-                            decoration: const BoxDecoration(
-                              color: AppColors.border,
-                              shape: BoxShape.circle,
-                            ),
-                            child: const Icon(Icons.shield_rounded, color: Color(0xFF4BF3C3), size: 20),
-                          ),
-                        )
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
                 ],
               ),
@@ -1220,9 +1195,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
   // Draw navigation bar matching the inspiration mockup style
   Widget _buildBottomNavigationBar() {
     return Container(
-      decoration: BoxDecoration(
+      decoration: const BoxDecoration(
         color: AppColors.background,
-        border: const Border(
+        border: Border(
           top: BorderSide(color: AppColors.border, width: 1.0),
         ),
       ),
@@ -1232,60 +1207,77 @@ class _DashboardScreenState extends State<DashboardScreen> {
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceAround,
           children: [
-            // Tab 1: Dashboard
-            IconButton(
-              icon: Icon(
-                _selectedIndex == 0 ? Icons.grid_view_rounded : Icons.grid_view_outlined,
-                color: _selectedIndex == 0 ? const Color(0xFF2E6BFF) : AppColors.textMuted,
-              ),
-              onPressed: () => setState(() => _selectedIndex = 0),
-            ),
-            // Tab 2: Tasks Checklist
-            IconButton(
-              icon: Icon(
-                _selectedIndex == 1 ? Icons.assignment_turned_in_rounded : Icons.assignment_turned_in_outlined,
-                color: _selectedIndex == 1 ? const Color(0xFF2E6BFF) : AppColors.textMuted,
-              ),
-              onPressed: () => setState(() => _selectedIndex = 1),
-            ),
-            // Tab 3: Central floating plus log button
+            _buildNavItem(0, Icons.grid_view_rounded, "Summary"),
+            _buildNavItem(1, Icons.assignment_turned_in_rounded, "Tasks"),
+            
+            // Central plus log item
             GestureDetector(
               onTap: _showQuickLogSheet,
-              child: Container(
-                width: 48,
-                height: 48,
-                decoration: const BoxDecoration(
-                  color: Color(0xFF2E6BFF),
-                  shape: BoxShape.circle,
-                  boxShadow: [
-                    BoxShadow(
-                      color: Color(0xFF2E6BFF),
-                      blurRadius: 10,
-                      spreadRadius: 1,
-                    )
-                  ]
-                ),
-                child: const Icon(Icons.add_rounded, color: Colors.white, size: 30),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 6),
+                    decoration: const BoxDecoration(
+                      color: Color(0xFF1C1C1E),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.add_rounded,
+                      color: AppColors.primary,
+                      size: 24,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  const Text(
+                    "Log",
+                    style: TextStyle(
+                      color: AppColors.textSecondary,
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
               ),
             ),
-            // Tab 4: Badges & Levels
-            IconButton(
-              icon: Icon(
-                _selectedIndex == 3 ? Icons.emoji_events_rounded : Icons.emoji_events_outlined,
-                color: _selectedIndex == 3 ? const Color(0xFF2E6BFF) : AppColors.textMuted,
-              ),
-              onPressed: () => setState(() => _selectedIndex = 3),
-            ),
-            // Tab 5: Settings Page
-            IconButton(
-              icon: Icon(
-                _selectedIndex == 4 ? Icons.settings_rounded : Icons.settings_outlined,
-                color: _selectedIndex == 4 ? const Color(0xFF2E6BFF) : AppColors.textMuted,
-              ),
-              onPressed: () => setState(() => _selectedIndex = 4),
-            ),
+            
+            _buildNavItem(3, Icons.emoji_events_rounded, "Awards"),
+            _buildNavItem(4, Icons.settings_rounded, "Settings"),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildNavItem(int index, IconData icon, String label) {
+    final isSelected = _selectedIndex == index;
+    return GestureDetector(
+      onTap: () => setState(() => _selectedIndex = index),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 6),
+            decoration: BoxDecoration(
+              color: isSelected ? const Color(0xFF1C1C1E) : Colors.transparent,
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Icon(
+              icon,
+              color: isSelected ? AppColors.accent : AppColors.textSecondary,
+              size: 24,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            label,
+            style: TextStyle(
+              color: isSelected ? AppColors.accent : AppColors.textSecondary,
+              fontSize: 10,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ],
       ),
     );
   }
