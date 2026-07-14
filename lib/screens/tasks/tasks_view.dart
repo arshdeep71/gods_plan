@@ -6,7 +6,8 @@ import '../../models/task.dart';
 import '../../utils/colors.dart';
 
 class TasksView extends StatefulWidget {
-  const TasksView({super.key});
+  final bool isTab;
+  const TasksView({super.key, this.isTab = false});
 
   @override
   State<TasksView> createState() => _TasksViewState();
@@ -48,10 +49,12 @@ class _TasksViewState extends State<TasksView> {
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: AppColors.textPrimary),
-          onPressed: () => Navigator.pop(context),
-        ),
+        leading: widget.isTab
+            ? null
+            : IconButton(
+                icon: const Icon(Icons.arrow_back_ios_new_rounded, color: AppColors.textPrimary),
+                onPressed: () => Navigator.pop(context),
+              ),
         title: const Text(
           "Tasks Checklist",
           style: TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.bold),
