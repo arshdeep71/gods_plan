@@ -1,5 +1,7 @@
 import 'package:hive_flutter/hive_flutter.dart';
-import 'package:sqflite/sqflite.dart';
+import 'package:sqflite_common/database.dart';
+import 'package:sqflite_common/sql.dart';
+import 'sqlite_factory.dart';
 import 'package:path/path.dart';
 import '../models/task.dart';
 import '../models/sync_item.dart';
@@ -57,10 +59,10 @@ class DatabaseService {
   }
 
   Future<Database> _initSqlite() async {
-    final dbPath = await getDatabasesPath();
+    final dbPath = await getSqliteDatabasesPath();
     final pathString = join(dbPath, 'gods_plan.db');
     
-    return await openDatabase(
+    return await openSqliteDatabase(
       pathString,
       version: 1,
       onCreate: (db, version) async {

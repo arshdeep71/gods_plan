@@ -1,4 +1,3 @@
-import 'dart:io';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../services/database_service.dart';
 import '../models/sync_item.dart';
@@ -11,7 +10,9 @@ import '../models/addiction_log.dart';
 import '../models/finance_transaction.dart';
 import '../models/social.dart';
 import '../models/learning.dart';
-import 'package:sqflite/sqflite.dart';
+import 'package:sqflite_common/database.dart';
+import 'package:sqflite_common/sql.dart';
+import '../utils/network_helper.dart';
 
 class SyncService {
   final DatabaseService _dbService = DatabaseService();
@@ -19,14 +20,7 @@ class SyncService {
 
   // Check if network is available
   Future<bool> isConnected() async {
-    try {
-      final result = await InternetAddress.lookup('google.com');
-      return result.isNotEmpty && result[0].rawAddress.isNotEmpty;
-    } on SocketException catch (_) {
-      return false;
-    } catch (_) {
-      return false;
-    }
+    return await checkInternetConnection();
   }
 
   // Master synchronization coordination
