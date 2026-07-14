@@ -62,8 +62,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final dates = _dbService.getLocalGoalDates();
     if (dates == null) return;
 
-    final start = DateTime.parse(dates['startDate']!);
-    final end = DateTime.parse(dates['endDate']!);
+    final start = DateTime.parse(dates['start_date']!);
+    final end = DateTime.parse(dates['end_date']!);
     final now = DateTime.now();
 
     final total = end.difference(start).inDays;
