@@ -1194,56 +1194,63 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   // Draw navigation bar matching the inspiration mockup style
   Widget _buildBottomNavigationBar() {
-    return Container(
-      decoration: const BoxDecoration(
-        color: AppColors.background,
-        border: Border(
-          top: BorderSide(color: AppColors.border, width: 1.0),
-        ),
-      ),
-      child: BottomAppBar(
-        color: AppColors.background,
-        elevation: 0,
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceAround,
-          children: [
-            _buildNavItem(0, Icons.grid_view_rounded, "Summary"),
-            _buildNavItem(1, Icons.assignment_turned_in_rounded, "Tasks"),
-            
-            // Central plus log item
-            GestureDetector(
-              onTap: _showQuickLogSheet,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 6),
-                    decoration: const BoxDecoration(
-                      color: Color(0xFF1C1C1E),
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(
-                      Icons.add_rounded,
-                      color: AppColors.primary,
-                      size: 24,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  const Text(
-                    "Log",
-                    style: TextStyle(
-                      color: AppColors.textSecondary,
-                      fontSize: 10,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ],
-              ),
+    return SafeArea(
+      child: Container(
+        margin: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+        decoration: BoxDecoration(
+          color: const Color(0xFF1C1C1E),
+          borderRadius: BorderRadius.circular(36),
+          border: Border.all(
+            color: Colors.white.withOpacity(0.08),
+            width: 1.0,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.4),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
             ),
-            
-            _buildNavItem(3, Icons.emoji_events_rounded, "Awards"),
-            _buildNavItem(4, Icons.settings_rounded, "Settings"),
           ],
+        ),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            children: [
+              _buildNavItem(0, Icons.grid_view_rounded, "Summary"),
+              _buildNavItem(1, Icons.assignment_turned_in_rounded, "Tasks"),
+              
+              // Central plus log item
+              GestureDetector(
+                onTap: _showQuickLogSheet,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.add_rounded,
+                        color: Colors.white.withOpacity(0.8),
+                        size: 24,
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        "Log",
+                        style: TextStyle(
+                          color: Colors.white.withOpacity(0.8),
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              
+              _buildNavItem(3, Icons.emoji_events_rounded, "Awards"),
+              _buildNavItem(4, Icons.settings_rounded, "Settings"),
+            ],
+          ),
         ),
       ),
     );
@@ -1253,31 +1260,31 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final isSelected = _selectedIndex == index;
     return GestureDetector(
       onTap: () => setState(() => _selectedIndex = index),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 6),
-            decoration: BoxDecoration(
-              color: isSelected ? const Color(0xFF1C1C1E) : Colors.transparent,
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: Icon(
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        decoration: BoxDecoration(
+          color: isSelected ? const Color(0xFF2C2C2E) : Colors.transparent,
+          borderRadius: BorderRadius.circular(24),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
               icon,
-              color: isSelected ? AppColors.accent : AppColors.textSecondary,
+              color: isSelected ? AppColors.accent : Colors.white,
               size: 24,
             ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            label,
-            style: TextStyle(
-              color: isSelected ? AppColors.accent : AppColors.textSecondary,
-              fontSize: 10,
-              fontWeight: FontWeight.bold,
+            const SizedBox(height: 4),
+            Text(
+              label,
+              style: TextStyle(
+                color: isSelected ? AppColors.accent : Colors.white,
+                fontSize: 10,
+                fontWeight: FontWeight.bold,
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
