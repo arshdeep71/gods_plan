@@ -1,4 +1,4 @@
-import 'package:sqflite_common/database.dart';
+import 'package:sqflite_common/sqlite_api.dart';
 
 Future<Database> openSqliteDatabase(
   String path, {

@@ -10,8 +10,7 @@ import '../models/addiction_log.dart';
 import '../models/finance_transaction.dart';
 import '../models/social.dart';
 import '../models/learning.dart';
-import 'package:sqflite_common/database.dart';
-import 'package:sqflite_common/sql.dart';
+import 'package:sqflite_common/sqlite_api.dart';
 import '../utils/network_helper.dart';
 
 class SyncService {

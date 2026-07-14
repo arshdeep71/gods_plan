@@ -1,6 +1,5 @@
 import 'package:hive_flutter/hive_flutter.dart';
-import 'package:sqflite_common/database.dart';
-import 'package:sqflite_common/sql.dart';
+import 'package:sqflite_common/sqlite_api.dart';
 import 'sqlite_factory.dart';
 import 'package:path/path.dart';
 import '../models/task.dart';
