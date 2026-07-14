@@ -101911,7 +101911,7 @@ case 6:case 1:return A.o(q,r)
 case 2:return A.n(o.at(-1),r)}})
 return A.p($async$Hp,r)},
 CC(a,b,c){return this.abj(a,b,c)},
-abj(a,b,c){var s=0,r=A.q(t.y),q,p=2,o=[],n=this,m,l,k,j,i
+abj(a,b,c){var s=0,r=A.q(t.y),q,p=2,o=[],n=this,m,l,k,j,i,h
 var $async$CC=A.r(function(d,e){if(d===1){o.push(e)
 s=p}for(;;)switch(s){case 0:n.d=!0
 n.e=null
@@ -101930,15 +101930,16 @@ p=2
 s=6
 break
 case 4:p=3
-i=o.pop()
-j=A.a2(i)
-if(j instanceof A.jJ){l=j
+h=o.pop()
+i=A.a2(h)
+if(i instanceof A.jJ){l=i
 n.e=l.a
 n.d=!1
 n.K()
 q=!1
 s=1
-break}else{n.e="An unexpected error occurred during registration."
+break}else{k=i
+n.e="Registration error: "+A.l(k)
 n.d=!1
 n.K()
 q=!1
