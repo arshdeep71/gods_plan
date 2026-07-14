@@ -20,42 +20,111 @@ import 'screens/auth/passcode_screen.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // 1. Initialize local cache Hive databases
-  final dbService = DatabaseService();
-  await dbService.initDatabase();
+  // Custom renderer error handler
+  ErrorWidget.builder = (FlutterErrorDetails details) {
+    return MaterialApp(
+      home: Scaffold(
+        backgroundColor: const Color(0xFF0F0F1A),
+        body: Center(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(Icons.bug_report, color: Colors.amberAccent, size: 64),
+                const SizedBox(height: 16),
+                const Text(
+                  'Render / Widget Error',
+                  style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  details.exception.toString(),
+                  style: const TextStyle(color: Colors.amberAccent, fontSize: 14),
+                  textAlign: TextAlign.center,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  };
 
-  // 2. Safely check and initialize Supabase credentials
-  bool isSupabaseConfigured = false;
-  if (SupabaseConstants.supabaseUrl != 'YOUR_SUPABASE_PROJECT_URL' &&
-      SupabaseConstants.supabaseAnonKey != 'YOUR_SUPABASE_ANON_KEY' &&
-      SupabaseConstants.supabaseUrl.isNotEmpty &&
-      SupabaseConstants.supabaseAnonKey.isNotEmpty) {
-    try {
-      await Supabase.initialize(
-        url: SupabaseConstants.supabaseUrl,
-        anonKey: SupabaseConstants.supabaseAnonKey,
-      );
-      isSupabaseConfigured = true;
-    } catch (e) {
-      isSupabaseConfigured = false;
+  try {
+    // 1. Initialize local cache Hive and SQLite databases
+    final dbService = DatabaseService();
+    await dbService.initDatabase();
+
+    // 2. Safely check and initialize Supabase credentials
+    bool isSupabaseConfigured = false;
+    if (SupabaseConstants.supabaseUrl != 'YOUR_SUPABASE_PROJECT_URL' &&
+        SupabaseConstants.supabaseAnonKey != 'YOUR_SUPABASE_ANON_KEY' &&
+        SupabaseConstants.supabaseUrl.isNotEmpty &&
+        SupabaseConstants.supabaseAnonKey.isNotEmpty) {
+      try {
+        await Supabase.initialize(
+          url: SupabaseConstants.supabaseUrl,
+          anonKey: SupabaseConstants.supabaseAnonKey,
+        );
+        isSupabaseConfigured = true;
+      } catch (e) {
+        isSupabaseConfigured = false;
+      }
     }
-  }
 
-  runApp(
-    MultiProvider(
-      providers: [
-        ChangeNotifierProvider(create: (_) => AuthProvider()),
-        ChangeNotifierProvider(create: (_) => TaskProvider()),
-        ChangeNotifierProvider(create: (_) => HealthProvider()),
-        ChangeNotifierProvider(create: (_) => NutritionProvider()),
-        ChangeNotifierProvider(create: (_) => AddictionProvider()),
-        ChangeNotifierProvider(create: (_) => FinanceProvider()),
-        ChangeNotifierProvider(create: (_) => LearningProvider()),
-        ChangeNotifierProvider(create: (_) => SocialProvider()),
-      ],
-      child: MyApp(isSupabaseConfigured: isSupabaseConfigured),
-    ),
-  );
+    runApp(
+      MultiProvider(
+        providers: [
+          ChangeNotifierProvider(create: (_) => AuthProvider()),
+          ChangeNotifierProvider(create: (_) => TaskProvider()),
+          ChangeNotifierProvider(create: (_) => HealthProvider()),
+          ChangeNotifierProvider(create: (_) => NutritionProvider()),
+          ChangeNotifierProvider(create: (_) => AddictionProvider()),
+          ChangeNotifierProvider(create: (_) => FinanceProvider()),
+          ChangeNotifierProvider(create: (_) => LearningProvider()),
+          ChangeNotifierProvider(create: (_) => SocialProvider()),
+        ],
+        child: MyApp(isSupabaseConfigured: isSupabaseConfigured),
+      ),
+    );
+  } catch (error, stackTrace) {
+    runApp(
+      MaterialApp(
+        home: Scaffold(
+          backgroundColor: const Color(0xFF0F0F1A),
+          body: Center(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.error_outline, color: Colors.redAccent, size: 64),
+                  const SizedBox(height: 16),
+                  const Text(
+                    'App Initialization Error',
+                    style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    error.toString(),
+                    style: const TextStyle(color: Colors.redAccent, fontSize: 14),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    stackTrace.toString(),
+                    style: const TextStyle(color: Colors.grey, fontSize: 10),
+                    textAlign: TextAlign.left,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 class MyApp extends StatelessWidget {
