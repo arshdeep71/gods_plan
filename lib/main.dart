@@ -39,8 +39,8 @@ void main() async {
                 ),
                 const SizedBox(height: 16),
                 Text(
-                  details.exception.toString(),
-                  style: const TextStyle(color: Colors.amberAccent, fontSize: 14),
+                  '${details.exception}\n\nStack Trace:\n${details.stack}',
+                  style: const TextStyle(color: Colors.amberAccent, fontSize: 12),
                   textAlign: TextAlign.center,
                 ),
               ],
