@@ -1,7 +1,7 @@
 Warning: Building for device with codesigning disabled. You will have to manually codesign before deploying to device.
 Building com.godsplan.godsPlan for device (ios-release)...
 Running Xcode build...                                          
-Xcode build done.                                           26.5s
+Xcode build done.                                           31.5s
 Failed to build iOS app
 Error output from Xcode build:
 ↳
@@ -11,93 +11,13 @@ Error output from Xcode build:
 Xcode's output:
 ↳
     Writing result bundle at path:
-    	/var/folders/g3/pffjr_y96bq06blnkf72x_hw0000gn/T/flutter_tools.McjJmw/flutter_ios_build_temp_dirWsnfkD/temporary_xcresult_bundle
+    	/var/folders/g3/pffjr_y96bq06blnkf72x_hw0000gn/T/flutter_tools.c4aRCt/flutter_ios_build_temp_dirRvQTLR/temporary_xcresult_bundle
 
-    lib/services/database_service.dart:2:8: Error: Error when reading '../../../.pub-cache/hosted/pub.dev/sqflite_common-2.5.11/lib/database.dart': No such file or directory
-    import 'package:sqflite_common/database.dart';
-           ^
-    lib/services/sync_service.dart:13:8: Error: Error when reading '../../../.pub-cache/hosted/pub.dev/sqflite_common-2.5.11/lib/database.dart': No such file or directory
-    import 'package:sqflite_common/database.dart';
-           ^
-    lib/services/sqlite_factory_mobile.dart:2:8: Error: Error when reading '../../../.pub-cache/hosted/pub.dev/sqflite_common-2.5.11/lib/database.dart': No such file or directory
-    import 'package:sqflite_common/database.dart';
-           ^
-    lib/services/database_service.dart:19:10: Error: Type 'Database' not found.
-      static Database? _database;
-             ^^^^^^^^
-    lib/services/database_service.dart:55:10: Error: Type 'Database' not found.
-      Future<Database> get database async {
-             ^^^^^^^^
-    lib/services/database_service.dart:61:10: Error: Type 'Database' not found.
-      Future<Database> _initSqlite() async {
-             ^^^^^^^^
-    lib/services/sqlite_factory_mobile.dart:4:8: Error: Type 'Database' not found.
-    Future<Database> openSqliteDatabase(
-           ^^^^^^^^
-    lib/services/sqlite_factory_mobile.dart:7:34: Error: Type 'Database' not found.
-      required Future<void> Function(Database, int) onCreate,
-                                     ^^^^^^^^
-    lib/services/database_service.dart:19:10: Error: 'Database' isn't a type.
-      static Database? _database;
-             ^^^^^^^^
-    lib/services/database_service.dart:70:18: Error: The method 'execute' isn't defined for the type 'Object?'.
-     - 'Object' is from 'dart:core'.
-    Try correcting the name to the name of an existing method, or defining a method named 'execute'.
-            await db.execute('''
-                     ^^^^^^^
-    lib/services/database_service.dart:86:18: Error: The method 'execute' isn't defined for the type 'Object?'.
-     - 'Object' is from 'dart:core'.
-    Try correcting the name to the name of an existing method, or defining a method named 'execute'.
-            await db.execute('''
-                     ^^^^^^^
-    lib/services/database_service.dart:100:18: Error: The method 'execute' isn't defined for the type 'Object?'.
-     - 'Object' is from 'dart:core'.
-    Try correcting the name to the name of an existing method, or defining a method named 'execute'.
-            await db.execute('''
-                     ^^^^^^^
-    lib/services/database_service.dart:117:18: Error: The method 'execute' isn't defined for the type 'Object?'.
-     - 'Object' is from 'dart:core'.
-    Try correcting the name to the name of an existing method, or defining a method named 'execute'.
-            await db.execute('''
-                     ^^^^^^^
-    lib/services/database_service.dart:132:18: Error: The method 'execute' isn't defined for the type 'Object?'.
-     - 'Object' is from 'dart:core'.
-    Try correcting the name to the name of an existing method, or defining a method named 'execute'.
-            await db.execute('''
-                     ^^^^^^^
-    lib/services/database_service.dart:143:18: Error: The method 'execute' isn't defined for the type 'Object?'.
-     - 'Object' is from 'dart:core'.
-    Try correcting the name to the name of an existing method, or defining a method named 'execute'.
-            await db.execute('''
-                     ^^^^^^^
-    lib/services/database_service.dart:159:18: Error: The method 'execute' isn't defined for the type 'Object?'.
-     - 'Object' is from 'dart:core'.
-    Try correcting the name to the name of an existing method, or defining a method named 'execute'.
-            await db.execute('''
-                     ^^^^^^^
-    lib/services/database_service.dart:173:18: Error: The method 'execute' isn't defined for the type 'Object?'.
-     - 'Object' is from 'dart:core'.
-    Try correcting the name to the name of an existing method, or defining a method named 'execute'.
-            await db.execute('''
-                     ^^^^^^^
-    lib/services/database_service.dart:186:18: Error: The method 'execute' isn't defined for the type 'Object?'.
-     - 'Object' is from 'dart:core'.
-    Try correcting the name to the name of an existing method, or defining a method named 'execute'.
-            await db.execute('''
-                     ^^^^^^^
-    lib/services/database_service.dart:199:18: Error: The method 'execute' isn't defined for the type 'Object?'.
-     - 'Object' is from 'dart:core'.
-    Try correcting the name to the name of an existing method, or defining a method named 'execute'.
-            await db.execute('''
-                     ^^^^^^^
-    lib/services/database_service.dart:211:18: Error: The method 'execute' isn't defined for the type 'Object?'.
-     - 'Object' is from 'dart:core'.
-    Try correcting the name to the name of an existing method, or defining a method named 'execute'.
-            await db.execute('''
-                     ^^^^^^^
-    lib/services/sqlite_factory_mobile.dart:7:34: Error: 'Database' isn't a type.
-      required Future<void> Function(Database, int) onCreate,
-                                     ^^^^^^^^
+    lib/screens/dashboard.dart:954:34: Error: The method 'clearAllDatabases' isn't defined for the type 'DatabaseService'.
+     - 'DatabaseService' is from 'package:gods_plan/services/database_service.dart' ('lib/services/database_service.dart').
+    Try correcting the name to the name of an existing method, or defining a method named 'clearAllDatabases'.
+                    await _dbService.clearAllDatabases();
+                                     ^^^^^^^^^^^^^^^^^
     Target kernel_snapshot_program failed: Exception
     Failed to package /Users/runner/work/gods_plan/gods_plan.
     Command PhaseScriptExecution failed with a nonzero exit code
