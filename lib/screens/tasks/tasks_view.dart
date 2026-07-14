@@ -37,12 +37,164 @@ class _TasksViewState extends State<TasksView> {
     );
   }
 
+  void _showTaskOptionsSheet(Task task) {
+    final taskProvider = Provider.of<TaskProvider>(context, listen: false);
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: const Color(0xFF1C1C1E),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) {
+        final formattedDate = "${DateTime.now().year}-${DateTime.now().month.toString().padLeft(2, '0')}-${DateTime.now().day.toString().padLeft(2, '0')}";
+        final isCompleted = task.isRecurring
+            ? task.lastCompletedDate == formattedDate
+            : task.isCompleted;
+
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                margin: const EdgeInsets.only(top: 12, bottom: 8),
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.grey[700],
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            task.title,
+                            style: const TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              color: AppColors.textPrimary,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            task.isRecurring
+                                ? "Daily habit • ${task.dueTime ?? 'Anytime'}"
+                                : "Single task • ${task.scheduledDate ?? 'No date'} • ${task.dueTime ?? 'Anytime'}",
+                            style: const TextStyle(color: AppColors.textMuted, fontSize: 13),
+                          ),
+                        ],
+                      ),
+                    ),
+                    if (task.isPaused)
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: AppColors.error.withOpacity(0.15),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: const Text(
+                          "PAUSED",
+                          style: TextStyle(color: AppColors.error, fontSize: 10, fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+              const Divider(color: AppColors.border, height: 1),
+              ListTile(
+                leading: Icon(
+                  isCompleted ? Icons.radio_button_unchecked_rounded : Icons.check_circle_rounded,
+                  color: isCompleted ? AppColors.textSecondary : AppColors.accent,
+                ),
+                title: Text(
+                  isCompleted ? "Mark as Active" : "Mark as Completed",
+                  style: const TextStyle(color: AppColors.textPrimary),
+                ),
+                onTap: () {
+                  Navigator.pop(context);
+                  taskProvider.toggleTaskCompletion(task);
+                },
+              ),
+              ListTile(
+                leading: Icon(
+                  task.isPaused ? Icons.play_arrow_rounded : Icons.pause_rounded,
+                  color: Colors.amber,
+                ),
+                title: Text(
+                  task.isPaused ? "Resume Habit" : "Pause Habit",
+                  style: const TextStyle(color: AppColors.textPrimary),
+                ),
+                onTap: () {
+                  Navigator.pop(context);
+                  taskProvider.toggleTaskPause(task);
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.edit_rounded, color: Colors.blue),
+                title: const Text("Edit Task Details", style: TextStyle(color: AppColors.textPrimary)),
+                onTap: () {
+                  Navigator.pop(context);
+                  _showEditTaskSheet(task);
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.delete_forever_rounded, color: AppColors.error),
+                title: const Text("Delete Task", style: TextStyle(color: AppColors.textPrimary)),
+                onTap: () {
+                  Navigator.pop(context);
+                  taskProvider.deleteTask(task);
+                },
+              ),
+              const SizedBox(height: 12),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  void _showEditTaskSheet(Task task) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: AppColors.background,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (context) => EditTaskSheet(task: task),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final taskProvider = context.watch<TaskProvider>();
     final authProvider = context.read<AuthProvider>();
-    final active = taskProvider.activeTasks;
-    final completed = taskProvider.completedTasks;
+    
+    final active = taskProvider.tasks.where((t) {
+      final formattedDate = "${DateTime.now().year}-${DateTime.now().month.toString().padLeft(2, '0')}-${DateTime.now().day.toString().padLeft(2, '0')}";
+      final isScheduled = t.isRecurring || (t.scheduledDate == formattedDate);
+      if (!isScheduled || t.isPaused) return false;
+      
+      final isComp = t.isRecurring ? t.lastCompletedDate == formattedDate : t.isCompleted;
+      return !isComp;
+    }).toList();
+
+    final completed = taskProvider.tasks.where((t) {
+      final formattedDate = "${DateTime.now().year}-${DateTime.now().month.toString().padLeft(2, '0')}-${DateTime.now().day.toString().padLeft(2, '0')}";
+      final isScheduled = t.isRecurring || (t.scheduledDate == formattedDate);
+      if (!isScheduled || t.isPaused) return false;
+      
+      final isComp = t.isRecurring ? t.lastCompletedDate == formattedDate : t.isCompleted;
+      return isComp;
+    }).toList();
+
+    final paused = taskProvider.tasks.where((t) => t.isPaused).toList();
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -70,7 +222,7 @@ class _TasksViewState extends State<TasksView> {
                   height: 18,
                   child: CircularProgressIndicator(
                     strokeWidth: 2,
-                    color: AppColors.primaryLight,
+                    color: AppColors.accent,
                   ),
                 ),
               ),
@@ -88,7 +240,7 @@ class _TasksViewState extends State<TasksView> {
       ),
       body: taskProvider.isLoading
           ? const Center(
-              child: CircularProgressIndicator(color: AppColors.primary),
+              child: CircularProgressIndicator(color: AppColors.accent),
             )
           : taskProvider.tasks.isEmpty
               ? _buildEmptyState(context)
@@ -121,13 +273,27 @@ class _TasksViewState extends State<TasksView> {
                       ),
                       const SizedBox(height: 10),
                       ...completed.map((task) => _buildTaskTile(task)),
+                      const SizedBox(height: 24),
+                    ],
+                    if (paused.isNotEmpty) ...[
+                      const Text(
+                        "Paused Habits",
+                        style: TextStyle(
+                          color: AppColors.textMuted,
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 1.0,
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      ...paused.map((task) => _buildTaskTile(task)),
                     ]
                   ],
                 ),
       floatingActionButton: FloatingActionButton(
         onPressed: () => _showAddTaskSheet(context),
-        backgroundColor: AppColors.primary,
-        child: const Icon(Icons.add_rounded, color: AppColors.textPrimary, size: 30),
+        backgroundColor: AppColors.accent,
+        child: const Icon(Icons.add_rounded, color: Colors.black, size: 30),
       ),
     );
   }
@@ -179,22 +345,10 @@ class _TasksViewState extends State<TasksView> {
 
   Widget _buildTaskTile(Task task) {
     final taskProvider = context.read<TaskProvider>();
-
-    Color priorityColor;
-    switch (task.priority) {
-      case 'high':
-        priorityColor = AppColors.error;
-        break;
-      case 'medium':
-        priorityColor = AppColors.secondary;
-        break;
-      default:
-        priorityColor = AppColors.textSecondary;
-    }
-
-    int xpGained = 10;
-    if (task.difficulty == 'medium') xpGained = 25;
-    if (task.difficulty == 'hard') xpGained = 50;
+    final formattedDate = "${DateTime.now().year}-${DateTime.now().month.toString().padLeft(2, '0')}-${DateTime.now().day.toString().padLeft(2, '0')}";
+    final isCompleted = task.isRecurring
+        ? task.lastCompletedDate == formattedDate
+        : task.isCompleted;
 
     return Dismissible(
       key: Key(task.id),
@@ -224,67 +378,73 @@ class _TasksViewState extends State<TasksView> {
           color: AppColors.surface,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
-            color: task.isCompleted ? Colors.transparent : AppColors.border,
+            color: isCompleted ? Colors.transparent : AppColors.border,
             width: 1.2,
           ),
         ),
         child: ListTile(
+          onTap: () => _showTaskOptionsSheet(task),
           contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-          leading: Transform.scale(
-            scale: 1.1,
-            child: Checkbox(
-              value: task.isCompleted,
-              activeColor: AppColors.success,
-              checkColor: AppColors.background,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
-              side: const BorderSide(color: AppColors.textSecondary, width: 1.5),
-              onChanged: (_) {
-                taskProvider.toggleTaskCompletion(task);
-              },
-            ),
-          ),
+          leading: task.isPaused
+              ? const Icon(Icons.pause_circle_filled_rounded, color: Colors.amber, size: 28)
+              : Transform.scale(
+                  scale: 1.1,
+                  child: Checkbox(
+                    value: isCompleted,
+                    activeColor: AppColors.accent,
+                    checkColor: Colors.black,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+                    side: const BorderSide(color: AppColors.textSecondary, width: 1.5),
+                    onChanged: (_) {
+                      taskProvider.toggleTaskCompletion(task);
+                    },
+                  ),
+                ),
           title: Text(
             task.title,
             style: TextStyle(
-              color: task.isCompleted ? AppColors.textMuted : AppColors.textPrimary,
+              color: task.isPaused
+                  ? AppColors.textMuted
+                  : (isCompleted ? AppColors.textMuted : AppColors.textPrimary),
               fontSize: 16,
               fontWeight: FontWeight.w600,
-              decoration: task.isCompleted ? TextDecoration.lineThrough : null,
+              decoration: isCompleted ? TextDecoration.lineThrough : null,
             ),
           ),
           subtitle: Padding(
             padding: const EdgeInsets.only(top: 8.0),
             child: Row(
               children: [
-                // Priority Tag Indicator
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                  decoration: BoxDecoration(
-                    color: priorityColor.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: priorityColor.withOpacity(0.3), width: 1),
-                  ),
-                  child: Text(
-                    task.priority.toUpperCase(),
-                    style: TextStyle(color: priorityColor, fontSize: 10, fontWeight: FontWeight.bold),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                // XP Reward Badge
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                  decoration: BoxDecoration(
-                    color: AppColors.primary.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Text(
-                    "+$xpGained XP",
-                    style: const TextStyle(color: AppColors.primaryLight, fontSize: 10, fontWeight: FontWeight.bold),
-                  ),
-                ),
                 if (task.isRecurring) ...[
-                  const SizedBox(width: 8),
-                  const Icon(Icons.repeat_rounded, color: AppColors.textMuted, size: 14),
+                  const Icon(Icons.repeat_rounded, color: AppColors.accent, size: 14),
+                  const SizedBox(width: 4),
+                  const Text(
+                    "Daily Habit",
+                    style: TextStyle(color: AppColors.accent, fontSize: 11, fontWeight: FontWeight.bold),
+                  ),
+                  if (task.streakCount > 0) ...[
+                    const SizedBox(width: 12),
+                    Text(
+                      "🔥 ${task.streakCount} day streak",
+                      style: const TextStyle(color: Colors.orange, fontSize: 11, fontWeight: FontWeight.bold),
+                    ),
+                  ],
+                ] else ...[
+                  const Icon(Icons.calendar_today_rounded, color: AppColors.textSecondary, size: 12),
+                  const SizedBox(width: 4),
+                  Text(
+                    task.scheduledDate ?? "Today",
+                    style: const TextStyle(color: AppColors.textSecondary, fontSize: 11),
+                  ),
+                ],
+                if (task.dueTime != null) ...[
+                  const SizedBox(width: 12),
+                  const Icon(Icons.access_time_rounded, color: AppColors.textSecondary, size: 12),
+                  const SizedBox(width: 4),
+                  Text(
+                    task.dueTime!,
+                    style: const TextStyle(color: AppColors.textSecondary, fontSize: 11),
+                  ),
                 ]
               ],
             ),
@@ -295,7 +455,6 @@ class _TasksViewState extends State<TasksView> {
   }
 }
 
-// Add Task Bottom Sheet view
 class AddTaskSheet extends StatefulWidget {
   const AddTaskSheet({super.key});
 
@@ -306,9 +465,9 @@ class AddTaskSheet extends StatefulWidget {
 class _AddTaskSheetState extends State<AddTaskSheet> {
   final _formKey = GlobalKey<FormState>();
   final _titleController = TextEditingController();
-  String _difficulty = 'easy'; // 'easy', 'medium', 'hard'
-  String _priority = 'medium'; // 'low', 'medium', 'high'
-  bool _isRecurring = false;
+  bool _isRecurring = true; // By default everyday is true!
+  DateTime _scheduledDate = DateTime.now();
+  TimeOfDay? _selectedTime;
 
   @override
   void dispose() {
@@ -316,17 +475,77 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
     super.dispose();
   }
 
+  Future<void> _pickDate() async {
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _scheduledDate,
+      firstDate: DateTime.now().subtract(const Duration(days: 365)),
+      lastDate: DateTime.now().add(const Duration(days: 365 * 2)),
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: const ColorScheme.dark(
+              primary: AppColors.accent,
+              onPrimary: Colors.black,
+              surface: Color(0xFF1C1C1E),
+              onSurface: Colors.white,
+            ),
+          ),
+          child: child!,
+        );
+      },
+    );
+    if (picked != null) {
+      setState(() {
+        _scheduledDate = picked;
+      });
+    }
+  }
+
+  Future<void> _pickTime() async {
+    final picked = await showTimePicker(
+      context: context,
+      initialTime: _selectedTime ?? TimeOfDay.now(),
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: const ColorScheme.dark(
+              primary: AppColors.accent,
+              onPrimary: Colors.black,
+              surface: Color(0xFF1C1C1E),
+              onSurface: Colors.white,
+            ),
+          ),
+          child: child!,
+        );
+      },
+    );
+    if (picked != null) {
+      setState(() {
+        _selectedTime = picked;
+      });
+    }
+  }
+
   void _submit() {
     if (!_formKey.currentState!.validate()) return;
 
     final user = Provider.of<AuthProvider>(context, listen: false).user;
     if (user != null) {
+      String? formattedTime;
+      if (_selectedTime != null) {
+        final localizations = MaterialLocalizations.of(context);
+        formattedTime = localizations.formatTimeOfDay(_selectedTime!, alwaysUse24HourFormat: false);
+      }
+
+      final formattedDate = "${_scheduledDate.year}-${_scheduledDate.month.toString().padLeft(2, '0')}-${_scheduledDate.day.toString().padLeft(2, '0')}";
+
       Provider.of<TaskProvider>(context, listen: false).addTask(
         userId: user.id,
         title: _titleController.text.trim(),
-        difficulty: _difficulty,
-        priority: _priority,
         isRecurring: _isRecurring,
+        dueTime: formattedTime,
+        scheduledDate: _isRecurring ? null : formattedDate,
       );
       Navigator.pop(context);
     }
@@ -334,6 +553,11 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final formattedDateStr = "${_scheduledDate.day} ${_getMonthName(_scheduledDate.month)} ${_scheduledDate.year}";
+    final timeStr = _selectedTime != null
+        ? _selectedTime!.format(context)
+        : "Anytime";
+
     return Padding(
       padding: EdgeInsets.only(
         bottom: MediaQuery.of(context).viewInsets.bottom + 24,
@@ -347,34 +571,42 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const Text(
-              "New Task",
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-                color: AppColors.textPrimary,
-              ),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  "New Task",
+                  style: TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.close_rounded, color: AppColors.textSecondary),
+                  onPressed: () => Navigator.pop(context),
+                )
+              ],
             ),
             const SizedBox(height: 20),
 
-            // Task Title Input
             TextFormField(
               controller: _titleController,
               autofocus: true,
               style: const TextStyle(color: AppColors.textPrimary),
               decoration: InputDecoration(
-                hintText: "What do you need to do?",
+                hintText: "Enter task name",
                 hintStyle: const TextStyle(color: AppColors.textMuted),
                 filled: true,
-                fillColor: AppColors.surface,
+                fillColor: const Color(0xFF1C1C1E),
                 contentPadding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
                 enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(14),
                   borderSide: const BorderSide(color: AppColors.border),
                 ),
                 focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: const BorderSide(color: AppColors.primary, width: 2),
+                  borderRadius: BorderRadius.circular(14),
+                  borderSide: const BorderSide(color: AppColors.accent, width: 1.5),
                 ),
               ),
               validator: (val) {
@@ -384,67 +616,121 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
             ),
             const SizedBox(height: 20),
 
-            // Difficulty Selector Block
-            const Text("Difficulty", style: TextStyle(color: AppColors.textSecondary, fontSize: 13, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                _buildSegmentChip('Easy', 'easy', _difficulty, (val) => setState(() => _difficulty = val)),
-                const SizedBox(width: 8),
-                _buildSegmentChip('Medium', 'medium', _difficulty, (val) => setState(() => _difficulty = val)),
-                const SizedBox(width: 8),
-                _buildSegmentChip('Hard', 'hard', _difficulty, (val) => setState(() => _difficulty = val)),
-              ],
-            ),
-            const SizedBox(height: 20),
-
-            // Priority Selector Block
-            const Text("Priority", style: TextStyle(color: AppColors.textSecondary, fontSize: 13, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                _buildSegmentChip('Low', 'low', _priority, (val) => setState(() => _priority = val)),
-                const SizedBox(width: 8),
-                _buildSegmentChip('Medium', 'medium', _priority, (val) => setState(() => _priority = val)),
-                const SizedBox(width: 8),
-                _buildSegmentChip('High', 'high', _priority, (val) => setState(() => _priority = val)),
-              ],
-            ),
-            const SizedBox(height: 20),
-
-            // Recurring Switch Card
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
               decoration: BoxDecoration(
-                color: AppColors.surface,
-                borderRadius: BorderRadius.circular(12),
+                color: const Color(0xFF1C1C1E),
+                borderRadius: BorderRadius.circular(14),
                 border: Border.all(color: AppColors.border),
               ),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text("Daily Recurring Task", style: TextStyle(color: AppColors.textPrimary, fontSize: 14)),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: const [
+                      Text(
+                        "Repeat Everyday",
+                        style: TextStyle(color: AppColors.textPrimary, fontSize: 15, fontWeight: FontWeight.w600),
+                      ),
+                      SizedBox(height: 2),
+                      Text(
+                        "Task repeats daily",
+                        style: TextStyle(color: AppColors.textMuted, fontSize: 12),
+                      ),
+                    ],
+                  ),
                   Switch(
                     value: _isRecurring,
-                    activeColor: AppColors.primary,
+                    activeColor: AppColors.accent,
+                    activeTrackColor: AppColors.accent.withOpacity(0.3),
+                    inactiveThumbColor: Colors.grey,
+                    inactiveTrackColor: Colors.black26,
                     onChanged: (val) => setState(() => _isRecurring = val),
                   ),
                 ],
               ),
             ),
-            const SizedBox(height: 28),
+            const SizedBox(height: 16),
 
-            // Save Task Button
+            if (!_isRecurring) ...[
+              GestureDetector(
+                onTap: _pickDate,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF1C1C1E),
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: AppColors.border),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Row(
+                        children: const [
+                          Icon(Icons.calendar_today_rounded, color: AppColors.accent, size: 20),
+                          SizedBox(width: 12),
+                          Text(
+                            "Select Date",
+                            style: TextStyle(color: AppColors.textPrimary, fontSize: 15, fontWeight: FontWeight.w600),
+                          ),
+                        ],
+                      ),
+                      Text(
+                        formattedDateStr,
+                        style: const TextStyle(color: AppColors.accent, fontSize: 14, fontWeight: FontWeight.bold),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+            ],
+
+            GestureDetector(
+              onTap: _pickTime,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF1C1C1E),
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: AppColors.border),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Row(
+                      children: const [
+                        Icon(Icons.access_time_filled_rounded, color: AppColors.accent, size: 20),
+                        SizedBox(width: 12),
+                        Text(
+                          "Select Time",
+                          style: TextStyle(color: AppColors.textPrimary, fontSize: 15, fontWeight: FontWeight.w600),
+                        ),
+                      ],
+                    ),
+                    Text(
+                      timeStr,
+                      style: const TextStyle(color: AppColors.accent, fontSize: 14, fontWeight: FontWeight.bold),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 24),
+
             ElevatedButton(
               onPressed: _submit,
               style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.primary,
+                backgroundColor: AppColors.accent,
+                foregroundColor: Colors.black,
                 padding: const EdgeInsets.symmetric(vertical: 16),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                elevation: 0,
               ),
               child: const Text(
                 "Save Task",
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
               ),
             ),
           ],
@@ -453,32 +739,337 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
     );
   }
 
-  Widget _buildSegmentChip(String label, String value, String currentValue, ValueChanged<String> onSelected) {
-    final isSelected = value == currentValue;
-    return Expanded(
-      child: ChoiceChip(
-        label: Center(
-          child: Text(
-            label,
-            style: TextStyle(
-              color: isSelected ? AppColors.textPrimary : AppColors.textSecondary,
-              fontWeight: FontWeight.bold,
-              fontSize: 13,
+  String _getMonthName(int month) {
+    const months = [
+      "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+      "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
+    ];
+    if (month >= 1 && month <= 12) return months[month - 1];
+    return "";
+  }
+}
+
+class EditTaskSheet extends StatefulWidget {
+  final Task task;
+  const EditTaskSheet({super.key, required this.task});
+
+  @override
+  State<EditTaskSheet> createState() => _EditTaskSheetState();
+}
+
+class _EditTaskSheetState extends State<EditTaskSheet> {
+  final _formKey = GlobalKey<FormState>();
+  late final TextEditingController _titleController;
+  late bool _isRecurring;
+  late DateTime _scheduledDate;
+  TimeOfDay? _selectedTime;
+
+  @override
+  void initState() {
+    super.initState();
+    _titleController = TextEditingController(text: widget.task.title);
+    _isRecurring = widget.task.isRecurring;
+    if (widget.task.scheduledDate != null) {
+      try {
+        _scheduledDate = DateTime.parse(widget.task.scheduledDate!);
+      } catch (_) {
+        _scheduledDate = DateTime.now();
+      }
+    } else {
+      _scheduledDate = DateTime.now();
+    }
+    
+    if (widget.task.dueTime != null) {
+      final parts = widget.task.dueTime!.split(" ");
+      if (parts.isNotEmpty) {
+        final timeParts = parts[0].split(":");
+        if (timeParts.length >= 2) {
+          int hour = int.tryParse(timeParts[0]) ?? 12;
+          int minute = int.tryParse(timeParts[1]) ?? 0;
+          if (parts.length > 1 && parts[1].toLowerCase() == "pm" && hour < 12) {
+            hour += 12;
+          } else if (parts.length > 1 && parts[1].toLowerCase() == "am" && hour == 12) {
+            hour = 0;
+          }
+          _selectedTime = TimeOfDay(hour: hour, minute: minute);
+        }
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    _titleController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _pickDate() async {
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _scheduledDate,
+      firstDate: DateTime.now().subtract(const Duration(days: 365)),
+      lastDate: DateTime.now().add(const Duration(days: 365 * 2)),
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: const ColorScheme.dark(
+              primary: AppColors.accent,
+              onPrimary: Colors.black,
+              surface: Color(0xFF1C1C1E),
+              onSurface: Colors.white,
             ),
           ),
+          child: child!,
+        );
+      },
+    );
+    if (picked != null) {
+      setState(() {
+        _scheduledDate = picked;
+      });
+    }
+  }
+
+  Future<void> _pickTime() async {
+    final picked = await showTimePicker(
+      context: context,
+      initialTime: _selectedTime ?? TimeOfDay.now(),
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: const ColorScheme.dark(
+              primary: AppColors.accent,
+              onPrimary: Colors.black,
+              surface: Color(0xFF1C1C1E),
+              onSurface: Colors.white,
+            ),
+          ),
+          child: child!,
+        );
+      },
+    );
+    if (picked != null) {
+      setState(() {
+        _selectedTime = picked;
+      });
+    }
+  }
+
+  void _submit() {
+    if (!_formKey.currentState!.validate()) return;
+
+    String? formattedTime;
+    if (_selectedTime != null) {
+      final localizations = MaterialLocalizations.of(context);
+      formattedTime = localizations.formatTimeOfDay(_selectedTime!, alwaysUse24HourFormat: false);
+    }
+
+    final formattedDate = "${_scheduledDate.year}-${_scheduledDate.month.toString().padLeft(2, '0')}-${_scheduledDate.day.toString().padLeft(2, '0')}";
+
+    Provider.of<TaskProvider>(context, listen: false).updateTask(
+      taskId: widget.task.id,
+      title: _titleController.text.trim(),
+      isRecurring: _isRecurring,
+      dueTime: formattedTime,
+      scheduledDate: _isRecurring ? null : formattedDate,
+    );
+    Navigator.pop(context);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final formattedDateStr = "${_scheduledDate.day} ${_getMonthName(_scheduledDate.month)} ${_scheduledDate.year}";
+    final timeStr = _selectedTime != null
+        ? _selectedTime!.format(context)
+        : "Anytime";
+
+    return Padding(
+      padding: EdgeInsets.only(
+        bottom: MediaQuery.of(context).viewInsets.bottom + 24,
+        top: 24,
+        left: 24,
+        right: 24,
+      ),
+      child: Form(
+        key: _formKey,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  "Edit Task",
+                  style: TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.close_rounded, color: AppColors.textSecondary),
+                  onPressed: () => Navigator.pop(context),
+                )
+              ],
+            ),
+            const SizedBox(height: 20),
+
+            TextFormField(
+              controller: _titleController,
+              autofocus: true,
+              style: const TextStyle(color: AppColors.textPrimary),
+              decoration: InputDecoration(
+                hintText: "Enter task name",
+                hintStyle: const TextStyle(color: AppColors.textMuted),
+                filled: true,
+                fillColor: const Color(0xFF1C1C1E),
+                contentPadding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(14),
+                  borderSide: const BorderSide(color: AppColors.border),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(14),
+                  borderSide: const BorderSide(color: AppColors.accent, width: 1.5),
+                ),
+              ),
+              validator: (val) {
+                if (val == null || val.trim().isEmpty) return "Task title cannot be empty";
+                return null;
+              },
+            ),
+            const SizedBox(height: 20),
+
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+              decoration: BoxDecoration(
+                color: const Color(0xFF1C1C1E),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: AppColors.border),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: const [
+                      Text(
+                        "Repeat Everyday",
+                        style: TextStyle(color: AppColors.textPrimary, fontSize: 15, fontWeight: FontWeight.w600),
+                      ),
+                      SizedBox(height: 2),
+                      Text(
+                        "Task repeats daily",
+                        style: TextStyle(color: AppColors.textMuted, fontSize: 12),
+                      ),
+                    ],
+                  ),
+                  Switch(
+                    value: _isRecurring,
+                    activeColor: AppColors.accent,
+                    activeTrackColor: AppColors.accent.withOpacity(0.3),
+                    inactiveThumbColor: Colors.grey,
+                    inactiveTrackColor: Colors.black26,
+                    onChanged: (val) => setState(() => _isRecurring = val),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+
+            if (!_isRecurring) ...[
+              GestureDetector(
+                onTap: _pickDate,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF1C1C1E),
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: AppColors.border),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Row(
+                        children: const [
+                          Icon(Icons.calendar_today_rounded, color: AppColors.accent, size: 20),
+                          SizedBox(width: 12),
+                          Text(
+                            "Select Date",
+                            style: TextStyle(color: AppColors.textPrimary, fontSize: 15, fontWeight: FontWeight.w600),
+                          ),
+                        ],
+                      ),
+                      Text(
+                        formattedDateStr,
+                        style: const TextStyle(color: AppColors.accent, fontSize: 14, fontWeight: FontWeight.bold),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+            ],
+
+            GestureDetector(
+              onTap: _pickTime,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF1C1C1E),
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: AppColors.border),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Row(
+                      children: const [
+                        Icon(Icons.access_time_filled_rounded, color: AppColors.accent, size: 20),
+                        SizedBox(width: 12),
+                        Text(
+                          "Select Time",
+                          style: TextStyle(color: AppColors.textPrimary, fontSize: 15, fontWeight: FontWeight.w600),
+                        ),
+                      ],
+                    ),
+                    Text(
+                      timeStr,
+                      style: const TextStyle(color: AppColors.accent, fontSize: 14, fontWeight: FontWeight.bold),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 24),
+
+            ElevatedButton(
+              onPressed: _submit,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.accent,
+                foregroundColor: Colors.black,
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                elevation: 0,
+              ),
+              child: const Text(
+                "Save Changes",
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              ),
+            ),
+          ],
         ),
-        selected: isSelected,
-        onSelected: (selected) {
-          if (selected) onSelected(value);
-        },
-        selectedColor: AppColors.primary,
-        backgroundColor: AppColors.surface,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(10),
-          side: BorderSide(color: isSelected ? Colors.transparent : AppColors.border),
-        ),
-        showCheckmark: false,
       ),
     );
+  }
+
+  String _getMonthName(int month) {
+    const months = [
+      "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+      "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
+    ];
+    if (month >= 1 && month <= 12) return months[month - 1];
+    return "";
   }
 }

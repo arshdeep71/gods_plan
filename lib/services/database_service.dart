@@ -61,7 +61,7 @@ class DatabaseService {
     final dbPath = await getSqliteDatabasesPath();
     final pathString = join(dbPath, 'gods_plan.db');
     
-    return await openSqliteDatabase(
+    final db = await openSqliteDatabase(
       pathString,
       version: 1,
       onCreate: (db, version) async {
@@ -77,7 +77,11 @@ class DatabaseService {
             is_recurring INTEGER NOT NULL,
             streak_count INTEGER DEFAULT 0,
             created_at TEXT NOT NULL,
-            updated_at TEXT NOT NULL
+            updated_at TEXT NOT NULL,
+            is_paused INTEGER DEFAULT 0,
+            due_time TEXT,
+            scheduled_date TEXT,
+            last_completed_date TEXT
           )
         ''');
 
@@ -218,6 +222,22 @@ class DatabaseService {
         ''');
       },
     );
+
+    // Apply incremental migrations for tasks table
+    try {
+      await db.execute("ALTER TABLE local_tasks ADD COLUMN is_paused INTEGER DEFAULT 0");
+    } catch (_) {}
+    try {
+      await db.execute("ALTER TABLE local_tasks ADD COLUMN due_time TEXT");
+    } catch (_) {}
+    try {
+      await db.execute("ALTER TABLE local_tasks ADD COLUMN scheduled_date TEXT");
+    } catch (_) {}
+    try {
+      await db.execute("ALTER TABLE local_tasks ADD COLUMN last_completed_date TEXT");
+    } catch (_) {}
+
+    return db;
   }
 
   // ==========================================

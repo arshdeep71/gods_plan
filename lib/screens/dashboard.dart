@@ -53,10 +53,21 @@ class _DashboardScreenState extends State<DashboardScreen> {
   // Real-time synchronization channels
   final List<RealtimeChannel> _realtimeSyncChannels = [];
 
+  // Real-time calendar & tasks filter state
+  late DateTime _selectedCalendarDay;
+  late DateTime _currentWeekStart;
+
+  DateTime getMondayOfCurrentWeek(DateTime date) {
+    int difference = date.weekday - DateTime.monday;
+    return DateTime(date.year, date.month, date.day).subtract(Duration(days: difference));
+  }
+
 
   @override
   void initState() {
     super.initState();
+    _selectedCalendarDay = DateTime.now();
+    _currentWeekStart = getMondayOfCurrentWeek(DateTime.now());
     _calculateTimeline();
     _loadXp();
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -508,13 +519,19 @@ class _DashboardScreenState extends State<DashboardScreen> {
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
-                    "Summary",
-                    style: TextStyle(
-                      color: AppColors.textPrimary,
-                      fontSize: 32,
-                      fontWeight: FontWeight.bold,
-                    ),
+                  Row(
+                    children: [
+                      const Text(
+                        "Summary",
+                        style: TextStyle(
+                          color: AppColors.textPrimary,
+                          fontSize: 32,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      _buildStreakBadge(taskProvider.tasks),
+                    ],
                   ),
                   const SizedBox(height: 4),
                   Text(
@@ -605,6 +622,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
           // 3. Render Tab Content
           if (_activeTab == 0) ...[
+            _buildHorizontalCalendar(context),
+            const SizedBox(height: 20),
+            _buildSelectedDayTasks(context),
+            const SizedBox(height: 24),
+            const Divider(color: AppColors.border, height: 1),
+            const SizedBox(height: 24),
             // Overview Content:
             // A. Priority Task Progress Card (Journey progress in purple/pink gradient)
             Container(
@@ -1296,6 +1319,534 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 fontWeight: FontWeight.bold,
               ),
             ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  bool _isNextWeekArrowEnabled() {
+    final thisWeekMon = getMondayOfCurrentWeek(DateTime.now());
+    if (_currentWeekStart.isBefore(thisWeekMon)) {
+      return true;
+    }
+    if (_currentWeekStart.isAtSameMomentAs(thisWeekMon)) {
+      return DateTime.now().weekday == DateTime.sunday;
+    }
+    return false;
+  }
+
+  Widget _buildStreakBadge(List<Task> tasks) {
+    int maxStreak = 0;
+    for (final t in tasks) {
+      if (t.isRecurring && t.streakCount > maxStreak) {
+        maxStreak = t.streakCount;
+      }
+    }
+    if (maxStreak == 0) return const SizedBox.shrink();
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: Colors.orange.withOpacity(0.15),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.orange.withOpacity(0.3)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(Icons.local_fire_department_rounded, color: Colors.orange, size: 16),
+          const SizedBox(width: 4),
+          Text(
+            "$maxStreak Days",
+            style: const TextStyle(color: Colors.orange, fontSize: 12, fontWeight: FontWeight.bold),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showNextWeek() {
+    if (_isNextWeekArrowEnabled()) {
+      setState(() {
+        _currentWeekStart = _currentWeekStart.add(const Duration(days: 7));
+        _selectedCalendarDay = _currentWeekStart; // Auto select Monday of that week
+      });
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("Next week unlocks on Sunday! 🔒"),
+          backgroundColor: AppColors.error,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
+  }
+
+  void _showPreviousWeek() {
+    setState(() {
+      _currentWeekStart = _currentWeekStart.subtract(const Duration(days: 7));
+      _selectedCalendarDay = _currentWeekStart; // Auto select Monday of that week
+    });
+  }
+
+  Widget _buildHorizontalCalendar(BuildContext context) {
+    final months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    final weekEnd = _currentWeekStart.add(const Duration(days: 6));
+    
+    String headerText = "";
+    if (_currentWeekStart.month == weekEnd.month) {
+      headerText = "${months[_currentWeekStart.month - 1]} ${_currentWeekStart.day} - ${weekEnd.day}, ${_currentWeekStart.year}";
+    } else {
+      headerText = "${months[_currentWeekStart.month - 1]} ${_currentWeekStart.day} - ${months[weekEnd.month - 1]} ${weekEnd.day}, ${_currentWeekStart.year}";
+    }
+
+    final weekdays = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
+    final taskProvider = context.watch<TaskProvider>();
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              IconButton(
+                icon: const Icon(Icons.chevron_left_rounded, color: AppColors.textPrimary),
+                onPressed: _showPreviousWeek,
+              ),
+              Text(
+                headerText,
+                style: const TextStyle(
+                  color: AppColors.textPrimary,
+                  fontSize: 15,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              IconButton(
+                icon: Icon(
+                  _isNextWeekArrowEnabled() ? Icons.chevron_right_rounded : Icons.lock_outline_rounded,
+                  color: _isNextWeekArrowEnabled() ? AppColors.textPrimary : AppColors.textMuted,
+                  size: 20,
+                ),
+                onPressed: _showNextWeek,
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            children: List.generate(7, (index) {
+              final day = _currentWeekStart.add(Duration(days: index));
+              final isSelected = DateUtils.isSameDay(day, _selectedCalendarDay);
+              final isToday = DateUtils.isSameDay(day, DateTime.now());
+              
+              // Determine task completions status on this day
+              final formattedDate = "${day.year}-${day.month.toString().padLeft(2, '0')}-${day.day.toString().padLeft(2, '0')}";
+              final dayTasks = taskProvider.tasks.where((t) {
+                return t.isRecurring || (t.scheduledDate == formattedDate);
+              }).toList();
+
+              Color? dotColor;
+              if (dayTasks.isNotEmpty) {
+                final completedCount = dayTasks.where((t) {
+                  return t.isRecurring ? t.lastCompletedDate == formattedDate : t.isCompleted;
+                }).length;
+                if (completedCount == dayTasks.length) {
+                  dotColor = AppColors.success;
+                } else if (completedCount > 0) {
+                  dotColor = AppColors.accent;
+                } else {
+                  dotColor = AppColors.textSecondary;
+                }
+              }
+
+              return GestureDetector(
+                onTap: () {
+                  setState(() {
+                    _selectedCalendarDay = day;
+                  });
+                },
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
+                  padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
+                  decoration: BoxDecoration(
+                    color: isSelected ? AppColors.accent : Colors.transparent,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                      color: isSelected
+                          ? AppColors.accent
+                          : (isToday ? AppColors.accent.withOpacity(0.5) : Colors.transparent),
+                      width: 1.5,
+                    ),
+                  ),
+                  child: Column(
+                    children: [
+                      Text(
+                        weekdays[index],
+                        style: TextStyle(
+                          color: isSelected ? Colors.black : AppColors.textSecondary,
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        "${day.day}",
+                        style: TextStyle(
+                          color: isSelected ? Colors.black : AppColors.textPrimary,
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      if (dotColor != null) ...[
+                        const SizedBox(height: 4),
+                        Container(
+                          width: 5,
+                          height: 5,
+                          decoration: BoxDecoration(
+                            color: isSelected ? Colors.black : dotColor,
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                      ] else ...[
+                        const SizedBox(height: 9),
+                      ]
+                    ],
+                  ),
+                ),
+              );
+            }),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showTaskOptionsSheet(Task task) {
+    final taskProvider = Provider.of<TaskProvider>(context, listen: false);
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: const Color(0xFF1C1C1E),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) {
+        final formattedDate = "${_selectedCalendarDay.year}-${_selectedCalendarDay.month.toString().padLeft(2, '0')}-${_selectedCalendarDay.day.toString().padLeft(2, '0')}";
+        final isCompleted = task.isRecurring
+            ? task.lastCompletedDate == formattedDate
+            : task.isCompleted;
+
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                margin: const EdgeInsets.only(top: 12, bottom: 8),
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.grey[700],
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            task.title,
+                            style: const TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              color: AppColors.textPrimary,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            task.isRecurring
+                                ? "Daily habit • ${task.dueTime ?? 'Anytime'}"
+                                : "Single task • ${task.scheduledDate ?? 'No date'} • ${task.dueTime ?? 'Anytime'}",
+                            style: const TextStyle(color: AppColors.textMuted, fontSize: 13),
+                          ),
+                        ],
+                      ),
+                    ),
+                    if (task.isPaused)
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: AppColors.error.withOpacity(0.15),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: const Text(
+                          "PAUSED",
+                          style: TextStyle(color: AppColors.error, fontSize: 10, fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+              const Divider(color: AppColors.border, height: 1),
+              ListTile(
+                leading: Icon(
+                  isCompleted ? Icons.radio_button_unchecked_rounded : Icons.check_circle_rounded,
+                  color: isCompleted ? AppColors.textSecondary : AppColors.accent,
+                ),
+                title: Text(
+                  isCompleted ? "Mark as Active" : "Mark as Completed",
+                  style: const TextStyle(color: AppColors.textPrimary),
+                ),
+                onTap: () {
+                  Navigator.pop(context);
+                  taskProvider.toggleTaskCompletion(task, date: _selectedCalendarDay);
+                },
+              ),
+              ListTile(
+                leading: Icon(
+                  task.isPaused ? Icons.play_arrow_rounded : Icons.pause_rounded,
+                  color: Colors.amber,
+                ),
+                title: Text(
+                  task.isPaused ? "Resume Habit" : "Pause Habit",
+                  style: const TextStyle(color: AppColors.textPrimary),
+                ),
+                onTap: () {
+                  Navigator.pop(context);
+                  taskProvider.toggleTaskPause(task);
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.edit_rounded, color: Colors.blue),
+                title: const Text("Edit Task Details", style: TextStyle(color: AppColors.textPrimary)),
+                onTap: () {
+                  Navigator.pop(context);
+                  _showEditTaskSheet(task);
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.delete_forever_rounded, color: AppColors.error),
+                title: const Text("Delete Task", style: TextStyle(color: AppColors.textPrimary)),
+                onTap: () {
+                  Navigator.pop(context);
+                  taskProvider.deleteTask(task);
+                },
+              ),
+              const SizedBox(height: 12),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  void _showEditTaskSheet(Task task) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: AppColors.background,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (context) => EditTaskSheet(task: task),
+    );
+  }
+
+  Widget _buildSelectedDayTasks(BuildContext context) {
+    final taskProvider = context.watch<TaskProvider>();
+    final formattedDate = "${_selectedCalendarDay.year}-${_selectedCalendarDay.month.toString().padLeft(2, '0')}-${_selectedCalendarDay.day.toString().padLeft(2, '0')}";
+
+    final dayTasks = taskProvider.tasks.where((t) {
+      return t.isRecurring || (t.scheduledDate == formattedDate);
+    }).toList();
+
+    final active = dayTasks.where((t) {
+      if (t.isPaused) return false;
+      final isComp = t.isRecurring ? t.lastCompletedDate == formattedDate : t.isCompleted;
+      return !isComp;
+    }).toList();
+
+    final completed = dayTasks.where((t) {
+      if (t.isPaused) return false;
+      final isComp = t.isRecurring ? t.lastCompletedDate == formattedDate : t.isCompleted;
+      return isComp;
+    }).toList();
+
+    final paused = dayTasks.where((t) => t.isPaused).toList();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Row(
+              children: [
+                const Text(
+                  "Tasks Checklist",
+                  style: TextStyle(color: AppColors.textPrimary, fontSize: 18, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(width: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: AppColors.accent.withOpacity(0.15),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Text(
+                    "${completed.length}/${dayTasks.length}",
+                    style: const TextStyle(color: AppColors.accent, fontSize: 12, fontWeight: FontWeight.bold),
+                  ),
+                ),
+              ],
+            ),
+            IconButton(
+              icon: const Icon(Icons.add_circle_outline_rounded, color: AppColors.accent, size: 26),
+              onPressed: () {
+                showModalBottomSheet(
+                  context: context,
+                  isScrollControlled: true,
+                  backgroundColor: AppColors.background,
+                  shape: const RoundedRectangleBorder(
+                    borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+                  ),
+                  builder: (context) => const AddTaskSheet(),
+                );
+              },
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        if (dayTasks.isEmpty)
+          Container(
+            padding: const EdgeInsets.symmetric(vertical: 32),
+            decoration: BoxDecoration(
+              color: AppColors.surface,
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: AppColors.border),
+            ),
+            child: Column(
+              children: const [
+                Icon(Icons.checklist_rounded, size: 48, color: AppColors.textMuted),
+                SizedBox(height: 12),
+                Text(
+                  "No tasks for this day",
+                  style: TextStyle(color: AppColors.textSecondary, fontSize: 14, fontWeight: FontWeight.bold),
+                ),
+                SizedBox(height: 4),
+                Text(
+                  "Tap the + button to add a task.",
+                  style: TextStyle(color: AppColors.textMuted, fontSize: 12),
+                ),
+              ],
+            ),
+          )
+        else ...[
+          if (active.isNotEmpty) ...[
+            ...active.map((task) => _buildTaskTile(task, formattedDate)),
+          ],
+          if (completed.isNotEmpty) ...[
+            if (active.isNotEmpty) const SizedBox(height: 8),
+            ...completed.map((task) => _buildTaskTile(task, formattedDate)),
+          ],
+          if (paused.isNotEmpty) ...[
+            if (active.isNotEmpty || completed.isNotEmpty) const SizedBox(height: 8),
+            ...paused.map((task) => _buildTaskTile(task, formattedDate)),
+          ],
+        ],
+      ],
+    );
+  }
+
+  Widget _buildTaskTile(Task task, String formattedDate) {
+    final taskProvider = context.read<TaskProvider>();
+    final isCompleted = task.isRecurring
+        ? task.lastCompletedDate == formattedDate
+        : task.isCompleted;
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: isCompleted ? Colors.transparent : AppColors.border,
+          width: 1.2,
+        ),
+      ),
+      child: ListTile(
+        onTap: () => _showTaskOptionsSheet(task),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 0),
+        leading: task.isPaused
+            ? const Icon(Icons.pause_circle_filled_rounded, color: Colors.amber, size: 26)
+            : Transform.scale(
+                scale: 1.0,
+                child: Checkbox(
+                  value: isCompleted,
+                  activeColor: AppColors.accent,
+                  checkColor: Colors.black,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+                  side: const BorderSide(color: AppColors.textSecondary, width: 1.5),
+                  onChanged: (_) {
+                    taskProvider.toggleTaskCompletion(task, date: _selectedCalendarDay);
+                  },
+                ),
+              ),
+        title: Text(
+          task.title,
+          style: TextStyle(
+            color: task.isPaused
+                ? AppColors.textMuted
+                : (isCompleted ? AppColors.textMuted : AppColors.textPrimary),
+            fontSize: 15,
+            fontWeight: FontWeight.w600,
+            decoration: isCompleted ? TextDecoration.lineThrough : null,
+          ),
+        ),
+        subtitle: Row(
+          children: [
+            if (task.isRecurring) ...[
+              const Icon(Icons.repeat_rounded, color: AppColors.accent, size: 12),
+              const SizedBox(width: 4),
+              const Text(
+                "Daily",
+                style: TextStyle(color: AppColors.accent, fontSize: 10, fontWeight: FontWeight.bold),
+              ),
+              if (task.streakCount > 0) ...[
+                const SizedBox(width: 8),
+                Text(
+                  "🔥 ${task.streakCount}d streak",
+                  style: const TextStyle(color: Colors.orange, fontSize: 10, fontWeight: FontWeight.bold),
+                ),
+              ],
+            ] else ...[
+              const Icon(Icons.calendar_today_rounded, color: AppColors.textSecondary, size: 10),
+              const SizedBox(width: 4),
+              Text(
+                task.scheduledDate ?? "Today",
+                style: const TextStyle(color: AppColors.textSecondary, fontSize: 10),
+              ),
+            ],
+            if (task.dueTime != null) ...[
+              const SizedBox(width: 8),
+              const Icon(Icons.access_time_rounded, color: AppColors.textSecondary, size: 10),
+              const SizedBox(width: 4),
+              Text(
+                task.dueTime!,
+                style: const TextStyle(color: AppColors.textSecondary, fontSize: 10),
+              ),
+            ]
           ],
         ),
       ),

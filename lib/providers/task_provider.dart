@@ -18,11 +18,41 @@ class TaskProvider extends ChangeNotifier {
   bool get isLoading => _isLoading;
   bool get isSyncing => _isSyncing;
 
-  // Active (uncompleted) tasks
-  List<Task> get activeTasks => _tasks.where((t) => !t.isCompleted).toList();
+  // Active (uncompleted) tasks (Default to today's date)
+  List<Task> get activeTasks => getActiveTasksForDate(DateTime.now());
 
-  // Completed tasks
-  List<Task> get completedTasks => _tasks.where((t) => t.isCompleted).toList();
+  // Completed tasks (Default to today's date)
+  List<Task> get completedTasks => getCompletedTasksForDate(DateTime.now());
+
+  // Get active tasks for a specific date
+  List<Task> getActiveTasksForDate(DateTime date) {
+    final formattedDate = "${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}";
+    return _tasks.where((t) {
+      if (t.isPaused) return false;
+      final isScheduled = t.isRecurring || (t.scheduledDate == formattedDate);
+      if (!isScheduled) return false;
+      
+      final isComp = t.isRecurring
+          ? t.lastCompletedDate == formattedDate
+          : t.isCompleted;
+      return !isComp;
+    }).toList();
+  }
+
+  // Get completed tasks for a specific date
+  List<Task> getCompletedTasksForDate(DateTime date) {
+    final formattedDate = "${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}";
+    return _tasks.where((t) {
+      if (t.isPaused) return false;
+      final isScheduled = t.isRecurring || (t.scheduledDate == formattedDate);
+      if (!isScheduled) return false;
+
+      final isComp = t.isRecurring
+          ? t.lastCompletedDate == formattedDate
+          : t.isCompleted;
+      return isComp;
+    }).toList();
+  }
 
   // Load tasks from local SQLite database and trigger background cloud sync
   Future<void> fetchTasks(String userId) async {
@@ -56,22 +86,25 @@ class TaskProvider extends ChangeNotifier {
   Future<void> addTask({
     required String userId,
     required String title,
-    required String difficulty,
-    required String priority,
     required bool isRecurring,
+    String? dueTime,
+    String? scheduledDate,
   }) async {
     final now = DateTime.now().toUtc();
     final newTask = Task(
       id: _uuid.v4(),
       userId: userId,
       title: title,
-      difficulty: difficulty,
-      priority: priority,
+      difficulty: 'medium',
+      priority: 'medium',
       isCompleted: false,
       isRecurring: isRecurring,
       streakCount: 0,
       createdAt: now,
       updatedAt: now,
+      isPaused: false,
+      dueTime: dueTime,
+      scheduledDate: scheduledDate,
     );
 
     // Optimistic UI updates - Save locally and update memory
@@ -96,12 +129,45 @@ class TaskProvider extends ChangeNotifier {
     });
   }
 
-  // Toggle completion status of a task
-  Future<void> toggleTaskCompletion(Task task) async {
-    final updatedTask = task.copyWith(
-      isCompleted: !task.isCompleted,
-      updatedAt: DateTime.now().toUtc(),
-    );
+  // Toggle completion status of a task for a specific date
+  Future<void> toggleTaskCompletion(Task task, {DateTime? date}) async {
+    final targetDate = date ?? DateTime.now();
+    final formattedDate = "${targetDate.year}-${targetDate.month.toString().padLeft(2, '0')}-${targetDate.day.toString().padLeft(2, '0')}";
+    
+    final bool isCurrentlyCompleted = task.isRecurring
+        ? task.lastCompletedDate == formattedDate
+        : task.isCompleted;
+
+    Task updatedTask;
+    if (task.isRecurring) {
+      if (isCurrentlyCompleted) {
+        updatedTask = task.copyWith(
+          lastCompletedDate: null,
+          streakCount: task.streakCount > 0 ? task.streakCount - 1 : 0,
+          updatedAt: DateTime.now().toUtc(),
+        );
+      } else {
+        updatedTask = task.copyWith(
+          lastCompletedDate: formattedDate,
+          streakCount: task.streakCount + 1,
+          updatedAt: DateTime.now().toUtc(),
+        );
+      }
+    } else {
+      if (isCurrentlyCompleted) {
+        updatedTask = task.copyWith(
+          isCompleted: false,
+          lastCompletedDate: null,
+          updatedAt: DateTime.now().toUtc(),
+        );
+      } else {
+        updatedTask = task.copyWith(
+          isCompleted: true,
+          lastCompletedDate: formattedDate,
+          updatedAt: DateTime.now().toUtc(),
+        );
+      }
+    }
 
     // Find and replace in memory list
     final index = _tasks.indexWhere((t) => t.id == task.id);
@@ -122,6 +188,76 @@ class TaskProvider extends ChangeNotifier {
     await _dbService.queueMutation(syncItem);
 
     // Trigger background sync flush
+    _syncService.sync(task.userId).then((_) async {
+      _tasks = await _dbService.getLocalTasks(task.userId);
+      notifyListeners();
+    });
+  }
+
+  // Edit task details
+  Future<void> updateTask({
+    required String taskId,
+    required String title,
+    required bool isRecurring,
+    String? dueTime,
+    String? scheduledDate,
+    bool? isPaused,
+  }) async {
+    final index = _tasks.indexWhere((t) => t.id == taskId);
+    if (index == -1) return;
+    
+    final task = _tasks[index];
+    final updatedTask = task.copyWith(
+      title: title,
+      isRecurring: isRecurring,
+      dueTime: dueTime,
+      scheduledDate: scheduledDate,
+      isPaused: isPaused ?? task.isPaused,
+      updatedAt: DateTime.now().toUtc(),
+    );
+
+    _tasks[index] = updatedTask;
+    notifyListeners();
+
+    await _dbService.upsertLocalTask(updatedTask);
+
+    final syncItem = SyncItem(
+      actionType: 'UPDATE',
+      tableName: 'tasks',
+      recordId: updatedTask.id,
+      payload: updatedTask.toJson(),
+    );
+    await _dbService.queueMutation(syncItem);
+
+    _syncService.sync(task.userId).then((_) async {
+      _tasks = await _dbService.getLocalTasks(task.userId);
+      notifyListeners();
+    });
+  }
+
+  // Toggle paused state of a task
+  Future<void> toggleTaskPause(Task task) async {
+    final updatedTask = task.copyWith(
+      isPaused: !task.isPaused,
+      updatedAt: DateTime.now().toUtc(),
+    );
+
+    final index = _tasks.indexWhere((t) => t.id == task.id);
+    if (index != -1) {
+      _tasks[index] = updatedTask;
+      notifyListeners();
+    }
+
+    await _dbService.upsertLocalTask(updatedTask);
+
+    final syncItem = SyncItem(
+      actionType: 'UPDATE',
+      tableName: 'tasks',
+      recordId: updatedTask.id,
+      payload: updatedTask.toJson(),
+    );
+    await _dbService.queueMutation(syncItem);
+
     _syncService.sync(task.userId).then((_) async {
       _tasks = await _dbService.getLocalTasks(task.userId);
       notifyListeners();

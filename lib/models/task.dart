@@ -9,6 +9,10 @@ class Task {
   final int streakCount;
   final DateTime createdAt;
   final DateTime updatedAt;
+  final bool isPaused;
+  final String? dueTime;
+  final String? scheduledDate;
+  final String? lastCompletedDate;
 
   Task({
     required this.id,
@@ -21,6 +25,10 @@ class Task {
     this.streakCount = 0,
     required this.createdAt,
     required this.updatedAt,
+    this.isPaused = false,
+    this.dueTime,
+    this.scheduledDate,
+    this.lastCompletedDate,
   });
 
   // Convert to Map for Supabase / JSON serialization
@@ -36,6 +44,10 @@ class Task {
       'streak_count': streakCount,
       'created_at': createdAt.toUtc().toIso8601String(),
       'updated_at': updatedAt.toUtc().toIso8601String(),
+      'is_paused': isPaused,
+      'due_time': dueTime,
+      'scheduled_date': scheduledDate,
+      'last_completed_date': lastCompletedDate,
     };
   }
 
@@ -52,6 +64,10 @@ class Task {
       'streak_count': streakCount,
       'created_at': createdAt.toUtc().toIso8601String(),
       'updated_at': updatedAt.toUtc().toIso8601String(),
+      'is_paused': isPaused ? 1 : 0,
+      'due_time': dueTime,
+      'scheduled_date': scheduledDate,
+      'last_completed_date': lastCompletedDate,
     };
   }
 
@@ -61,13 +77,17 @@ class Task {
       id: json['id'] as String,
       userId: json['user_id'] as String,
       title: json['title'] as String,
-      difficulty: json['difficulty'] as String,
-      priority: json['priority'] as String,
-      isCompleted: json['is_completed'] as bool,
-      isRecurring: json['is_recurring'] as bool,
+      difficulty: json['difficulty'] as String? ?? 'medium',
+      priority: json['priority'] as String? ?? 'medium',
+      isCompleted: json['is_completed'] as bool? ?? false,
+      isRecurring: json['is_recurring'] as bool? ?? false,
       streakCount: json['streak_count'] as int? ?? 0,
       createdAt: DateTime.parse(json['created_at'] as String),
       updatedAt: DateTime.parse(json['updated_at'] as String),
+      isPaused: json['is_paused'] as bool? ?? false,
+      dueTime: json['due_time'] as String?,
+      scheduledDate: json['scheduled_date'] as String?,
+      lastCompletedDate: json['last_completed_date'] as String?,
     );
   }
 
@@ -77,13 +97,17 @@ class Task {
       id: map['id'] as String,
       userId: map['user_id'] as String,
       title: map['title'] as String,
-      difficulty: map['difficulty'] as String,
-      priority: map['priority'] as String,
-      isCompleted: (map['is_completed'] as int) == 1,
-      isRecurring: (map['is_recurring'] as int) == 1,
+      difficulty: map['difficulty'] as String? ?? 'medium',
+      priority: map['priority'] as String? ?? 'medium',
+      isCompleted: (map['is_completed'] as int? ?? 0) == 1,
+      isRecurring: (map['is_recurring'] as int? ?? 0) == 1,
       streakCount: map['streak_count'] as int? ?? 0,
       createdAt: DateTime.parse(map['created_at'] as String),
       updatedAt: DateTime.parse(map['updated_at'] as String),
+      isPaused: (map['is_paused'] as int? ?? 0) == 1,
+      dueTime: map['due_time'] as String?,
+      scheduledDate: map['scheduled_date'] as String?,
+      lastCompletedDate: map['last_completed_date'] as String?,
     );
   }
 
@@ -96,6 +120,10 @@ class Task {
     bool? isRecurring,
     int? streakCount,
     DateTime? updatedAt,
+    bool? isPaused,
+    String? dueTime,
+    String? scheduledDate,
+    String? lastCompletedDate,
   }) {
     return Task(
       id: id,
@@ -108,6 +136,10 @@ class Task {
       streakCount: streakCount ?? this.streakCount,
       createdAt: createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
+      isPaused: isPaused ?? this.isPaused,
+      dueTime: dueTime ?? this.dueTime,
+      scheduledDate: scheduledDate ?? this.scheduledDate,
+      lastCompletedDate: lastCompletedDate ?? this.lastCompletedDate,
     );
   }
 }
