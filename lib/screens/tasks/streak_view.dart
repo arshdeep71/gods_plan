@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../../providers/auth_provider.dart';
 import '../../providers/task_provider.dart';
 import '../../utils/colors.dart';
 
@@ -16,33 +17,12 @@ class _StreakViewState extends State<StreakView> {
   @override
   Widget build(BuildContext context) {
     final taskProvider = context.watch<TaskProvider>();
-    final now = DateTime.now();
-
-    // Calculate Global Streak
-    int currentStreak = 0;
-    DateTime streakCheckDate = DateTime(now.year, now.month, now.day);
+    final authProvider = context.watch<AuthProvider>();
+    final userId = authProvider.user?.id ?? '';
     
-    final todayActive = taskProvider.getActiveTasksForDate(streakCheckDate);
-    final todayCompleted = taskProvider.getCompletedTasksForDate(streakCheckDate);
-    if (todayActive.isEmpty && todayCompleted.isNotEmpty) {
-      currentStreak++;
-    }
-    
-    streakCheckDate = streakCheckDate.subtract(const Duration(days: 1));
-    while (true) {
-      final active = taskProvider.getActiveTasksForDate(streakCheckDate);
-      final completed = taskProvider.getCompletedTasksForDate(streakCheckDate);
-      
-      if (active.isEmpty && completed.isNotEmpty) {
-        currentStreak++;
-        streakCheckDate = streakCheckDate.subtract(const Duration(days: 1));
-      } else if (active.isEmpty && completed.isEmpty) {
-        streakCheckDate = streakCheckDate.subtract(const Duration(days: 1));
-        if (streakCheckDate.isBefore(now.subtract(const Duration(days: 365)))) break;
-      } else {
-        break;
-      }
-    }
+    // Calculate global streak using the centralized provider logic
+    final currentStreak = userId.isNotEmpty ? taskProvider.calculateCurrentStreak(userId) : 0;
+    final restoresLeft = userId.isNotEmpty ? taskProvider.getStreakRestoresLeft(userId) : 3;
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -108,14 +88,85 @@ class _StreakViewState extends State<StreakView> {
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Text(
-                      currentStreak > 0 ? "You're on fire! Keep it up!" : "Complete all tasks today to start your streak!",
+                      currentStreak > 0 ? "You're on fire! Keep it up!" : "Reach 80%+ task completion today to start your streak!",
                       style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
                     ),
                   )
                 ],
               ),
             ),
-            const SizedBox(height: 32),
+            const SizedBox(height: 24),
+
+            // Streak Restores Widget
+            if (userId.isNotEmpty)
+              Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: AppColors.surface,
+                  borderRadius: BorderRadius.circular(24),
+                  border: Border.all(color: AppColors.border),
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.purple.withOpacity(0.15),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(Icons.restore_rounded, color: Colors.purpleAccent, size: 28),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            "Streak Restores",
+                            style: TextStyle(color: AppColors.textPrimary, fontSize: 16, fontWeight: FontWeight.bold),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            "$restoresLeft left this month",
+                            style: const TextStyle(color: AppColors.textSecondary, fontSize: 13),
+                          ),
+                        ],
+                      ),
+                    ),
+                    ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: restoresLeft > 0 ? Colors.purple : AppColors.border,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                      ),
+                      onPressed: restoresLeft > 0
+                          ? () async {
+                              final success = await taskProvider.restoreStreak(userId);
+                              if (success) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text("Streak restored successfully! 🔥"),
+                                    backgroundColor: Colors.purple,
+                                    behavior: SnackBarBehavior.floating,
+                                  ),
+                                );
+                              } else {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text("No broken days found to restore in the last 30 days."),
+                                    backgroundColor: AppColors.error,
+                                    behavior: SnackBarBehavior.floating,
+                                  ),
+                                );
+                              }
+                            }
+                          : null,
+                      child: const Text("Restore", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                    ),
+                  ],
+                ),
+              ),
+            const SizedBox(height: 24),
 
             // Calendar Header
             Row(
@@ -151,7 +202,7 @@ class _StreakViewState extends State<StreakView> {
                 )
               ],
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 12),
             
             // Month Calendar (Duolingo Style Pill Highlights)
             Container(
@@ -161,7 +212,15 @@ class _StreakViewState extends State<StreakView> {
                 borderRadius: BorderRadius.circular(24),
                 border: Border.all(color: AppColors.border),
               ),
-              child: _buildMonthCalendar(taskProvider),
+              child: Column(
+                children: [
+                  _buildMonthCalendar(taskProvider, userId),
+                  const SizedBox(height: 24),
+                  const Divider(color: AppColors.border),
+                  const SizedBox(height: 12),
+                  _buildLegend(),
+                ],
+              ),
             ),
           ],
         ),
@@ -169,7 +228,47 @@ class _StreakViewState extends State<StreakView> {
     );
   }
 
-  Widget _buildMonthCalendar(TaskProvider taskProvider) {
+  Widget _buildLegend() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          "Calendar Legends",
+          style: TextStyle(color: AppColors.textSecondary, fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 0.5),
+        ),
+        const SizedBox(height: 12),
+        Wrap(
+          spacing: 16,
+          runSpacing: 10,
+          children: [
+            _buildLegendItem(Colors.orange, "● Perfect (100%)"),
+            _buildLegendItem(Colors.amber, "🌟 Successful (80%+)"),
+            _buildLegendItem(AppColors.error, "○ Missed"),
+            _buildLegendItem(Colors.blue, "⏸ Paused"),
+            _buildLegendItem(Colors.purpleAccent, "↺ Restored"),
+            _buildLegendItem(AppColors.textSecondary.withOpacity(0.5), "⚪ Partial (<80%)"),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildLegendItem(Color color, String text) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: 12,
+          height: 12,
+          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+        ),
+        const SizedBox(width: 6),
+        Text(text, style: const TextStyle(color: AppColors.textPrimary, fontSize: 12)),
+      ],
+    );
+  }
+
+  Widget _buildMonthCalendar(TaskProvider taskProvider, String userId) {
     final now = DateTime.now();
     final firstDayOfMonth = DateTime(_currentMonth.year, _currentMonth.month, 1);
     final daysInMonth = DateTime(_currentMonth.year, _currentMonth.month + 1, 0).day;
@@ -202,26 +301,54 @@ class _StreakViewState extends State<StreakView> {
       final date = DateTime(_currentMonth.year, _currentMonth.month, day);
       final isToday = date.year == now.year && date.month == now.month && date.day == now.day;
       
-      final active = taskProvider.getActiveTasksForDate(date);
-      final completed = taskProvider.getCompletedTasksForDate(date);
+      final status = taskProvider.getDayStreakStatus(date, userId: userId);
       
-      bool isStreakDay = active.isEmpty && completed.isNotEmpty;
-      bool isMissed = active.isNotEmpty && date.isBefore(DateTime(now.year, now.month, now.day));
+      bool isStreakDay = status == DayStreakStatus.perfect || status == DayStreakStatus.successful || status == DayStreakStatus.restored;
       
-      // Determine if previous/next days are streak days to connect pills
+      // Connecting background strips for active streak days
       bool prevIsStreak = false;
       bool nextIsStreak = false;
       
       if (isStreakDay) {
         final prevDate = date.subtract(const Duration(days: 1));
-        final prevActive = taskProvider.getActiveTasksForDate(prevDate);
-        final prevCompleted = taskProvider.getCompletedTasksForDate(prevDate);
-        prevIsStreak = (prevActive.isEmpty && prevCompleted.isNotEmpty);
+        final prevStatus = taskProvider.getDayStreakStatus(prevDate, userId: userId);
+        prevIsStreak = prevStatus == DayStreakStatus.perfect || prevStatus == DayStreakStatus.successful || prevStatus == DayStreakStatus.restored;
         
         final nextDate = date.add(const Duration(days: 1));
-        final nextActive = taskProvider.getActiveTasksForDate(nextDate);
-        final nextCompleted = taskProvider.getCompletedTasksForDate(nextDate);
-        nextIsStreak = (nextActive.isEmpty && nextCompleted.isNotEmpty);
+        final nextStatus = taskProvider.getDayStreakStatus(nextDate, userId: userId);
+        nextIsStreak = nextStatus == DayStreakStatus.perfect || nextStatus == DayStreakStatus.successful || nextStatus == DayStreakStatus.restored;
+      }
+      
+      // Determine day color based on status
+      Color dayColor = Colors.transparent;
+      Widget? centerWidget;
+      
+      switch (status) {
+        case DayStreakStatus.perfect:
+          dayColor = Colors.orange;
+          centerWidget = const Icon(Icons.local_fire_department_rounded, color: Colors.white, size: 14);
+          break;
+        case DayStreakStatus.successful:
+          dayColor = Colors.amber;
+          centerWidget = const Icon(Icons.star_rounded, color: Colors.black, size: 14);
+          break;
+        case DayStreakStatus.restored:
+          dayColor = Colors.purpleAccent;
+          centerWidget = const Icon(Icons.restore_rounded, color: Colors.white, size: 14);
+          break;
+        case DayStreakStatus.missed:
+          dayColor = AppColors.error.withOpacity(0.15);
+          centerWidget = const Icon(Icons.close_rounded, color: AppColors.error, size: 12);
+          break;
+        case DayStreakStatus.paused:
+          dayColor = Colors.blue.withOpacity(0.15);
+          centerWidget = const Icon(Icons.pause_rounded, color: Colors.blueAccent, size: 12);
+          break;
+        case DayStreakStatus.partial:
+          dayColor = AppColors.textSecondary.withOpacity(0.1);
+          break;
+        default:
+          break;
       }
       
       currentWeek.add(Expanded(
@@ -253,19 +380,18 @@ class _StreakViewState extends State<StreakView> {
                 height: 32,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: isStreakDay
-                      ? Colors.orange
-                      : (isMissed ? AppColors.error.withOpacity(0.2) : Colors.transparent),
+                  color: dayColor,
                   border: isToday && !isStreakDay
                       ? Border.all(color: Colors.white54, width: 2)
                       : null,
                 ),
                 alignment: Alignment.center,
-                child: Text(
+                child: centerWidget ?? Text(
                   "$day",
                   style: TextStyle(
-                    color: isStreakDay ? Colors.white : (isMissed ? AppColors.error : AppColors.textPrimary),
+                    color: isStreakDay ? Colors.white : AppColors.textPrimary,
                     fontWeight: isStreakDay || isToday ? FontWeight.bold : FontWeight.normal,
+                    fontSize: 13,
                   ),
                 ),
               ),

@@ -42,6 +42,7 @@ class _TasksViewState extends State<TasksView> {
 
   void _showTaskOptionsSheet(Task task) {
     final taskProvider = Provider.of<TaskProvider>(context, listen: false);
+    final selectedDateStr = "${_selectedDate.year}-${_selectedDate.month.toString().padLeft(2, '0')}-${_selectedDate.day.toString().padLeft(2, '0')}";
 
     showModalBottomSheet(
       context: context,
@@ -50,10 +51,7 @@ class _TasksViewState extends State<TasksView> {
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       builder: (context) {
-        final formattedDate = "${DateTime.now().year}-${DateTime.now().month.toString().padLeft(2, '0')}-${DateTime.now().day.toString().padLeft(2, '0')}";
-        final isCompleted = task.isRecurring
-            ? task.lastCompletedDate == formattedDate
-            : task.isCompleted;
+        final isCompleted = taskProvider.completions.any((c) => c['task_id'] == task.id && c['completed_date'] == selectedDateStr);
 
         return SafeArea(
           child: Column(
@@ -121,7 +119,7 @@ class _TasksViewState extends State<TasksView> {
                 ),
                 onTap: () {
                   Navigator.pop(context);
-                  taskProvider.toggleTaskCompletion(task);
+                  taskProvider.toggleTaskCompletion(task, date: _selectedDate);
                 },
               ),
               ListTile(
@@ -293,10 +291,169 @@ class _TasksViewState extends State<TasksView> {
     );
   }
 
+  void _showCongratsDialog(BuildContext context, TaskProvider taskProvider) {
+    taskProvider.clearCongrats();
+    
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) {
+        final authProvider = Provider.of<AuthProvider>(context, listen: false);
+        final currentStreak = taskProvider.calculateCurrentStreak(authProvider.user?.id ?? '');
+        
+        return Dialog(
+          backgroundColor: Colors.transparent,
+          insetPadding: const EdgeInsets.symmetric(horizontal: 24),
+          child: Container(
+            padding: const EdgeInsets.all(28),
+            decoration: BoxDecoration(
+              color: const Color(0xFF1C1C1E),
+              borderRadius: BorderRadius.circular(28),
+              border: Border.all(color: AppColors.border),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TweenAnimationBuilder<double>(
+                  tween: Tween<double>(begin: 0.0, end: 1.0),
+                  duration: const Duration(milliseconds: 600),
+                  curve: Curves.elasticOut,
+                  builder: (context, value, child) {
+                    return Transform.scale(
+                      scale: value,
+                      child: child,
+                    );
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.all(20),
+                    decoration: BoxDecoration(
+                      color: Colors.orange.withOpacity(0.15),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.local_fire_department_rounded,
+                      color: Colors.orange,
+                      size: 72,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 24),
+                const Text(
+                  "CONGRATULATIONS!",
+                  style: TextStyle(
+                    color: AppColors.accent,
+                    fontSize: 22,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 1.5,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  "Goal Reached! You have successfully completed at least 80% of your tasks for today!",
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: AppColors.textPrimary.withOpacity(0.9),
+                    fontSize: 15,
+                    height: 1.4,
+                  ),
+                ),
+                const SizedBox(height: 24),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                  decoration: BoxDecoration(
+                    color: Colors.orange.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: Colors.orange.withOpacity(0.3)),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.local_fire_department_rounded, color: Colors.orange, size: 24),
+                      const SizedBox(width: 8),
+                      Text(
+                        "$currentStreak Day Streak!",
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 28),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.accent,
+                      foregroundColor: Colors.black,
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                      elevation: 0,
+                    ),
+                    onPressed: () {
+                      Navigator.pop(context);
+                    },
+                    child: const Text(
+                      "Awesome!",
+                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  void _showXpNotification(BuildContext context, TaskProvider taskProvider) {
+    final amount = taskProvider.lastAwardedXpAmount;
+    taskProvider.clearXpAnimation();
+    
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: const BoxDecoration(
+                color: Colors.amber,
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.star_rounded, color: Colors.black, size: 18),
+            ),
+            const SizedBox(width: 12),
+            Text(
+              "+$amount XP Earned!",
+              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15),
+            ),
+          ],
+        ),
+        backgroundColor: Colors.indigo,
+        behavior: SnackBarBehavior.floating,
+        duration: const Duration(seconds: 3),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final taskProvider = context.watch<TaskProvider>();
     final authProvider = context.read<AuthProvider>();
+
+    if (taskProvider.shouldShowCongrats || taskProvider.shouldShowXpAnimation) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (taskProvider.shouldShowCongrats) {
+          _showCongratsDialog(context, taskProvider);
+        } else if (taskProvider.shouldShowXpAnimation) {
+          _showXpNotification(context, taskProvider);
+        }
+      });
+    }
     
     final active = taskProvider.getActiveTasksForDate(_selectedDate);
     final completed = taskProvider.getCompletedTasksForDate(_selectedDate);
@@ -412,10 +569,13 @@ class _TasksViewState extends State<TasksView> {
                 ),
               ],
             ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () => _showAddTaskSheet(context),
-        backgroundColor: AppColors.accent,
-        child: const Icon(Icons.add_rounded, color: Colors.black, size: 30),
+      floatingActionButton: Padding(
+        padding: const EdgeInsets.only(bottom: 16.0),
+        child: FloatingActionButton(
+          onPressed: () => _showAddTaskSheet(context),
+          backgroundColor: AppColors.accent,
+          child: const Icon(Icons.add_rounded, color: Colors.black, size: 30),
+        ),
       ),
     );
   }
@@ -468,10 +628,8 @@ class _TasksViewState extends State<TasksView> {
 
   Widget _buildTaskTile(Task task) {
     final taskProvider = context.read<TaskProvider>();
-    final formattedDate = "${DateTime.now().year}-${DateTime.now().month.toString().padLeft(2, '0')}-${DateTime.now().day.toString().padLeft(2, '0')}";
-    final isCompleted = task.isRecurring
-        ? task.lastCompletedDate == formattedDate
-        : task.isCompleted;
+    final selectedDateStr = "${_selectedDate.year}-${_selectedDate.month.toString().padLeft(2, '0')}-${_selectedDate.day.toString().padLeft(2, '0')}";
+    final isCompleted = taskProvider.completions.any((c) => c['task_id'] == task.id && c['completed_date'] == selectedDateStr);
 
     return Dismissible(
       key: Key(task.id),
@@ -506,7 +664,10 @@ class _TasksViewState extends State<TasksView> {
           ),
         ),
         child: ListTile(
-          onTap: () => _showTaskOptionsSheet(task),
+          onTap: () {
+            taskProvider.toggleTaskCompletion(task, date: _selectedDate);
+          },
+          onLongPress: () => _showTaskOptionsSheet(task),
           contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
           leading: task.isPaused
               ? const Icon(Icons.pause_circle_filled_rounded, color: Colors.amber, size: 28)
@@ -519,7 +680,7 @@ class _TasksViewState extends State<TasksView> {
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
                     side: const BorderSide(color: AppColors.textSecondary, width: 1.5),
                     onChanged: (_) {
-                      taskProvider.toggleTaskCompletion(task);
+                      taskProvider.toggleTaskCompletion(task, date: _selectedDate);
                     },
                   ),
                 ),

@@ -18,6 +18,11 @@ class AuthProvider extends ChangeNotifier {
     _user = _supabaseService.currentUser;
     if (_user != null) {
       _isInitialized = true;
+      // Load cached username from Hive immediately
+      final cachedName = _dbService.settingsBox.get('username_${_user!.id}') as String?;
+      if (cachedName != null) {
+        _username = cachedName;
+      }
       loadUserProfile();
       subscribeToProfileChanges();
     }
@@ -31,6 +36,11 @@ class AuthProvider extends ChangeNotifier {
       
       if (userChanged) {
         if (_user != null) {
+          // Load cached username from Hive immediately
+          final cachedName = _dbService.settingsBox.get('username_${_user!.id}') as String?;
+          if (cachedName != null) {
+            _username = cachedName;
+          }
           loadUserProfile();
           subscribeToProfileChanges();
         } else {
@@ -76,6 +86,8 @@ class AuthProvider extends ChangeNotifier {
           .maybeSingle();
       if (data != null && data['username'] != null) {
         _username = data['username'] as String;
+        // Save to Hive
+        await _dbService.settingsBox.put('username_${_user!.id}', _username);
         notifyListeners();
       }
     } catch (e) {
@@ -98,10 +110,11 @@ class AuthProvider extends ChangeNotifier {
             column: 'id',
             value: _user!.id,
           ),
-          callback: (payload) {
+          callback: (payload) async {
             final newUsername = payload.newRecord['username'] as String?;
             if (newUsername != null) {
               _username = newUsername;
+              await _dbService.settingsBox.put('username_${_user!.id}', _username);
               notifyListeners();
             }
           },
@@ -116,8 +129,13 @@ class AuthProvider extends ChangeNotifier {
     _errorMessage = null;
     notifyListeners();
 
+    // 1. Update Hive instantly for offline-first responsiveness
+    await _dbService.settingsBox.put('username_${_user!.id}', newUsername);
+    _username = newUsername;
+    notifyListeners();
+
     try {
-      // 1. Update profiles table
+      // 2. Update profiles table in Supabase
       await Supabase.instance.client
           .from('profiles')
           .update({
@@ -126,25 +144,33 @@ class AuthProvider extends ChangeNotifier {
           })
           .eq('id', _user!.id);
 
-      // 2. Update auth user metadata so local app session metadata matches
+      // 3. Update auth user metadata
       await Supabase.instance.client.auth.updateUser(
         UserAttributes(data: {'username': newUsername}),
       );
 
-      _username = newUsername;
       _isLoading = false;
       notifyListeners();
       return true;
-    } on AuthException catch (e) {
-      _errorMessage = e.message;
-      _isLoading = false;
-      notifyListeners();
-      return false;
     } catch (e) {
-      _errorMessage = e.toString();
+      print("Offline: queuing username sync: $e");
+      // Queue it for sync later when online
+      final syncItem = SyncItem(
+        actionType: 'UPDATE',
+        tableName: 'profiles',
+        recordId: _user!.id,
+        payload: {
+          'id': _user!.id,
+          'username': newUsername,
+          'email': _user!.email ?? '',
+          'updated_at': DateTime.now().toUtc().toIso8601String(),
+        },
+      );
+      await _dbService.queueMutation(syncItem);
+      
       _isLoading = false;
       notifyListeners();
-      return false;
+      return true; // Return true as it is saved locally
     }
   }
 

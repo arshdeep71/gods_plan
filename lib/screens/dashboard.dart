@@ -453,10 +453,170 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
+  void _showCongratsDialog(BuildContext context, TaskProvider taskProvider) {
+    taskProvider.clearCongrats();
+    
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) {
+        final authProvider = Provider.of<AuthProvider>(context, listen: false);
+        final currentStreak = taskProvider.calculateCurrentStreak(authProvider.user?.id ?? '');
+        
+        return Dialog(
+          backgroundColor: Colors.transparent,
+          insetPadding: const EdgeInsets.symmetric(horizontal: 24),
+          child: Container(
+            padding: const EdgeInsets.all(28),
+            decoration: BoxDecoration(
+              color: const Color(0xFF1C1C1E),
+              borderRadius: BorderRadius.circular(28),
+              border: Border.all(color: AppColors.border),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TweenAnimationBuilder<double>(
+                  tween: Tween<double>(begin: 0.0, end: 1.0),
+                  duration: const Duration(milliseconds: 600),
+                  curve: Curves.elasticOut,
+                  builder: (context, value, child) {
+                    return Transform.scale(
+                      scale: value,
+                      child: child,
+                    );
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.all(20),
+                    decoration: BoxDecoration(
+                      color: Colors.orange.withOpacity(0.15),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.local_fire_department_rounded,
+                      color: Colors.orange,
+                      size: 72,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 24),
+                const Text(
+                  "CONGRATULATIONS!",
+                  style: TextStyle(
+                    color: AppColors.accent,
+                    fontSize: 22,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 1.5,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  "Goal Reached! You have successfully completed at least 80% of your tasks for today!",
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: AppColors.textPrimary.withOpacity(0.9),
+                    fontSize: 15,
+                    height: 1.4,
+                  ),
+                ),
+                const SizedBox(height: 24),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                  decoration: BoxDecoration(
+                    color: Colors.orange.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: Colors.orange.withOpacity(0.3)),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.local_fire_department_rounded, color: Colors.orange, size: 24),
+                      const SizedBox(width: 8),
+                      Text(
+                        "$currentStreak Day Streak!",
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 28),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.accent,
+                      foregroundColor: Colors.black,
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                      elevation: 0,
+                    ),
+                    onPressed: () {
+                      Navigator.pop(context);
+                    },
+                    child: const Text(
+                      "Awesome!",
+                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  void _showXpNotification(BuildContext context, TaskProvider taskProvider) {
+    final amount = taskProvider.lastAwardedXpAmount;
+    taskProvider.clearXpAnimation();
+    
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: const BoxDecoration(
+                color: Colors.amber,
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.star_rounded, color: Colors.black, size: 18),
+            ),
+            const SizedBox(width: 12),
+            Text(
+              "+$amount XP Earned!",
+              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15),
+            ),
+          ],
+        ),
+        backgroundColor: Colors.indigo,
+        behavior: SnackBarBehavior.floating,
+        duration: const Duration(seconds: 3),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final user = context.watch<AuthProvider>().user;
     final username = context.watch<AuthProvider>().username;
+    final taskProvider = context.watch<TaskProvider>();
+
+    if (taskProvider.shouldShowCongrats || taskProvider.shouldShowXpAnimation) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (taskProvider.shouldShowCongrats) {
+          _showCongratsDialog(context, taskProvider);
+        } else if (taskProvider.shouldShowXpAnimation) {
+          _showXpNotification(context, taskProvider);
+        }
+      });
+    }
 
     // Build the bottom nav pages
     final List<Widget> pages = [
@@ -518,34 +678,20 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final weeklyProgress = totalWeekly > 0 ? (weeklyCompleted / totalWeekly * 100).toInt() : 0;
     
     // Calculate Global Streak
-    int currentStreak = 0;
-    DateTime streakCheckDate = DateTime(now.year, now.month, now.day);
-    
-    final todayActive = taskProvider.getActiveTasksForDate(streakCheckDate);
-    final todayCompleted = taskProvider.getCompletedTasksForDate(streakCheckDate);
-    if (todayActive.isEmpty && todayCompleted.isNotEmpty) {
-      currentStreak++;
-    }
-    
-    streakCheckDate = streakCheckDate.subtract(const Duration(days: 1));
-    while (true) {
-      final active = taskProvider.getActiveTasksForDate(streakCheckDate);
-      final completed = taskProvider.getCompletedTasksForDate(streakCheckDate);
-      
-      if (active.isEmpty && completed.isNotEmpty) {
-        currentStreak++;
-        streakCheckDate = streakCheckDate.subtract(const Duration(days: 1));
-      } else if (active.isEmpty && completed.isEmpty) {
-        streakCheckDate = streakCheckDate.subtract(const Duration(days: 1));
-        if (streakCheckDate.isBefore(now.subtract(const Duration(days: 365)))) break;
-      } else {
-        break;
-      }
-    }
+    final currentStreak = user != null ? taskProvider.calculateCurrentStreak(user.id) : 0;
 
     final endOfWeek = startOfWeek.add(const Duration(days: 6));
     final monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
     final weekString = "${startOfWeek.day} ${monthNames[startOfWeek.month - 1]} - ${endOfWeek.day} ${monthNames[endOfWeek.month - 1]}";
+
+    // Compute dynamic greeting based on system time
+    final hour = DateTime.now().hour;
+    String greeting = "Good Morning";
+    if (hour >= 12 && hour < 17) {
+      greeting = "Good Afternoon";
+    } else if (hour >= 17 || hour < 4) {
+      greeting = "Good Evening";
+    }
 
     return SingleChildScrollView(
       padding: const EdgeInsets.only(left: 24.0, right: 24.0, top: 40.0, bottom: 120.0),
@@ -557,7 +703,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                "Good Morning,\n$username",
+                "$greeting,\n$username",
                 style: const TextStyle(
                   color: AppColors.textPrimary,
                   fontSize: 28,
