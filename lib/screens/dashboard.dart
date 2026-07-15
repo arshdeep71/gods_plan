@@ -140,10 +140,29 @@ class _DashboardScreenState extends State<DashboardScreen> {
       channel.subscribe();
       _realtimeSyncChannels.add(channel);
     }
+
+    // Subscribe to profiles table with 'id' column filter
+    final profileChannel = client.channel('public:profiles:$userId').onPostgresChanges(
+      event: PostgresChangeEvent.all,
+      schema: 'public',
+      table: 'profiles',
+      filter: PostgresChangeFilter(
+        type: PostgresChangeFilterType.eq,
+        column: 'id',
+        value: userId,
+      ),
+      callback: (payload) async {
+        await syncService.sync(userId);
+        _refreshAllProviders(userId);
+      },
+    );
+    profileChannel.subscribe();
+    _realtimeSyncChannels.add(profileChannel);
   }
 
   void _refreshAllProviders(String userId) {
     if (!mounted) return;
+    Provider.of<AuthProvider>(context, listen: false).loadUserProfile();
     Provider.of<TaskProvider>(context, listen: false).fetchTasks(userId);
     Provider.of<HealthProvider>(context, listen: false).fetchHealthData(userId);
     Provider.of<NutritionProvider>(context, listen: false).fetchNutritionData(userId);

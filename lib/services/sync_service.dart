@@ -408,6 +408,36 @@ class SyncService {
       });
     }
 
+    // K. Sync Profile Username, XP, and Restores
+    try {
+      final profileData = await _supabase
+          .from('profiles')
+          .select('username, xp, streak_restores, restored_dates, last_restore_reset')
+          .eq('id', userId)
+          .maybeSingle();
+      if (profileData != null) {
+        if (profileData['username'] != null) {
+          await _dbService.settingsBox.put('username_$userId', profileData['username'] as String);
+        }
+        if (profileData['xp'] != null) {
+          await _dbService.settingsBox.put('xp_$userId', profileData['xp'] as int);
+        }
+        if (profileData['streak_restores'] != null) {
+          await _dbService.settingsBox.put('restores_left_$userId', profileData['streak_restores'] as int);
+        }
+        if (profileData['restored_dates'] != null) {
+          final List<dynamic> datesRaw = profileData['restored_dates'] as List;
+          final List<String> restoredList = datesRaw.map((d) => d.toString()).toList();
+          await _dbService.settingsBox.put('restored_dates_$userId', restoredList);
+        }
+        if (profileData['last_restore_reset'] != null) {
+          await _dbService.settingsBox.put('restore_reset_date_$userId', profileData['last_restore_reset'] as String);
+        }
+      }
+    } catch (e) {
+      print("Sync profile error: $e");
+    }
+
     // Save current sync timestamp
     await _dbService.settingsBox.put('last_sync_timestamp', currentSyncTime);
   }
