@@ -1,0 +1,121 @@
+    final active = taskProvider.getActiveTasksForDate(_selectedDate);
+    final completed = taskProvider.getCompletedTasksForDate(_selectedDate);
+    final paused = taskProvider.tasks.where((t) => t.isPaused).toList();
+
+    return Scaffold(
+      backgroundColor: AppColors.background,
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        leading: widget.isTab
+            ? null
+            : IconButton(
+                icon: const Icon(Icons.arrow_back_ios_new_rounded, color: AppColors.textPrimary),
+                onPressed: () => Navigator.pop(context),
+              ),
+        title: const Text(
+          "Tasks Checklist",
+          style: TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.bold),
+        ),
+        actions: [
+          if (taskProvider.isSyncing)
+            const Center(
+              child: Padding(
+                padding: EdgeInsets.only(right: 16.0),
+                child: SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: AppColors.accent,
+                  ),
+                ),
+              ),
+            )
+          else
+            IconButton(
+              icon: const Icon(Icons.cloud_sync_rounded, color: AppColors.success),
+              onPressed: () {
+                if (authProvider.user != null) {
+                  taskProvider.fetchTasks(authProvider.user!.id);
+                }
+              },
+            ),
+        ],
+      ),
+      body: taskProvider.isLoading
+          ? const Center(child: CircularProgressIndicator(color: AppColors.accent))
+          : Column(
+              children: [
+                _buildWeeklyCalendar(taskProvider),
+                const SizedBox(height: 12),
+                Expanded(
+                  child: taskProvider.tasks.isEmpty
+                    ? _buildEmptyState(context)
+                    : ReorderableListView(
+                        padding: const EdgeInsets.only(left: 20.0, right: 20.0, top: 12.0, bottom: 120.0),
+                        header: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            if (active.isNotEmpty) ...[
+                              const Text(
+                                "Active Tasks",
+                                style: TextStyle(
+                                  color: AppColors.textSecondary,
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.bold,
+                                  letterSpacing: 1.0,
+                                ),
+                              ),
+                              const SizedBox(height: 10),
+                            ],
+                          ],
+                        ),
+                        footer: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            if (active.isNotEmpty) const SizedBox(height: 24),
+                            if (completed.isNotEmpty) ...[
+                              const Text(
+                                "Completed",
+                                style: TextStyle(
+                                  color: AppColors.textMuted,
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.bold,
+                                  letterSpacing: 1.0,
+                                ),
+                              ),
+                              const SizedBox(height: 10),
+                              ...completed.map((task) => _buildTaskTile(task)),
+                              const SizedBox(height: 24),
+                            ],
+                            if (paused.isNotEmpty) ...[
+                              const Text(
+                                "Paused Habits",
+                                style: TextStyle(
+                                  color: AppColors.textMuted,
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.bold,
+                                  letterSpacing: 1.0,
+                                ),
+                              ),
+                              const SizedBox(height: 10),
+                              ...paused.map((task) => _buildTaskTile(task)),
+                            ]
+                          ],
+                        ),
+                        onReorder: (oldIndex, newIndex) {
+                          taskProvider.reorderTasks(oldIndex, newIndex, _selectedDate);
+                        },
+                        children: active.map((task) => _buildTaskTile(task)).toList(),
+                      ),
+                ),
+              ],
+            ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () => _showAddTaskSheet(context),
+        backgroundColor: AppColors.accent,
+        child: const Icon(Icons.add_rounded, color: Colors.black, size: 30),
+      ),
+    );
+  }

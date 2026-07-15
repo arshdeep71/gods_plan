@@ -10,6 +10,7 @@ import 'providers/finance_provider.dart';
 import 'providers/learning_provider.dart';
 import 'providers/social_provider.dart';
 import 'services/database_service.dart';
+import 'services/notification_service.dart';
 import 'utils/constants.dart';
 import 'utils/colors.dart';
 import 'screens/auth/login_screen.dart';
@@ -55,6 +56,9 @@ void main() async {
     // 1. Initialize local cache Hive and SQLite databases
     final dbService = DatabaseService();
     await dbService.initDatabase();
+    
+    // Initialize Local Notifications
+    await NotificationService().init();
 
     // 2. Safely check and initialize Supabase credentials
     bool isSupabaseConfigured = false;

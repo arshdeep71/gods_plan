@@ -1,88 +1,157 @@
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:timezone/data/latest_all.dart' as tz;
+import 'package:timezone/timezone.dart' as tz;
 import 'package:flutter/material.dart';
-import '../utils/colors.dart';
 
 class NotificationService {
-  // Return notification body for a specific daily schedule alert
-  Map<String, String> getNotificationForTime(String timeKey, int remainingDays) {
-    switch (timeKey) {
-      case '6:00 AM':
-        return {
-          'title': '🌅 Morning Focus',
-          'body': 'Good morning! $remainingDays days left to achieve your goals!\n\nToday\'s focus:\n• Exercise (30 min)\n• Study practice (60 min)\n• Complete all active tasks\n• Meet your budget goals\n\nYou\'ve got this! 🚀'
-        };
-      case '5:00 PM':
-        return {
-          'title': '🏃‍♂️ Exercise Time',
-          'body': 'Exercise time! 30 minutes to complete your daily activity target and maintain your clean streak.'
-        };
-      case '6:00 PM':
-        return {
-          'title': '📚 Study Focus',
-          'body': 'Study practice time! Open your active subject setup and log at least 45 minutes of learning.'
-        };
-      case '7:00 PM':
-        return {
-          'title': '🥗 Dinner & Macros Log',
-          'body': 'Macro check! Remember to log your dinner foods and hit your protein target today.'
-        };
-      case '8:00 PM':
-        return {
-          'title': '💤 Sleep Wind Down',
-          'body': 'Wind down in 2 hours! Put away all electronic screens and prepare for deep rest.'
-        };
-      case '9:00 PM':
-        return {
-          'title': '🌙 Daily Summary',
-          'body': 'Daily Summary\n\n✅ COMPLETED TODAY:\n✓ Task Checklist (75% completed)\n✓ Exercise logged\n✓ Study logs recorded\n✓ Water goal matched\n\nReady for tomorrow? Sleep tight! 😴'
-        };
-      default:
-        return {
-          'title': '🔔 Goal Tracker Reminder',
-          'body': 'Stay consistent with your daily habit goals today!'
-        };
+  static final NotificationService _instance = NotificationService._internal();
+  factory NotificationService() => _instance;
+  NotificationService._internal();
+
+  final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin = FlutterLocalNotificationsPlugin();
+
+  Future<void> init() async {
+    tz.initializeTimeZones();
+
+    const AndroidInitializationSettings initializationSettingsAndroid = AndroidInitializationSettings('@mipmap/ic_launcher');
+    
+    // Define iOS actions
+    final DarwinNotificationCategory category = DarwinNotificationCategory(
+      'task_reminder_category',
+      actions: <DarwinNotificationAction>[
+        DarwinNotificationAction.plain('snooze_10', 'Snooze 10 min'),
+        DarwinNotificationAction.plain('snooze_30', 'Snooze 30 min'),
+        DarwinNotificationAction.plain('mark_complete', 'Mark Complete', options: <DarwinNotificationActionOption>{
+          DarwinNotificationActionOption.destructive,
+        }),
+      ],
+      options: <DarwinNotificationCategoryOption>{
+        DarwinNotificationCategoryOption.hiddenPreviewShowTitle,
+      },
+    );
+
+    final DarwinInitializationSettings initializationSettingsIOS = DarwinInitializationSettings(
+      requestAlertPermission: true,
+      requestBadgePermission: true,
+      requestSoundPermission: true,
+      notificationCategories: [category],
+    );
+
+    final InitializationSettings initializationSettings = InitializationSettings(
+      android: initializationSettingsAndroid,
+      iOS: initializationSettingsIOS,
+    );
+
+    await flutterLocalNotificationsPlugin.initialize(
+      initializationSettings,
+      onDidReceiveNotificationResponse: (NotificationResponse response) {
+        _handleNotificationAction(response);
+      },
+    );
+  }
+
+  void _handleNotificationAction(NotificationResponse response) {
+    if (response.actionId == 'snooze_10') {
+      _snoozeNotification(response.id, response.payload, 10);
+    } else if (response.actionId == 'snooze_30') {
+      _snoozeNotification(response.id, response.payload, 30);
+    } else if (response.actionId == 'mark_complete') {
+      // Need a way to mark complete, ideally via a callback or provider
+      // For now, this is a placeholder where state management would update the task
+      print("Task ${response.payload} marked complete via notification.");
     }
   }
 
-  // Show a simulated native push notification as an in-app overlay dialog
-  void showSimulatedPush(BuildContext context, String timeKey, int remainingDays) {
-    final alert = getNotificationForTime(timeKey, remainingDays);
-
-    showDialog(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          backgroundColor: AppColors.surface,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(24),
-            side: const BorderSide(color: AppColors.border),
-          ),
-          title: Row(
-            children: [
-              const Icon(Icons.notifications_active_rounded, color: AppColors.accent),
-              const SizedBox(width: 12),
-              Text(
-                alert['title']!,
-                style: const TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.bold),
-              ),
-            ],
-          ),
-          content: Text(
-            alert['body']!,
-            style: const TextStyle(color: AppColors.textSecondary, fontSize: 14, height: 1.4),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text("Dismiss", style: TextStyle(color: AppColors.textSecondary)),
-            ),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(backgroundColor: AppColors.accent),
-              onPressed: () => Navigator.pop(context),
-              child: const Text("Log Progress", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-            ),
-          ],
-        );
-      },
+  Future<void> _snoozeNotification(int? id, String? payload, int minutes) async {
+    if (id == null) return;
+    
+    final scheduledDate = tz.TZDateTime.now(tz.local).add(Duration(minutes: minutes));
+    
+    await flutterLocalNotificationsPlugin.zonedSchedule(
+      id,
+      'Snoozed Reminder',
+      'You snoozed this task. Time to get to it!',
+      scheduledDate,
+      const NotificationDetails(
+        android: AndroidNotificationDetails(
+          'task_reminders',
+          'Task Reminders',
+          channelDescription: 'Reminders for your daily tasks',
+          importance: Importance.max,
+          priority: Priority.high,
+        ),
+        iOS: DarwinNotificationDetails(
+          categoryIdentifier: 'task_reminder_category',
+        ),
+      ),
+      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+      uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime,
+      payload: payload,
     );
+  }
+
+  Future<void> scheduleTaskReminder(int id, String title, DateTime scheduledTime, String taskId) async {
+    // If the time is in the past, don't schedule
+    if (scheduledTime.isBefore(DateTime.now())) return;
+
+    final tz.TZDateTime tzScheduledTime = tz.TZDateTime.from(scheduledTime, tz.local);
+
+    await flutterLocalNotificationsPlugin.zonedSchedule(
+      id,
+      'Task Reminder',
+      title,
+      tzScheduledTime,
+      const NotificationDetails(
+        android: AndroidNotificationDetails(
+          'task_reminders',
+          'Task Reminders',
+          channelDescription: 'Reminders for your daily tasks',
+          importance: Importance.max,
+          priority: Priority.high,
+        ),
+        iOS: DarwinNotificationDetails(
+          categoryIdentifier: 'task_reminder_category',
+        ),
+      ),
+      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+      uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime,
+      payload: taskId,
+    );
+  }
+
+  Future<void> scheduleDailyReminder(int id, String title, TimeOfDay time, String taskId) async {
+    final now = tz.TZDateTime.now(tz.local);
+    tz.TZDateTime scheduledDate = tz.TZDateTime(tz.local, now.year, now.month, now.day, time.hour, time.minute);
+    
+    if (scheduledDate.isBefore(now)) {
+      scheduledDate = scheduledDate.add(const Duration(days: 1));
+    }
+
+    await flutterLocalNotificationsPlugin.zonedSchedule(
+      id,
+      'Daily Habit Reminder',
+      title,
+      scheduledDate,
+      const NotificationDetails(
+        android: AndroidNotificationDetails(
+          'task_reminders',
+          'Task Reminders',
+          channelDescription: 'Reminders for your daily tasks',
+          importance: Importance.max,
+          priority: Priority.high,
+        ),
+        iOS: DarwinNotificationDetails(
+          categoryIdentifier: 'task_reminder_category',
+        ),
+      ),
+      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+      uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime,
+      matchDateTimeComponents: DateTimeComponents.time,
+      payload: taskId,
+    );
+  }
+
+  Future<void> cancelReminder(int id) async {
+    await flutterLocalNotificationsPlugin.cancel(id);
   }
 }

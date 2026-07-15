@@ -1,0 +1,48 @@
+  void _scheduleNotification(Task task) {
+    if (task.isPaused || task.isCompleted) {
+      NotificationService().cancelReminder(task.id.hashCode);
+      return;
+    }
+
+    if (task.dueTime != null) {
+      // Parse dueTime like '12:30 PM' or '14:30'
+      final timeParts = task.dueTime!.split(' ');
+      if (timeParts.isEmpty) return;
+      
+      final hm = timeParts[0].split(':');
+      if (hm.length < 2) return;
+      
+      int hour = int.tryParse(hm[0]) ?? 12;
+      int minute = int.tryParse(hm[1]) ?? 0;
+      
+      if (timeParts.length > 1) {
+        if (timeParts[1].toLowerCase() == 'pm' && hour < 12) hour += 12;
+        if (timeParts[1].toLowerCase() == 'am' && hour == 12) hour = 0;
+      }
+
+      final timeOfDay = TimeOfDay(hour: hour, minute: minute);
+      
+      if (task.isRecurring) {
+        NotificationService().scheduleDailyReminder(
+          task.id.hashCode,
+          task.title,
+          timeOfDay,
+          task.id,
+        );
+      } else if (task.scheduledDate != null) {
+        try {
+          final date = DateTime.parse(task.scheduledDate!);
+          final scheduledTime = DateTime(date.year, date.month, date.day, hour, minute);
+          NotificationService().scheduleTaskReminder(
+            task.id.hashCode,
+            task.title,
+            scheduledTime,
+            task.id,
+          );
+        } catch (_) {}
+      }
+    } else {
+      // No due time, cancel existing
+      NotificationService().cancelReminder(task.id.hashCode);
+    }
+  }

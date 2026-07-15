@@ -1,6 +1,7 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../screens/tasks/streak_view.dart';
 import '../providers/auth_provider.dart';
 import '../providers/task_provider.dart';
 import '../services/database_service.dart';
@@ -691,7 +692,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
               Expanded(
                 child: GestureDetector(
                   onTap: () {
-                    // Navigate to Streak View
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const StreakView()),
+                    );
                   },
                   child: _buildStatCard("Current Streak", "$currentStreak Days", Icons.local_fire_department, Colors.orange),
                 ),

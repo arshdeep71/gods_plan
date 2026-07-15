@@ -14,9 +14,12 @@ class TasksView extends StatefulWidget {
 }
 
 class _TasksViewState extends State<TasksView> {
+  late DateTime _selectedDate;
+
   @override
   void initState() {
     super.initState();
+    _selectedDate = DateTime.now();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final user = Provider.of<AuthProvider>(context, listen: false).user;
       if (user != null) {
@@ -171,29 +174,132 @@ class _TasksViewState extends State<TasksView> {
     );
   }
 
+  Widget _buildWeeklyCalendar(TaskProvider taskProvider) {
+    final now = DateTime.now();
+    final currentDayOfWeek = _selectedDate.weekday;
+    final startOfWeek = _selectedDate.subtract(Duration(days: currentDayOfWeek - 1));
+    final monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 8.0),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                "${monthNames[startOfWeek.month - 1]} ${startOfWeek.year}",
+                style: const TextStyle(color: AppColors.textPrimary, fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+              Row(
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.chevron_left_rounded, color: AppColors.textSecondary),
+                    onPressed: () {
+                      setState(() {
+                        _selectedDate = _selectedDate.subtract(const Duration(days: 7));
+                      });
+                    },
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.chevron_right_rounded, color: AppColors.textSecondary),
+                    onPressed: () {
+                      setState(() {
+                        _selectedDate = _selectedDate.add(const Duration(days: 7));
+                      });
+                    },
+                  ),
+                ],
+              )
+            ],
+          ),
+        ),
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          padding: const EdgeInsets.symmetric(horizontal: 16.0),
+          child: Row(
+            children: List.generate(7, (index) {
+              final dayDate = startOfWeek.add(Duration(days: index));
+              final dayNames = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+              
+              final isSelected = dayDate.year == _selectedDate.year && dayDate.month == _selectedDate.month && dayDate.day == _selectedDate.day;
+              final isToday = dayDate.year == now.year && dayDate.month == now.month && dayDate.day == now.day;
+              
+              final active = taskProvider.getActiveTasksForDate(dayDate);
+              final completed = taskProvider.getCompletedTasksForDate(dayDate);
+              
+              Color statusColor = Colors.transparent;
+              if (isSelected) {
+                statusColor = AppColors.accent;
+              } else if (active.isEmpty && completed.isNotEmpty) {
+                statusColor = Colors.greenAccent.withOpacity(0.2);
+              } else if (active.isNotEmpty && dayDate.isBefore(DateTime(now.year, now.month, now.day))) {
+                statusColor = AppColors.error.withOpacity(0.2);
+              } else if (isToday) {
+                statusColor = Colors.white.withOpacity(0.1);
+              }
+              
+              return GestureDetector(
+                onTap: () {
+                  setState(() {
+                    _selectedDate = dayDate;
+                  });
+                },
+                child: Container(
+                  width: 54,
+                  margin: const EdgeInsets.symmetric(horizontal: 6),
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  decoration: BoxDecoration(
+                    color: isSelected ? AppColors.accent : statusColor,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                      color: isSelected ? AppColors.accent : (isToday ? Colors.white54 : Colors.transparent),
+                    ),
+                  ),
+                  child: Column(
+                    children: [
+                      Text(
+                        dayNames[index],
+                        style: TextStyle(
+                          color: isSelected ? Colors.black : AppColors.textSecondary,
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        "${dayDate.day}",
+                        style: TextStyle(
+                          color: isSelected ? Colors.black : AppColors.textPrimary,
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      if (active.isEmpty && completed.isNotEmpty && !isSelected)
+                        const Icon(Icons.check_circle_rounded, color: Colors.greenAccent, size: 12)
+                      else if (active.isNotEmpty && dayDate.isBefore(DateTime(now.year, now.month, now.day)) && !isSelected)
+                        const Icon(Icons.close_rounded, color: AppColors.error, size: 12)
+                      else
+                        const SizedBox(height: 12),
+                    ],
+                  ),
+                ),
+              );
+            }),
+          ),
+        ),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final taskProvider = context.watch<TaskProvider>();
     final authProvider = context.read<AuthProvider>();
     
-    final active = taskProvider.tasks.where((t) {
-      final formattedDate = "${DateTime.now().year}-${DateTime.now().month.toString().padLeft(2, '0')}-${DateTime.now().day.toString().padLeft(2, '0')}";
-      final isScheduled = t.isRecurring || (t.scheduledDate == formattedDate);
-      if (!isScheduled || t.isPaused) return false;
-      
-      final isComp = t.isRecurring ? t.lastCompletedDate == formattedDate : t.isCompleted;
-      return !isComp;
-    }).toList();
-
-    final completed = taskProvider.tasks.where((t) {
-      final formattedDate = "${DateTime.now().year}-${DateTime.now().month.toString().padLeft(2, '0')}-${DateTime.now().day.toString().padLeft(2, '0')}";
-      final isScheduled = t.isRecurring || (t.scheduledDate == formattedDate);
-      if (!isScheduled || t.isPaused) return false;
-      
-      final isComp = t.isRecurring ? t.lastCompletedDate == formattedDate : t.isCompleted;
-      return isComp;
-    }).toList();
-
+    final active = taskProvider.getActiveTasksForDate(_selectedDate);
+    final completed = taskProvider.getCompletedTasksForDate(_selectedDate);
     final paused = taskProvider.tasks.where((t) => t.isPaused).toList();
 
     return Scaffold(
@@ -212,7 +318,6 @@ class _TasksViewState extends State<TasksView> {
           style: TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.bold),
         ),
         actions: [
-          // Syncing Spinner Indicator
           if (taskProvider.isSyncing)
             const Center(
               child: Padding(
@@ -239,57 +344,74 @@ class _TasksViewState extends State<TasksView> {
         ],
       ),
       body: taskProvider.isLoading
-          ? const Center(
-              child: CircularProgressIndicator(color: AppColors.accent),
-            )
-          : taskProvider.tasks.isEmpty
-              ? _buildEmptyState(context)
-              : ListView(
-                  padding: const EdgeInsets.only(left: 20.0, right: 20.0, top: 12.0, bottom: 120.0),
-                  children: [
-                    if (active.isNotEmpty) ...[
-                      const Text(
-                        "Active Tasks",
-                        style: TextStyle(
-                          color: AppColors.textSecondary,
-                          fontSize: 14,
-                          fontWeight: FontWeight.bold,
-                          letterSpacing: 1.0,
+          ? const Center(child: CircularProgressIndicator(color: AppColors.accent))
+          : Column(
+              children: [
+                _buildWeeklyCalendar(taskProvider),
+                const SizedBox(height: 12),
+                Expanded(
+                  child: taskProvider.tasks.isEmpty
+                    ? _buildEmptyState(context)
+                    : ReorderableListView(
+                        padding: const EdgeInsets.only(left: 20.0, right: 20.0, top: 12.0, bottom: 120.0),
+                        header: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            if (active.isNotEmpty) ...[
+                              const Text(
+                                "Active Tasks",
+                                style: TextStyle(
+                                  color: AppColors.textSecondary,
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.bold,
+                                  letterSpacing: 1.0,
+                                ),
+                              ),
+                              const SizedBox(height: 10),
+                            ],
+                          ],
                         ),
-                      ),
-                      const SizedBox(height: 10),
-                      ...active.map((task) => _buildTaskTile(task)),
-                      const SizedBox(height: 24),
-                    ],
-                    if (completed.isNotEmpty) ...[
-                      const Text(
-                        "Completed",
-                        style: TextStyle(
-                          color: AppColors.textMuted,
-                          fontSize: 14,
-                          fontWeight: FontWeight.bold,
-                          letterSpacing: 1.0,
+                        footer: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            if (active.isNotEmpty) const SizedBox(height: 24),
+                            if (completed.isNotEmpty) ...[
+                              const Text(
+                                "Completed",
+                                style: TextStyle(
+                                  color: AppColors.textMuted,
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.bold,
+                                  letterSpacing: 1.0,
+                                ),
+                              ),
+                              const SizedBox(height: 10),
+                              ...completed.map((task) => _buildTaskTile(task)),
+                              const SizedBox(height: 24),
+                            ],
+                            if (paused.isNotEmpty) ...[
+                              const Text(
+                                "Paused Habits",
+                                style: TextStyle(
+                                  color: AppColors.textMuted,
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.bold,
+                                  letterSpacing: 1.0,
+                                ),
+                              ),
+                              const SizedBox(height: 10),
+                              ...paused.map((task) => _buildTaskTile(task)),
+                            ]
+                          ],
                         ),
+                        onReorder: (oldIndex, newIndex) {
+                          taskProvider.reorderTasks(oldIndex, newIndex, _selectedDate);
+                        },
+                        children: active.map((task) => _buildTaskTile(task)).toList(),
                       ),
-                      const SizedBox(height: 10),
-                      ...completed.map((task) => _buildTaskTile(task)),
-                      const SizedBox(height: 24),
-                    ],
-                    if (paused.isNotEmpty) ...[
-                      const Text(
-                        "Paused Habits",
-                        style: TextStyle(
-                          color: AppColors.textMuted,
-                          fontSize: 14,
-                          fontWeight: FontWeight.bold,
-                          letterSpacing: 1.0,
-                        ),
-                      ),
-                      const SizedBox(height: 10),
-                      ...paused.map((task) => _buildTaskTile(task)),
-                    ]
-                  ],
                 ),
+              ],
+            ),
       floatingActionButton: FloatingActionButton(
         onPressed: () => _showAddTaskSheet(context),
         backgroundColor: AppColors.accent,
@@ -297,6 +419,7 @@ class _TasksViewState extends State<TasksView> {
       ),
     );
   }
+
 
   Widget _buildEmptyState(BuildContext context) {
     return Center(
@@ -405,7 +528,16 @@ class _TasksViewState extends State<TasksView> {
             style: TextStyle(
               color: task.isPaused
                   ? AppColors.textMuted
-                  : (isCompleted ? AppColors.textMuted : AppColors.textPrimary),
+                  : (isCompleted 
+                      ? AppColors.textMuted 
+                      : (() {
+                          final checkDate = task.isRecurring ? _selectedDate : (task.scheduledDate != null ? DateTime.parse(task.scheduledDate!) : _selectedDate);
+                          final now = DateTime.now();
+                          if (checkDate.isBefore(DateTime(now.year, now.month, now.day))) {
+                            return AppColors.error; // Missed
+                          }
+                          return AppColors.textPrimary;
+                        })()),
               fontSize: 16,
               fontWeight: FontWeight.w600,
               decoration: isCompleted ? TextDecoration.lineThrough : null,

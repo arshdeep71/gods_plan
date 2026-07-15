@@ -4,6 +4,7 @@ import '../models/task.dart';
 import '../models/sync_item.dart';
 import '../services/database_service.dart';
 import '../services/sync_service.dart';
+import '../services/notification_service.dart';
 
 class TaskProvider extends ChangeNotifier {
   final DatabaseService _dbService = DatabaseService();
@@ -136,6 +137,7 @@ class TaskProvider extends ChangeNotifier {
 
     // Optimistic UI updates - Save locally and update memory
     _tasks.insert(0, newTask);
+    _scheduleNotification(newTask);
     notifyListeners();
 
     await _dbService.upsertLocalTask(newTask);
@@ -237,6 +239,7 @@ class TaskProvider extends ChangeNotifier {
     );
 
     _tasks[index] = updatedTask;
+    _scheduleNotification(updatedTask);
     notifyListeners();
 
     await _dbService.upsertLocalTask(updatedTask);
@@ -265,6 +268,7 @@ class TaskProvider extends ChangeNotifier {
     final index = _tasks.indexWhere((t) => t.id == task.id);
     if (index != -1) {
       _tasks[index] = updatedTask;
+      _scheduleNotification(updatedTask);
       notifyListeners();
     }
 
@@ -288,6 +292,7 @@ class TaskProvider extends ChangeNotifier {
   Future<void> deleteTask(Task task) async {
     // Optimistic UI update - delete from memory
     _tasks.removeWhere((t) => t.id == task.id);
+    NotificationService().cancelReminder(task.id.hashCode);
     notifyListeners();
 
     await _dbService.deleteLocalTask(task.id);
@@ -369,6 +374,53 @@ class TaskProvider extends ChangeNotifier {
     notifyListeners();
     if (_tasks.isNotEmpty) {
       _syncService.sync(_tasks.first.userId);
+    }
+  }
+
+  void _scheduleNotification(Task task) {
+    if (task.isPaused || task.isCompleted) {
+      NotificationService().cancelReminder(task.id.hashCode);
+      return;
+    }
+
+    if (task.dueTime != null) {
+      final timeParts = task.dueTime!.split(' ');
+      if (timeParts.isEmpty) return;
+      
+      final hm = timeParts[0].split(':');
+      if (hm.length < 2) return;
+      
+      int hour = int.tryParse(hm[0]) ?? 12;
+      int minute = int.tryParse(hm[1]) ?? 0;
+      
+      if (timeParts.length > 1) {
+        if (timeParts[1].toLowerCase() == 'pm' && hour < 12) hour += 12;
+        if (timeParts[1].toLowerCase() == 'am' && hour == 12) hour = 0;
+      }
+
+      final timeOfDay = TimeOfDay(hour: hour, minute: minute);
+      
+      if (task.isRecurring) {
+        NotificationService().scheduleDailyReminder(
+          task.id.hashCode,
+          task.title,
+          timeOfDay,
+          task.id,
+        );
+      } else if (task.scheduledDate != null) {
+        try {
+          final date = DateTime.parse(task.scheduledDate!);
+          final scheduledTime = DateTime(date.year, date.month, date.day, hour, minute);
+          NotificationService().scheduleTaskReminder(
+            task.id.hashCode,
+            task.title,
+            scheduledTime,
+            task.id,
+          );
+        } catch (_) {}
+      }
+    } else {
+      NotificationService().cancelReminder(task.id.hashCode);
     }
   }
 }

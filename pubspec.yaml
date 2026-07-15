@@ -30,6 +30,10 @@ dependencies:
   uuid: ^4.3.3
   cupertino_icons: ^1.0.6
 
+  # Notifications & Scheduling
+  flutter_local_notifications: ^17.2.1
+  timezone: ^0.9.3
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
