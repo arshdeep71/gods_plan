@@ -3,9 +3,9 @@ Building com.godsplan.godsPlan for device (ios-release)...
 The following plugins do not support Swift Package Manager for ios:
   - flutter_local_notifications
 This will become an error in a future version of Flutter. Please contact the plugin maintainers to request Swift Package Manager adoption.
-Running pod install...                                             620ms
+Running pod install...                                             619ms
 Running Xcode build...                                          
-Xcode build done.                                           27.3s
+Xcode build done.                                           27.5s
 Failed to build iOS app
 Error output from Xcode build:
 ↳
@@ -15,7 +15,7 @@ Error output from Xcode build:
 Xcode's output:
 ↳
     Writing result bundle at path:
-    	/var/folders/g3/pffjr_y96bq06blnkf72x_hw0000gn/T/flutter_tools.GxYS9s/flutter_ios_build_temp_dirGz9DdC/temporary_xcresult_bundle
+    	/var/folders/g3/pffjr_y96bq06blnkf72x_hw0000gn/T/flutter_tools.d54tDZ/flutter_ios_build_temp_dirukwPX1/temporary_xcresult_bundle
 
     /Users/runner/.pub-cache/hosted/pub.dev/flutter_local_notifications-17.2.4/ios/Classes/FlutterLocalNotificationsPlugin.m:6:17: warning: method definition for 'setRegisterPlugins:' not found [-Wincomplete-implementation]
     @implementation FlutterLocalNotificationsPlugin {
@@ -25,35 +25,31 @@ Xcode's output:
     + (void)setRegisterPlugins:(FlutterPluginRegistrantCallback *)callback;
     ^
     1 warning generated.
-    lib/screens/dashboard.dart:1022:33: Error: Type 'Task' not found.
-      Widget _buildStreakBadge(List<Task> tasks) {
-                                    ^^^^
-    lib/screens/dashboard.dart:1215:30: Error: Type 'Task' not found.
-      void _showTaskOptionsSheet(Task task) {
-                                 ^^^^
-    lib/screens/dashboard.dart:1337:27: Error: Type 'Task' not found.
-      void _showEditTaskSheet(Task task) {
-                              ^^^^
-    lib/screens/dashboard.dart:1455:25: Error: Type 'Task' not found.
-      Widget _buildTaskTile(Task task, String formattedDate) {
-                            ^^^^
-    lib/screens/dashboard.dart:1022:33: Error: 'Task' isn't a type.
-      Widget _buildStreakBadge(List<Task> tasks) {
-                                    ^^^^
-    lib/screens/dashboard.dart:1215:30: Error: 'Task' isn't a type.
-      void _showTaskOptionsSheet(Task task) {
-                                 ^^^^
-    lib/screens/dashboard.dart:1337:27: Error: 'Task' isn't a type.
-      void _showEditTaskSheet(Task task) {
-                              ^^^^
-    lib/screens/dashboard.dart:1455:25: Error: 'Task' isn't a type.
-      Widget _buildTaskTile(Task task, String formattedDate) {
-                            ^^^^
-    lib/screens/widgets/ai_coach_card.dart:201:46: Error: The method 'showSimulatedPush' isn't defined for the type 'NotificationService'.
-     - 'NotificationService' is from 'package:gods_plan/services/notification_service.dart' ('lib/services/notification_service.dart').
-    Try correcting the name to the name of an existing method, or defining a method named 'showSimulatedPush'.
-                            _notificationService.showSimulatedPush(context, time, widget.remainingDays);
-                                                 ^^^^^^^^^^^^^^^^^
+    lib/screens/dashboard.dart:477:28: Error: The method '_buildBottomNavigationBar' isn't defined for the type '_DashboardScreenState'.
+     - '_DashboardScreenState' is from 'package:gods_plan/screens/dashboard.dart' ('lib/screens/dashboard.dart').
+    Try correcting the name to the name of an existing method, or defining a method named '_buildBottomNavigationBar'.
+          bottomNavigationBar: _buildBottomNavigationBar(),
+                               ^^^^^^^^^^^^^^^^^^^^^^^^^
+    lib/screens/dashboard.dart:805:11: Error: The method '_buildSettingsTile' isn't defined for the type '_DashboardScreenState'.
+     - '_DashboardScreenState' is from 'package:gods_plan/screens/dashboard.dart' ('lib/screens/dashboard.dart').
+    Try correcting the name to the name of an existing method, or defining a method named '_buildSettingsTile'.
+              _buildSettingsTile(
+              ^^^^^^^^^^^^^^^^^^
+    lib/screens/dashboard.dart:814:11: Error: The method '_buildSettingsTile' isn't defined for the type '_DashboardScreenState'.
+     - '_DashboardScreenState' is from 'package:gods_plan/screens/dashboard.dart' ('lib/screens/dashboard.dart').
+    Try correcting the name to the name of an existing method, or defining a method named '_buildSettingsTile'.
+              _buildSettingsTile(
+              ^^^^^^^^^^^^^^^^^^
+    lib/screens/dashboard.dart:821:11: Error: The method '_buildSettingsTile' isn't defined for the type '_DashboardScreenState'.
+     - '_DashboardScreenState' is from 'package:gods_plan/screens/dashboard.dart' ('lib/screens/dashboard.dart').
+    Try correcting the name to the name of an existing method, or defining a method named '_buildSettingsTile'.
+              _buildSettingsTile(
+              ^^^^^^^^^^^^^^^^^^
+    lib/screens/dashboard.dart:854:11: Error: The method '_buildSettingsTile' isn't defined for the type '_DashboardScreenState'.
+     - '_DashboardScreenState' is from 'package:gods_plan/screens/dashboard.dart' ('lib/screens/dashboard.dart').
+    Try correcting the name to the name of an existing method, or defining a method named '_buildSettingsTile'.
+              _buildSettingsTile(
+              ^^^^^^^^^^^^^^^^^^
     Target kernel_snapshot_program failed: Exception
     Failed to package /Users/runner/work/gods_plan/gods_plan.
     Command PhaseScriptExecution failed with a nonzero exit code
