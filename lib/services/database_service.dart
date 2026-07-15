@@ -84,187 +84,12 @@ class DatabaseService {
       pathString,
       version: 1,
       onCreate: (db, version) async {
-        // Create local tasks table
-        await db.execute('''
-          CREATE TABLE local_tasks (
-            id TEXT PRIMARY KEY,
-            user_id TEXT NOT NULL,
-            title TEXT NOT NULL,
-            is_completed INTEGER NOT NULL,
-            is_recurring INTEGER NOT NULL,
-            repeat_type TEXT NOT NULL,
-            reminder_time TEXT,
-            order_index INTEGER DEFAULT 0,
-            streak_count INTEGER DEFAULT 0,
-            created_at TEXT NOT NULL,
-            updated_at TEXT NOT NULL,
-            is_paused INTEGER DEFAULT 0,
-            due_time TEXT,
-            scheduled_date TEXT,
-            last_completed_date TEXT
-          )
-        ''');
-
-        // Create local task completions table
-        await db.execute('''
-          CREATE TABLE local_task_completions (
-            id TEXT PRIMARY KEY,
-            task_id TEXT NOT NULL,
-            user_id TEXT NOT NULL,
-            completed_date TEXT NOT NULL,
-            created_at TEXT NOT NULL
-          )
-        ''');
-
-        // Create local task exceptions table
-        await db.execute('''
-          CREATE TABLE local_task_exceptions (
-            id TEXT PRIMARY KEY,
-            task_id TEXT NOT NULL,
-            user_id TEXT NOT NULL,
-            exception_date TEXT NOT NULL,
-            is_deleted INTEGER NOT NULL,
-            created_at TEXT NOT NULL
-          )
-        ''');
-
-        // Create local workouts table
-        await db.execute('''
-          CREATE TABLE local_workouts (
-            id TEXT PRIMARY KEY,
-            user_id TEXT NOT NULL,
-            activity_type TEXT NOT NULL,
-            duration INTEGER NOT NULL,
-            weight_kg REAL NOT NULL,
-            calories_burned REAL NOT NULL,
-            logged_at TEXT NOT NULL,
-            updated_at TEXT NOT NULL
-          )
-        ''');
-
-        // Create local sleep logs table
-        await db.execute('''
-          CREATE TABLE local_sleep_logs (
-            id TEXT PRIMARY KEY,
-            user_id TEXT NOT NULL,
-            sleep_time TEXT NOT NULL,
-            wake_time TEXT NOT NULL,
-            reported_quality REAL NOT NULL,
-            caffeine_after_3pm INTEGER NOT NULL,
-            screen_time_in_bed INTEGER NOT NULL,
-            late_dinner INTEGER NOT NULL,
-            calculated_quality REAL NOT NULL,
-            logged_at TEXT NOT NULL,
-            updated_at TEXT NOT NULL
-          )
-        ''');
-
-        // Create local food logs table
-        await db.execute('''
-          CREATE TABLE local_food_logs (
-            id TEXT PRIMARY KEY,
-            user_id TEXT NOT NULL,
-            food_name TEXT NOT NULL,
-            calories REAL NOT NULL,
-            protein REAL NOT NULL,
-            carbs REAL NOT NULL,
-            fats REAL NOT NULL,
-            logged_at TEXT NOT NULL,
-            updated_at TEXT NOT NULL
-          )
-        ''');
-
-        // Create local water logs table
-        await db.execute('''
-          CREATE TABLE local_water_logs (
-            id TEXT PRIMARY KEY,
-            user_id TEXT NOT NULL,
-            glasses INTEGER NOT NULL,
-            logged_at TEXT NOT NULL,
-            updated_at TEXT NOT NULL
-          )
-        ''');
-
-        // Create local addiction logs table
-        await db.execute('''
-          CREATE TABLE local_addiction_logs (
-            id TEXT PRIMARY KEY,
-            user_id TEXT NOT NULL,
-            feeling TEXT NOT NULL,
-            urge_level INTEGER NOT NULL,
-            trigger_tag TEXT NOT NULL,
-            helper_strategy TEXT NOT NULL,
-            is_relapse INTEGER NOT NULL,
-            notes TEXT,
-            logged_at TEXT NOT NULL,
-            updated_at TEXT NOT NULL
-          )
-        ''');
-
-        // Create local finance transactions table
-        await db.execute('''
-          CREATE TABLE local_finance_transactions (
-            id TEXT PRIMARY KEY,
-            user_id TEXT NOT NULL,
-            type TEXT NOT NULL,
-            category TEXT NOT NULL,
-            amount REAL NOT NULL,
-            notes TEXT,
-            logged_at TEXT NOT NULL,
-            updated_at TEXT NOT NULL
-          )
-        ''');
-
-        // Create local social contacts table
-        await db.execute('''
-          CREATE TABLE local_social_contacts (
-            id TEXT PRIMARY KEY,
-            user_id TEXT NOT NULL,
-            name TEXT NOT NULL,
-            last_contacted TEXT NOT NULL,
-            notes TEXT,
-            logged_at TEXT NOT NULL,
-            updated_at TEXT NOT NULL
-          )
-        ''');
-
-        // Create local learning subjects table
-        await db.execute('''
-          CREATE TABLE local_learning_subjects (
-            id TEXT PRIMARY KEY,
-            user_id TEXT NOT NULL,
-            name TEXT NOT NULL,
-            daily_target_minutes INTEGER NOT NULL,
-            total_target_hours INTEGER NOT NULL,
-            logged_at TEXT NOT NULL,
-            updated_at TEXT NOT NULL
-          )
-        ''');
-
-        // Create local study logs table
-        await db.execute('''
-          CREATE TABLE local_study_logs (
-            id TEXT PRIMARY KEY,
-            user_id TEXT NOT NULL,
-            subject_id TEXT NOT NULL,
-            duration_minutes INTEGER NOT NULL,
-            logged_at TEXT NOT NULL,
-            updated_at TEXT NOT NULL
-          )
-        ''');
-
-        // Create offline sync queue table
-        await db.execute('''
-          CREATE TABLE offline_sync_queue (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            action_type TEXT NOT NULL,
-            table_name TEXT NOT NULL,
-            record_id TEXT NOT NULL,
-            payload TEXT
-          )
-        ''');
+        await _createTables(db);
       },
     );
+
+    // Ensure all tables are created dynamically (in case SQLite file already existed but was missing tables)
+    await _createTables(db);
 
     // Apply incremental migrations for tasks table
     try {
@@ -290,6 +115,189 @@ class DatabaseService {
     } catch (_) {}
 
     return db;
+  }
+
+  // Dynamically create all tables if they do not exist
+  Future<void> _createTables(Database db) async {
+    // Create local tasks table
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS local_tasks (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        title TEXT NOT NULL,
+        is_completed INTEGER NOT NULL,
+        is_recurring INTEGER NOT NULL,
+        repeat_type TEXT NOT NULL,
+        reminder_time TEXT,
+        order_index INTEGER DEFAULT 0,
+        streak_count INTEGER DEFAULT 0,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        is_paused INTEGER DEFAULT 0,
+        due_time TEXT,
+        scheduled_date TEXT,
+        last_completed_date TEXT
+      )
+    ''');
+
+    // Create local task completions table
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS local_task_completions (
+        id TEXT PRIMARY KEY,
+        task_id TEXT NOT NULL,
+        user_id TEXT NOT NULL,
+        completed_date TEXT NOT NULL,
+        created_at TEXT NOT NULL
+      )
+    ''');
+
+    // Create local task exceptions table
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS local_task_exceptions (
+        id TEXT PRIMARY KEY,
+        task_id TEXT NOT NULL,
+        user_id TEXT NOT NULL,
+        exception_date TEXT NOT NULL,
+        is_deleted INTEGER NOT NULL,
+        created_at TEXT NOT NULL
+      )
+    ''');
+
+    // Create local workouts table
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS local_workouts (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        activity_type TEXT NOT NULL,
+        duration INTEGER NOT NULL,
+        weight_kg REAL NOT NULL,
+        calories_burned REAL NOT NULL,
+        logged_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      )
+    ''');
+
+    // Create local sleep logs table
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS local_sleep_logs (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        sleep_time TEXT NOT NULL,
+        wake_time TEXT NOT NULL,
+        reported_quality REAL NOT NULL,
+        caffeine_after_3pm INTEGER NOT NULL,
+        screen_time_in_bed INTEGER NOT NULL,
+        late_dinner INTEGER NOT NULL,
+        calculated_quality REAL NOT NULL,
+        logged_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      )
+    ''');
+
+    // Create local food logs table
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS local_food_logs (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        food_name TEXT NOT NULL,
+        calories REAL NOT NULL,
+        protein REAL NOT NULL,
+        carbs REAL NOT NULL,
+        fats REAL NOT NULL,
+        logged_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      )
+    ''');
+
+    // Create local water logs table
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS local_water_logs (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        glasses INTEGER NOT NULL,
+        logged_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      )
+    ''');
+
+    // Create local addiction logs table
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS local_addiction_logs (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        feeling TEXT NOT NULL,
+        urge_level INTEGER NOT NULL,
+        trigger_tag TEXT NOT NULL,
+        helper_strategy TEXT NOT NULL,
+        is_relapse INTEGER NOT NULL,
+        notes TEXT,
+        logged_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      )
+    ''');
+
+    // Create local finance transactions table
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS local_finance_transactions (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        type TEXT NOT NULL,
+        category TEXT NOT NULL,
+        amount REAL NOT NULL,
+        notes TEXT,
+        logged_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      )
+    ''');
+
+    // Create local social contacts table
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS local_social_contacts (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        name TEXT NOT NULL,
+        last_contacted TEXT NOT NULL,
+        notes TEXT,
+        logged_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      )
+    ''');
+
+    // Create local learning subjects table
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS local_learning_subjects (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        name TEXT NOT NULL,
+        daily_target_minutes INTEGER NOT NULL,
+        total_target_hours INTEGER NOT NULL,
+        logged_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      )
+    ''');
+
+    // Create local study logs table
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS local_study_logs (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        subject_id TEXT NOT NULL,
+        duration_minutes INTEGER NOT NULL,
+        logged_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      )
+    ''');
+
+    // Create offline sync queue table
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS offline_sync_queue (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        action_type TEXT NOT NULL,
+        table_name TEXT NOT NULL,
+        record_id TEXT NOT NULL,
+        payload TEXT
+      )
+    ''');
   }
 
   // ==========================================
