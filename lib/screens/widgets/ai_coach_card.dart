@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import '../../services/ai_service.dart';
-import '../../services/notification_service.dart';
 import '../../utils/colors.dart';
 
 class AiCoachCard extends StatefulWidget {
@@ -21,7 +20,6 @@ class AiCoachCard extends StatefulWidget {
 
 class _AiCoachCardState extends State<AiCoachCard> {
   final AiService _aiService = AiService();
-  final NotificationService _notificationService = NotificationService();
   List<String> _heuristicTips = [];
   bool _isLoading = true;
 
@@ -198,7 +196,12 @@ class _AiCoachCardState extends State<AiCoachCard> {
                       trailing: const Icon(Icons.play_arrow_rounded, color: AppColors.success),
                       onTap: () {
                         Navigator.pop(context);
-                        _notificationService.showSimulatedPush(context, time, widget.remainingDays);
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text("Simulated push for \$time triggered!"),
+                            backgroundColor: AppColors.accent,
+                          ),
+                        );
                       },
                     );
                   },
