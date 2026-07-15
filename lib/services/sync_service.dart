@@ -67,7 +67,7 @@ class SyncService {
   // Pull remote updates from Supabase (Tasks, Workouts, Sleep, Nutrition, Water)
   Future<void> _downloadRemoteUpdates(String userId) async {
     final lastSyncString = _dbService.settingsBox.get(
-      'last_sync_timestamp',
+      'last_sync_timestamp_$userId',
       defaultValue: '1970-01-01T00:00:00.000Z',
     ) as String;
 
@@ -408,11 +408,11 @@ class SyncService {
       });
     }
 
-    // K. Sync Profile Username, XP, and Restores
+    // K. Sync Profile Username, XP, targets, App Lock, and Restores
     try {
       final profileData = await _supabase
           .from('profiles')
-          .select('username, xp, streak_restores, restored_dates, last_restore_reset')
+          .select('username, xp, streak_restores, restored_dates, last_restore_reset, app_lock_pin, daily_savings_target, monthly_savings_target, big_savings_target, nutrition_profile, xp_awarded_dates')
           .eq('id', userId)
           .maybeSingle();
       if (profileData != null) {
@@ -433,12 +433,50 @@ class SyncService {
         if (profileData['last_restore_reset'] != null) {
           await _dbService.settingsBox.put('restore_reset_date_$userId', profileData['last_restore_reset'] as String);
         }
+        if (profileData['app_lock_pin'] != null) {
+          await _dbService.settingsBox.put('app_lock_pin_$userId', profileData['app_lock_pin'] as String);
+        } else {
+          await _dbService.settingsBox.delete('app_lock_pin_$userId');
+        }
+        if (profileData['daily_savings_target'] != null) {
+          await _dbService.settingsBox.put('daily_savings_target_$userId', (profileData['daily_savings_target'] as num).toDouble());
+        }
+        if (profileData['monthly_savings_target'] != null) {
+          await _dbService.settingsBox.put('monthly_savings_target_$userId', (profileData['monthly_savings_target'] as num).toDouble());
+        }
+        if (profileData['big_savings_target'] != null) {
+          await _dbService.settingsBox.put('big_savings_target_$userId', (profileData['big_savings_target'] as num).toDouble());
+        }
+        if (profileData['nutrition_profile'] != null) {
+          await _dbService.settingsBox.put('nutrition_profile_$userId', profileData['nutrition_profile']);
+        }
+        if (profileData['xp_awarded_dates'] != null) {
+          await _dbService.settingsBox.put('xp_awarded_dates_$userId', profileData['xp_awarded_dates']);
+        }
       }
     } catch (e) {
       print("Sync profile error: $e");
     }
 
+    // L. Sync Goals
+    try {
+      final goalData = await _supabase
+          .from('goals')
+          .select('start_date, end_date')
+          .eq('user_id', userId)
+          .maybeSingle();
+      if (goalData != null) {
+        await _dbService.setLocalGoalDates(
+          goalData['start_date'] as String,
+          goalData['end_date'] as String,
+        );
+        await _dbService.setOnboarded(true);
+      }
+    } catch (e) {
+      print("Sync goals error: $e");
+    }
+
     // Save current sync timestamp
-    await _dbService.settingsBox.put('last_sync_timestamp', currentSyncTime);
+    await _dbService.settingsBox.put('last_sync_timestamp_$userId', currentSyncTime);
   }
 }

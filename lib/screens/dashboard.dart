@@ -162,6 +162,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   void _refreshAllProviders(String userId) {
     if (!mounted) return;
+    _calculateTimeline();
     Provider.of<AuthProvider>(context, listen: false).loadUserProfile();
     Provider.of<TaskProvider>(context, listen: false).fetchTasks(userId);
     Provider.of<HealthProvider>(context, listen: false).fetchHealthData(userId);

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../services/database_service.dart';
 import '../../utils/colors.dart';
 
@@ -45,7 +46,8 @@ class _PasscodeScreenState extends State<PasscodeScreen> {
   }
 
   void _verifyPin() {
-    final savedPin = _dbService.settingsBox.get('app_lock_pin') as String?;
+    final userId = Supabase.instance.client.auth.currentUser?.id;
+    final savedPin = userId != null ? _dbService.settingsBox.get('app_lock_pin_$userId') as String? : null;
     if (savedPin == _enteredPin) {
       widget.onUnlocked();
     } else {

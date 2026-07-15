@@ -8,6 +8,16 @@ CREATE TABLE IF NOT EXISTS public.profiles (
     id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
     username TEXT NOT NULL,
     email TEXT NOT NULL,
+    xp INTEGER DEFAULT 0,
+    streak_restores INTEGER DEFAULT 3,
+    restored_dates TEXT[] DEFAULT '{}',
+    last_restore_reset TEXT,
+    app_lock_pin TEXT,
+    daily_savings_target NUMERIC DEFAULT 500,
+    monthly_savings_target NUMERIC DEFAULT 15000,
+    big_savings_target NUMERIC DEFAULT 5000,
+    nutrition_profile JSONB,
+    xp_awarded_dates JSONB DEFAULT '{}',
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 

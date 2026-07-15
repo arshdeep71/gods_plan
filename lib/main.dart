@@ -202,7 +202,8 @@ class _AppLockWrapperState extends State<AppLockWrapper> {
   @override
   void initState() {
     super.initState();
-    final pin = _dbService.settingsBox.get('app_lock_pin') as String?;
+    final userId = Supabase.instance.client.auth.currentUser?.id;
+    final pin = userId != null ? _dbService.settingsBox.get('app_lock_pin_$userId') as String? : null;
     if (pin == null || pin.isEmpty) {
       _isUnlocked = true;
     }

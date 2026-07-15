@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:uuid/uuid.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/finance_transaction.dart';
 import '../models/sync_item.dart';
 import '../services/database_service.dart';
@@ -16,20 +17,69 @@ class FinanceProvider with ChangeNotifier {
   List<FinanceTransaction> get transactions => _transactions;
   bool get isLoading => _isLoading;
 
+  String? get _currentUserId {
+    try {
+      return Supabase.instance.client.auth.currentUser?.id;
+    } catch (_) {
+      return null;
+    }
+  }
+
   // Settings getters
-  double get dailySavingsTarget =>
-      (_dbService.settingsBox.get('daily_savings_target', defaultValue: 500.0) as num).toDouble();
-  double get monthlySavingsTarget =>
-      (_dbService.settingsBox.get('monthly_savings_target', defaultValue: 15000.0) as num).toDouble();
-  double get bigSavingsTarget =>
-      (_dbService.settingsBox.get('big_savings_target', defaultValue: 5000.0) as num).toDouble();
+  double get dailySavingsTarget {
+    final uid = _currentUserId;
+    if (uid == null) return 500.0;
+    return (_dbService.settingsBox.get('daily_savings_target_$uid', defaultValue: 500.0) as num).toDouble();
+  }
+
+  double get monthlySavingsTarget {
+    final uid = _currentUserId;
+    if (uid == null) return 15000.0;
+    return (_dbService.settingsBox.get('monthly_savings_target_$uid', defaultValue: 15000.0) as num).toDouble();
+  }
+
+  double get bigSavingsTarget {
+    final uid = _currentUserId;
+    if (uid == null) return 5000.0;
+    return (_dbService.settingsBox.get('big_savings_target_$uid', defaultValue: 5000.0) as num).toDouble();
+  }
 
   // Save new settings
   Future<void> updateTargets({required double daily, required double monthly, required double big}) async {
-    await _dbService.settingsBox.put('daily_savings_target', daily);
-    await _dbService.settingsBox.put('monthly_savings_target', monthly);
-    await _dbService.settingsBox.put('big_savings_target', big);
+    final uid = _currentUserId;
+    if (uid == null) return;
+    await _dbService.settingsBox.put('daily_savings_target_$uid', daily);
+    await _dbService.settingsBox.put('monthly_savings_target_$uid', monthly);
+    await _dbService.settingsBox.put('big_savings_target_$uid', big);
+    await _syncProfileFinanceTargets(uid, daily, monthly, big);
     notifyListeners();
+  }
+
+  Future<void> _syncProfileFinanceTargets(String userId, double daily, double monthly, double big) async {
+    try {
+      await Supabase.instance.client
+          .from('profiles')
+          .update({
+            'daily_savings_target': daily,
+            'monthly_savings_target': monthly,
+            'big_savings_target': big,
+          })
+          .eq('id', userId);
+    } catch (e) {
+      final syncItem = SyncItem(
+        actionType: 'UPDATE',
+        tableName: 'profiles',
+        recordId: userId,
+        payload: {
+          'id': userId,
+          'daily_savings_target': daily,
+          'monthly_savings_target': monthly,
+          'big_savings_target': big,
+          'updated_at': DateTime.now().toUtc().toIso8601String(),
+        },
+      );
+      await _dbService.queueMutation(syncItem);
+    }
   }
 
   // Fetch transactions from SQLite

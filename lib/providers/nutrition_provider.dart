@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:uuid/uuid.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/nutrition_profile.dart';
 import '../models/food_log.dart';
 import '../models/water_log.dart';
@@ -31,7 +32,12 @@ class NutritionProvider extends ChangeNotifier {
 
   // Load the BMR/TDEE calculation settings
   void loadNutritionProfile() {
-    final rawProfile = _dbService.settingsBox.get('nutrition_profile');
+    final userId = Supabase.instance.client.auth.currentUser?.id;
+    if (userId == null) {
+      _profile = NutritionProfile.defaultProfile();
+      return;
+    }
+    final rawProfile = _dbService.settingsBox.get('nutrition_profile_$userId');
     if (rawProfile != null) {
       try {
         final Map<String, dynamic> jsonMap = Map<String, dynamic>.from(
@@ -49,8 +55,33 @@ class NutritionProvider extends ChangeNotifier {
   // Save/Calculate new profile limits
   Future<void> saveNutritionProfile(NutritionProfile newProfile) async {
     _profile = newProfile;
-    await _dbService.settingsBox.put('nutrition_profile', newProfile.toJson());
+    final userId = Supabase.instance.client.auth.currentUser?.id;
+    if (userId != null) {
+      await _dbService.settingsBox.put('nutrition_profile_$userId', newProfile.toJson());
+      await _syncProfileNutrition(userId, newProfile);
+    }
     notifyListeners();
+  }
+
+  Future<void> _syncProfileNutrition(String userId, NutritionProfile newProfile) async {
+    try {
+      await Supabase.instance.client
+          .from('profiles')
+          .update({'nutrition_profile': newProfile.toJson()})
+          .eq('id', userId);
+    } catch (e) {
+      final syncItem = SyncItem(
+        actionType: 'UPDATE',
+        tableName: 'profiles',
+        recordId: userId,
+        payload: {
+          'id': userId,
+          'nutrition_profile': newProfile.toJson(),
+          'updated_at': DateTime.now().toUtc().toIso8601String(),
+        },
+      );
+      await _dbService.queueMutation(syncItem);
+    }
   }
 
   // Todays Nutrition Metrics
@@ -115,6 +146,7 @@ class NutritionProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
+      loadNutritionProfile();
       _foodLogs = await _dbService.getLocalFoodLogs(userId);
       _waterLogs = await _dbService.getLocalWaterLogs(userId);
       _isLoading = false;

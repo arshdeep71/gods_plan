@@ -18,14 +18,30 @@ class AuthProvider extends ChangeNotifier {
   AuthProvider() {
     _user = _supabaseService.currentUser;
     if (_user != null) {
-      _isInitialized = true;
       // Load cached username from Hive immediately
       final cachedName = _dbService.settingsBox.get('username_${_user!.id}') as String?;
       if (cachedName != null) {
         _username = cachedName;
       }
-      loadUserProfile();
-      subscribeToProfileChanges();
+      final hasLocalOnboarded = _dbService.isOnboarded;
+      if (hasLocalOnboarded) {
+        _isInitialized = true;
+        loadUserProfile().then((_) {
+          subscribeToProfileChanges();
+        });
+      } else {
+        loadUserProfile().then((_) {
+          _isInitialized = true;
+          subscribeToProfileChanges();
+          notifyListeners();
+        }).catchError((_) {
+          _isInitialized = true;
+          notifyListeners();
+        });
+      }
+    } else {
+      _isInitialized = true;
+      notifyListeners();
     }
 
     // Listen to real-time auth changes (sign in, sign out, token refresh)
@@ -42,8 +58,17 @@ class AuthProvider extends ChangeNotifier {
           if (cachedName != null) {
             _username = cachedName;
           }
-          loadUserProfile();
-          subscribeToProfileChanges();
+          final hasLocalOnboarded = _dbService.isOnboarded;
+          if (hasLocalOnboarded) {
+            loadUserProfile().then((_) {
+              subscribeToProfileChanges();
+            });
+          } else {
+            loadUserProfile().then((_) {
+              subscribeToProfileChanges();
+              notifyListeners();
+            }).catchError((_) {});
+          }
         } else {
           _username = 'User';
           _profileChannel?.unsubscribe();
@@ -89,8 +114,22 @@ class AuthProvider extends ChangeNotifier {
         _username = data['username'] as String;
         // Save to Hive
         await _dbService.settingsBox.put('username_${_user!.id}', _username);
-        notifyListeners();
       }
+
+      // Fetch goals to skip onboarding on existing accounts
+      final goalData = await Supabase.instance.client
+          .from('goals')
+          .select('start_date, end_date')
+          .eq('user_id', _user!.id)
+          .maybeSingle();
+      if (goalData != null) {
+        await _dbService.setLocalGoalDates(
+          goalData['start_date'] as String,
+          goalData['end_date'] as String,
+        );
+        await _dbService.setOnboarded(true);
+      }
+      notifyListeners();
     } catch (e) {
       print('Error loading user profile: $e');
     }
@@ -184,6 +223,9 @@ class AuthProvider extends ChangeNotifier {
     try {
       final response = await _supabaseService.logIn(email: email, password: password);
       _user = response.user;
+      if (_user != null) {
+        await loadUserProfile();
+      }
       _isLoading = false;
       notifyListeners();
       return true;
@@ -213,6 +255,9 @@ class AuthProvider extends ChangeNotifier {
         username: username,
       );
       _user = response.user;
+      if (_user != null) {
+        await loadUserProfile();
+      }
       _isLoading = false;
       notifyListeners();
       return true;

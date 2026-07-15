@@ -2,6 +2,7 @@ import 'package:hive_flutter/hive_flutter.dart';
 import 'package:sqflite_common/sqlite_api.dart';
 import 'sqlite_factory.dart';
 import 'package:path/path.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/task.dart';
 import '../models/sync_item.dart';
 import '../models/workout.dart';
@@ -27,17 +28,33 @@ class DatabaseService {
   // Get settings box instance
   Box get settingsBox => Hive.box(settingsBoxName);
 
+  String? get _currentUserId {
+    try {
+      return Supabase.instance.client.auth.currentUser?.id;
+    } catch (_) {
+      return null;
+    }
+  }
+
   // Settings getters and setters
-  bool get isOnboarded => settingsBox.get('is_onboarded', defaultValue: false);
+  bool get isOnboarded {
+    final uid = _currentUserId;
+    if (uid == null) return false;
+    return settingsBox.get('is_onboarded_$uid', defaultValue: false);
+  }
 
   Future<void> setOnboarded(bool value) async {
-    await settingsBox.put('is_onboarded', value);
+    final uid = _currentUserId;
+    if (uid == null) return;
+    await settingsBox.put('is_onboarded_$uid', value);
   }
 
   // Get cached goal timeline parameters
   Map<String, String>? getLocalGoalDates() {
-    final start = settingsBox.get('goal_start_date');
-    final end = settingsBox.get('goal_end_date');
+    final uid = _currentUserId;
+    if (uid == null) return null;
+    final start = settingsBox.get('goal_start_date_$uid');
+    final end = settingsBox.get('goal_end_date_$uid');
     if (start != null && end != null) {
       return {'start_date': start, 'end_date': end};
     }
@@ -46,8 +63,10 @@ class DatabaseService {
 
   // Set cached goal dates
   Future<void> setLocalGoalDates(String startDate, String endDate) async {
-    await settingsBox.put('goal_start_date', startDate);
-    await settingsBox.put('goal_end_date', endDate);
+    final uid = _currentUserId;
+    if (uid == null) return;
+    await settingsBox.put('goal_start_date_$uid', startDate);
+    await settingsBox.put('goal_end_date_$uid', endDate);
   }
 
   // SQLite Initialization

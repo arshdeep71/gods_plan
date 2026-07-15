@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../services/database_service.dart';
 import '../../utils/colors.dart';
+import '../../models/sync_item.dart';
 
 class AppLockView extends StatefulWidget {
   const AppLockView({super.key});
@@ -18,6 +20,8 @@ class _AppLockViewState extends State<AppLockView> {
   bool _isLockEnabled = false;
   String? _savedPin;
 
+  String? get _userId => Supabase.instance.client.auth.currentUser?.id;
+
   @override
   void initState() {
     super.initState();
@@ -25,7 +29,8 @@ class _AppLockViewState extends State<AppLockView> {
   }
 
   void _loadAppLockStatus() {
-    final pin = _dbService.settingsBox.get('app_lock_pin') as String?;
+    final uid = _userId;
+    final pin = uid != null ? _dbService.settingsBox.get('app_lock_pin_$uid') as String? : null;
     setState(() {
       _savedPin = pin;
       _isLockEnabled = pin != null && pin.isNotEmpty;
@@ -35,7 +40,11 @@ class _AppLockViewState extends State<AppLockView> {
   Future<void> _savePin() async {
     if (_formKey.currentState!.validate()) {
       final pin = _pinController.text;
-      await _dbService.settingsBox.put('app_lock_pin', pin);
+      final uid = _userId;
+      if (uid != null) {
+        await _dbService.settingsBox.put('app_lock_pin_$uid', pin);
+        await _syncProfileAppLockPin(uid, pin);
+      }
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text("App Lock PIN configured successfully!"),
@@ -49,7 +58,11 @@ class _AppLockViewState extends State<AppLockView> {
   }
 
   Future<void> _disableLock() async {
-    await _dbService.settingsBox.delete('app_lock_pin');
+    final uid = _userId;
+    if (uid != null) {
+      await _dbService.settingsBox.delete('app_lock_pin_$uid');
+      await _syncProfileAppLockPin(uid, null);
+    }
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
         content: Text("App Lock PIN disabled!"),
@@ -57,6 +70,27 @@ class _AppLockViewState extends State<AppLockView> {
       ),
     );
     _loadAppLockStatus();
+  }
+
+  Future<void> _syncProfileAppLockPin(String userId, String? pin) async {
+    try {
+      await Supabase.instance.client
+          .from('profiles')
+          .update({'app_lock_pin': pin})
+          .eq('id', userId);
+    } catch (e) {
+      final syncItem = SyncItem(
+        actionType: 'UPDATE',
+        tableName: 'profiles',
+        recordId: userId,
+        payload: {
+          'id': userId,
+          'app_lock_pin': pin,
+          'updated_at': DateTime.now().toUtc().toIso8601String(),
+        },
+      );
+      await _dbService.queueMutation(syncItem);
+    }
   }
 
   @override
