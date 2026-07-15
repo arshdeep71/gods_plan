@@ -380,3 +380,17 @@ alter publication supabase_realtime add table public.finance_transactions;
 alter publication supabase_realtime add table public.social_contacts;
 alter publication supabase_realtime add table public.learning_subjects;
 alter publication supabase_realtime add table public.study_logs;
+
+-- ==========================================
+-- 14. Migration queries to alter existing profiles table
+-- ==========================================
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS xp INTEGER DEFAULT 0;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS streak_restores INTEGER DEFAULT 3;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS restored_dates TEXT[] DEFAULT '{}';
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS last_restore_reset TEXT;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS app_lock_pin TEXT;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS daily_savings_target NUMERIC DEFAULT 500;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS monthly_savings_target NUMERIC DEFAULT 15000;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS big_savings_target NUMERIC DEFAULT 5000;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS nutrition_profile JSONB;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS xp_awarded_dates JSONB DEFAULT '{}';

@@ -104,6 +104,8 @@ class AuthProvider extends ChangeNotifier {
   // Fetch profile details
   Future<void> loadUserProfile() async {
     if (_user == null) return;
+    
+    // 1. Fetch profile details
     try {
       final data = await Supabase.instance.client
           .from('profiles')
@@ -112,11 +114,28 @@ class AuthProvider extends ChangeNotifier {
           .maybeSingle();
       if (data != null && data['username'] != null) {
         _username = data['username'] as String;
-        // Save to Hive
         await _dbService.settingsBox.put('username_${_user!.id}', _username);
+      } else {
+        // Automatically create a profile row if it doesn't exist yet!
+        final email = _user!.email ?? '';
+        final defaultUsername = _user!.userMetadata?['username'] as String? ?? 
+                                email.split('@').first;
+        _username = defaultUsername;
+        await Supabase.instance.client.from('profiles').upsert({
+          'id': _user!.id,
+          'username': defaultUsername,
+          'email': email,
+          'updated_at': DateTime.now().toUtc().toIso8601String(),
+        }, onConflict: 'id');
+        await _dbService.settingsBox.put('username_${_user!.id}', defaultUsername);
       }
+      notifyListeners();
+    } catch (e) {
+      print('Error loading user profile: $e');
+    }
 
-      // Fetch goals to skip onboarding on existing accounts
+    // 2. Fetch goals to skip onboarding on existing accounts
+    try {
       final goalData = await Supabase.instance.client
           .from('goals')
           .select('start_date, end_date')
@@ -128,10 +147,10 @@ class AuthProvider extends ChangeNotifier {
           goalData['end_date'] as String,
         );
         await _dbService.setOnboarded(true);
+        notifyListeners();
       }
-      notifyListeners();
     } catch (e) {
-      print('Error loading user profile: $e');
+      print('Error loading user goals: $e');
     }
   }
 
@@ -175,14 +194,15 @@ class AuthProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      // 2. Update profiles table in Supabase
+      // 2. Upsert profiles table in Supabase (use upsert instead of update in case row is missing)
       await Supabase.instance.client
           .from('profiles')
-          .update({
+          .upsert({
+            'id': _user!.id,
             'username': newUsername,
+            'email': _user!.email ?? '',
             'updated_at': DateTime.now().toUtc().toIso8601String(),
-          })
-          .eq('id', _user!.id);
+          }, onConflict: 'id');
 
       // 3. Update auth user metadata
       await Supabase.instance.client.auth.updateUser(

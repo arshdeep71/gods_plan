@@ -67,8 +67,11 @@ class NutritionProvider extends ChangeNotifier {
     try {
       await Supabase.instance.client
           .from('profiles')
-          .update({'nutrition_profile': newProfile.toJson()})
-          .eq('id', userId);
+          .upsert({
+            'id': userId,
+            'nutrition_profile': newProfile.toJson(),
+            'updated_at': DateTime.now().toUtc().toIso8601String(),
+          }, onConflict: 'id');
     } catch (e) {
       final syncItem = SyncItem(
         actionType: 'UPDATE',

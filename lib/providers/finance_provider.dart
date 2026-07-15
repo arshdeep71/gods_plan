@@ -59,12 +59,13 @@ class FinanceProvider with ChangeNotifier {
     try {
       await Supabase.instance.client
           .from('profiles')
-          .update({
+          .upsert({
+            'id': userId,
             'daily_savings_target': daily,
             'monthly_savings_target': monthly,
             'big_savings_target': big,
-          })
-          .eq('id', userId);
+            'updated_at': DateTime.now().toUtc().toIso8601String(),
+          }, onConflict: 'id');
     } catch (e) {
       final syncItem = SyncItem(
         actionType: 'UPDATE',

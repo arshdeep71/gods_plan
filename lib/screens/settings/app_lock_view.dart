@@ -76,8 +76,11 @@ class _AppLockViewState extends State<AppLockView> {
     try {
       await Supabase.instance.client
           .from('profiles')
-          .update({'app_lock_pin': pin})
-          .eq('id', userId);
+          .upsert({
+            'id': userId,
+            'app_lock_pin': pin,
+            'updated_at': DateTime.now().toUtc().toIso8601String(),
+          }, onConflict: 'id');
     } catch (e) {
       final syncItem = SyncItem(
         actionType: 'UPDATE',
