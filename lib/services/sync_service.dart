@@ -50,7 +50,31 @@ class SyncService {
             await _supabase.from(item.tableName).upsert(item.payload!);
           }
         } else if (item.actionType == 'DELETE') {
-          await _supabase.from(item.tableName).delete().eq('id', item.recordId);
+          if (item.tableName == 'task_completions') {
+            final parts = item.recordId.split('_');
+            if (parts.length >= 2) {
+              final taskId = parts[0];
+              final completedDate = parts[1];
+              await _supabase
+                  .from('task_completions')
+                  .delete()
+                  .eq('task_id', taskId)
+                  .eq('completed_date', completedDate);
+            }
+          } else if (item.tableName == 'task_exceptions') {
+            final parts = item.recordId.split('_');
+            if (parts.length >= 2) {
+              final taskId = parts[0];
+              final exceptionDate = parts[1];
+              await _supabase
+                  .from('task_exceptions')
+                  .delete()
+                  .eq('task_id', taskId)
+                  .eq('exception_date', exceptionDate);
+            }
+          } else {
+            await _supabase.from(item.tableName).delete().eq('id', item.recordId);
+          }
         }
         
         // Remove item from queue upon success
@@ -74,338 +98,384 @@ class SyncService {
     final currentSyncTime = DateTime.now().toUtc().toIso8601String();
     final db = await _dbService.database;
 
-    // A. Sync Tasks
-    final List<dynamic> remoteTasks = await _supabase
-        .from('tasks')
-        .select()
-        .eq('user_id', userId)
-        .gt('updated_at', lastSyncString);
+    // Use a 1-day safety window to pull other updates (protects against clock skew)
+    final lastSyncDateTime = DateTime.parse(lastSyncString);
+    final queryTimestamp = lastSyncDateTime.subtract(const Duration(days: 1)).toUtc().toIso8601String();
 
-    if (remoteTasks.isNotEmpty) {
+    // A. Sync Tasks (Full Mirroring to handle deletes)
+    try {
+      final List<dynamic> remoteTasks = await _supabase
+          .from('tasks')
+          .select()
+          .eq('user_id', userId);
+
       await db.transaction((txn) async {
+        // Get all local tasks for this user
+        final List<Map<String, dynamic>> localTasks = await txn.query(
+          'local_tasks',
+          where: 'user_id = ?',
+          whereArgs: [userId],
+        );
+
+        final remoteIds = remoteTasks.map((t) => t['id'] as String).toSet();
+
+        // Delete local tasks that are not present in remote (deleted on another device)
+        for (final local in localTasks) {
+          final localId = local['id'] as String;
+          if (!remoteIds.contains(localId)) {
+            await txn.delete(
+              'local_tasks',
+              where: 'id = ?',
+              whereArgs: [localId],
+            );
+          }
+        }
+
+        // Insert or update remote tasks
         for (final row in remoteTasks) {
           final remoteTask = Task.fromJson(row as Map<String, dynamic>);
-          final List<Map<String, dynamic>> localMatch = await txn.query(
-            'local_tasks',
-            where: 'id = ?',
-            whereArgs: [remoteTask.id],
-          );
-
-          if (localMatch.isEmpty) {
-            await txn.insert('local_tasks', remoteTask.toSqliteMap(), conflictAlgorithm: ConflictAlgorithm.replace);
-          } else {
-            final localTask = Task.fromSqliteMap(localMatch.first);
-            if (remoteTask.updatedAt.isAfter(localTask.updatedAt)) {
-              await txn.insert('local_tasks', remoteTask.toSqliteMap(), conflictAlgorithm: ConflictAlgorithm.replace);
-            }
-          }
+          await txn.insert('local_tasks', remoteTask.toSqliteMap(), conflictAlgorithm: ConflictAlgorithm.replace);
         }
       });
+    } catch (e) {
+      print("Sync tasks error: $e");
     }
 
-    // A.1 Sync Task Completions
-    final List<dynamic> remoteCompletions = await _supabase
-        .from('task_completions')
-        .select()
-        .eq('user_id', userId)
-        .gt('created_at', lastSyncString);
+    // A.1 Sync Task Completions (Full Mirroring to handle deletes)
+    try {
+      final List<dynamic> remoteCompletions = await _supabase
+          .from('task_completions')
+          .select()
+          .eq('user_id', userId);
 
-    if (remoteCompletions.isNotEmpty) {
       await db.transaction((txn) async {
+        // Clear local completions and rewrite them to match remote exactly
+        await txn.delete('local_task_completions');
         for (final row in remoteCompletions) {
-          final List<Map<String, dynamic>> localMatch = await txn.query(
-            'local_task_completions',
-            where: 'id = ?',
-            whereArgs: [row['id']],
-          );
-          if (localMatch.isEmpty) {
-            await txn.insert('local_task_completions', Map<String, dynamic>.from(row), conflictAlgorithm: ConflictAlgorithm.replace);
-          }
+          await txn.insert('local_task_completions', Map<String, dynamic>.from(row), conflictAlgorithm: ConflictAlgorithm.replace);
         }
       });
+    } catch (e) {
+      print("Sync task completions error: $e");
     }
 
-    // A.2 Sync Task Exceptions
-    final List<dynamic> remoteExceptions = await _supabase
-        .from('task_exceptions')
-        .select()
-        .eq('user_id', userId)
-        .gt('created_at', lastSyncString);
+    // A.2 Sync Task Exceptions (Full Mirroring to handle deletes)
+    try {
+      final List<dynamic> remoteExceptions = await _supabase
+          .from('task_exceptions')
+          .select()
+          .eq('user_id', userId);
 
-    if (remoteExceptions.isNotEmpty) {
       await db.transaction((txn) async {
+        // Clear local exceptions and rewrite them to match remote exactly
+        await txn.delete('local_task_exceptions');
         for (final row in remoteExceptions) {
-          final List<Map<String, dynamic>> localMatch = await txn.query(
-            'local_task_exceptions',
-            where: 'id = ?',
-            whereArgs: [row['id']],
-          );
-          if (localMatch.isEmpty) {
-            await txn.insert('local_task_exceptions', Map<String, dynamic>.from(row), conflictAlgorithm: ConflictAlgorithm.replace);
+          final map = Map<String, dynamic>.from(row);
+          if (map['is_deleted'] is bool) {
+            map['is_deleted'] = (map['is_deleted'] as bool) ? 1 : 0;
           }
+          await txn.insert('local_task_exceptions', map, conflictAlgorithm: ConflictAlgorithm.replace);
         }
       });
+    } catch (e) {
+      print("Sync task exceptions error: $e");
     }
 
-    // B. Sync Workouts
-    final List<dynamic> remoteWorkouts = await _supabase
-        .from('workouts')
-        .select()
-        .eq('user_id', userId)
-        .gt('updated_at', lastSyncString);
+    // B. Sync Workouts (Incremental with safety margin)
+    try {
+      final List<dynamic> remoteWorkouts = await _supabase
+          .from('workouts')
+          .select()
+          .eq('user_id', userId)
+          .gt('updated_at', queryTimestamp);
 
-    if (remoteWorkouts.isNotEmpty) {
-      await db.transaction((txn) async {
-        for (final row in remoteWorkouts) {
-          final remoteWorkout = Workout.fromJson(row as Map<String, dynamic>);
-          final List<Map<String, dynamic>> localMatch = await txn.query(
-            'local_workouts',
-            where: 'id = ?',
-            whereArgs: [remoteWorkout.id],
-          );
+      if (remoteWorkouts.isNotEmpty) {
+        await db.transaction((txn) async {
+          for (final row in remoteWorkouts) {
+            final remoteWorkout = Workout.fromJson(row as Map<String, dynamic>);
+            final List<Map<String, dynamic>> localMatch = await txn.query(
+              'local_workouts',
+              where: 'id = ?',
+              whereArgs: [remoteWorkout.id],
+            );
 
-          if (localMatch.isEmpty) {
-            await txn.insert('local_workouts', remoteWorkout.toSqliteMap(), conflictAlgorithm: ConflictAlgorithm.replace);
-          } else {
-            final localWorkout = Workout.fromSqliteMap(localMatch.first);
-            if (remoteWorkout.updatedAt.isAfter(localWorkout.updatedAt)) {
+            if (localMatch.isEmpty) {
               await txn.insert('local_workouts', remoteWorkout.toSqliteMap(), conflictAlgorithm: ConflictAlgorithm.replace);
+            } else {
+              final localWorkout = Workout.fromSqliteMap(localMatch.first);
+              if (remoteWorkout.updatedAt.isAfter(localWorkout.updatedAt)) {
+                await txn.insert('local_workouts', remoteWorkout.toSqliteMap(), conflictAlgorithm: ConflictAlgorithm.replace);
+              }
             }
           }
-        }
-      });
+        });
+      }
+    } catch (e) {
+      print("Sync workouts error: $e");
     }
 
-    // C. Sync Sleep Logs
-    final List<dynamic> remoteSleepLogs = await _supabase
-        .from('sleep_logs')
-        .select()
-        .eq('user_id', userId)
-        .gt('updated_at', lastSyncString);
+    // C. Sync Sleep Logs (Incremental with safety margin)
+    try {
+      final List<dynamic> remoteSleepLogs = await _supabase
+          .from('sleep_logs')
+          .select()
+          .eq('user_id', userId)
+          .gt('updated_at', queryTimestamp);
 
-    if (remoteSleepLogs.isNotEmpty) {
-      await db.transaction((txn) async {
-        for (final row in remoteSleepLogs) {
-          final remoteSleep = SleepLog.fromJson(row as Map<String, dynamic>);
-          final List<Map<String, dynamic>> localMatch = await txn.query(
-            'local_sleep_logs',
-            where: 'id = ?',
-            whereArgs: [remoteSleep.id],
-          );
+      if (remoteSleepLogs.isNotEmpty) {
+        await db.transaction((txn) async {
+          for (final row in remoteSleepLogs) {
+            final remoteSleep = SleepLog.fromJson(row as Map<String, dynamic>);
+            final List<Map<String, dynamic>> localMatch = await txn.query(
+              'local_sleep_logs',
+              where: 'id = ?',
+              whereArgs: [remoteSleep.id],
+            );
 
-          if (localMatch.isEmpty) {
-            await txn.insert('local_sleep_logs', remoteSleep.toSqliteMap(), conflictAlgorithm: ConflictAlgorithm.replace);
-          } else {
-            final localSleep = SleepLog.fromSqliteMap(localMatch.first);
-            if (remoteSleep.updatedAt.isAfter(localSleep.updatedAt)) {
+            if (localMatch.isEmpty) {
               await txn.insert('local_sleep_logs', remoteSleep.toSqliteMap(), conflictAlgorithm: ConflictAlgorithm.replace);
+            } else {
+              final localSleep = SleepLog.fromSqliteMap(localMatch.first);
+              if (remoteSleep.updatedAt.isAfter(localSleep.updatedAt)) {
+                await txn.insert('local_sleep_logs', remoteSleep.toSqliteMap(), conflictAlgorithm: ConflictAlgorithm.replace);
+              }
             }
           }
-        }
-      });
+        });
+      }
+    } catch (e) {
+      print("Sync sleep logs error: $e");
     }
 
-    // D. Sync Food Logs
-    final List<dynamic> remoteFoodLogs = await _supabase
-        .from('food_logs')
-        .select()
-        .eq('user_id', userId)
-        .gt('updated_at', lastSyncString);
+    // D. Sync Food Logs (Incremental with safety margin)
+    try {
+      final List<dynamic> remoteFoodLogs = await _supabase
+          .from('food_logs')
+          .select()
+          .eq('user_id', userId)
+          .gt('updated_at', queryTimestamp);
 
-    if (remoteFoodLogs.isNotEmpty) {
-      await db.transaction((txn) async {
-        for (final row in remoteFoodLogs) {
-          final remoteFood = FoodLog.fromJson(row as Map<String, dynamic>);
-          final List<Map<String, dynamic>> localMatch = await txn.query(
-            'local_food_logs',
-            where: 'id = ?',
-            whereArgs: [remoteFood.id],
-          );
+      if (remoteFoodLogs.isNotEmpty) {
+        await db.transaction((txn) async {
+          for (final row in remoteFoodLogs) {
+            final remoteFood = FoodLog.fromJson(row as Map<String, dynamic>);
+            final List<Map<String, dynamic>> localMatch = await txn.query(
+              'local_food_logs',
+              where: 'id = ?',
+              whereArgs: [remoteFood.id],
+            );
 
-          if (localMatch.isEmpty) {
-            await txn.insert('local_food_logs', remoteFood.toSqliteMap(), conflictAlgorithm: ConflictAlgorithm.replace);
-          } else {
-            final localFood = FoodLog.fromSqliteMap(localMatch.first);
-            if (remoteFood.updatedAt.isAfter(localFood.updatedAt)) {
+            if (localMatch.isEmpty) {
               await txn.insert('local_food_logs', remoteFood.toSqliteMap(), conflictAlgorithm: ConflictAlgorithm.replace);
+            } else {
+              final localFood = FoodLog.fromSqliteMap(localMatch.first);
+              if (remoteFood.updatedAt.isAfter(localFood.updatedAt)) {
+                await txn.insert('local_food_logs', remoteFood.toSqliteMap(), conflictAlgorithm: ConflictAlgorithm.replace);
+              }
             }
           }
-        }
-      });
+        });
+      }
+    } catch (e) {
+      print("Sync food logs error: $e");
     }
 
-    // E. Sync Water Logs
-    final List<dynamic> remoteWaterLogs = await _supabase
-        .from('water_logs')
-        .select()
-        .eq('user_id', userId)
-        .gt('updated_at', lastSyncString);
+    // E. Sync Water Logs (Incremental with safety margin)
+    try {
+      final List<dynamic> remoteWaterLogs = await _supabase
+          .from('water_logs')
+          .select()
+          .eq('user_id', userId)
+          .gt('updated_at', queryTimestamp);
 
-    if (remoteWaterLogs.isNotEmpty) {
-      await db.transaction((txn) async {
-        for (final row in remoteWaterLogs) {
-          final remoteWater = WaterLog.fromJson(row as Map<String, dynamic>);
-          final List<Map<String, dynamic>> localMatch = await txn.query(
-            'local_water_logs',
-            where: 'id = ?',
-            whereArgs: [remoteWater.id],
-          );
+      if (remoteWaterLogs.isNotEmpty) {
+        await db.transaction((txn) async {
+          for (final row in remoteWaterLogs) {
+            final remoteWater = WaterLog.fromJson(row as Map<String, dynamic>);
+            final List<Map<String, dynamic>> localMatch = await txn.query(
+              'local_water_logs',
+              where: 'id = ?',
+              whereArgs: [remoteWater.id],
+            );
 
-          if (localMatch.isEmpty) {
-            await txn.insert('local_water_logs', remoteWater.toSqliteMap(), conflictAlgorithm: ConflictAlgorithm.replace);
-          } else {
-            final localWater = WaterLog.fromSqliteMap(localMatch.first);
-            if (remoteWater.updatedAt.isAfter(localWater.updatedAt)) {
+            if (localMatch.isEmpty) {
               await txn.insert('local_water_logs', remoteWater.toSqliteMap(), conflictAlgorithm: ConflictAlgorithm.replace);
+            } else {
+              final localWater = WaterLog.fromSqliteMap(localMatch.first);
+              if (remoteWater.updatedAt.isAfter(localWater.updatedAt)) {
+                await txn.insert('local_water_logs', remoteWater.toSqliteMap(), conflictAlgorithm: ConflictAlgorithm.replace);
+              }
             }
           }
-        }
-      });
+        });
+      }
+    } catch (e) {
+      print("Sync water logs error: $e");
     }
 
-    // F. Sync Addiction Logs
-    final List<dynamic> remoteAddictionLogs = await _supabase
-        .from('addiction_logs')
-        .select()
-        .eq('user_id', userId)
-        .gt('updated_at', lastSyncString);
+    // F. Sync Addiction Logs (Incremental with safety margin)
+    try {
+      final List<dynamic> remoteAddictionLogs = await _supabase
+          .from('addiction_logs')
+          .select()
+          .eq('user_id', userId)
+          .gt('updated_at', queryTimestamp);
 
-    if (remoteAddictionLogs.isNotEmpty) {
-      await db.transaction((txn) async {
-        for (final row in remoteAddictionLogs) {
-          final remoteAddiction = AddictionLog.fromJson(row as Map<String, dynamic>);
-          final List<Map<String, dynamic>> localMatch = await txn.query(
-            'local_addiction_logs',
-            where: 'id = ?',
-            whereArgs: [remoteAddiction.id],
-          );
+      if (remoteAddictionLogs.isNotEmpty) {
+        await db.transaction((txn) async {
+          for (final row in remoteAddictionLogs) {
+            final remoteAddiction = AddictionLog.fromJson(row as Map<String, dynamic>);
+            final List<Map<String, dynamic>> localMatch = await txn.query(
+              'local_addiction_logs',
+              where: 'id = ?',
+              whereArgs: [remoteAddiction.id],
+            );
 
-          if (localMatch.isEmpty) {
-            await txn.insert('local_addiction_logs', remoteAddiction.toSqliteMap(), conflictAlgorithm: ConflictAlgorithm.replace);
-          } else {
-            final localAddiction = AddictionLog.fromSqliteMap(localMatch.first);
-            if (remoteAddiction.updatedAt.isAfter(localAddiction.updatedAt)) {
+            if (localMatch.isEmpty) {
               await txn.insert('local_addiction_logs', remoteAddiction.toSqliteMap(), conflictAlgorithm: ConflictAlgorithm.replace);
+            } else {
+              final localAddiction = AddictionLog.fromSqliteMap(localMatch.first);
+              if (remoteAddiction.updatedAt.isAfter(localAddiction.updatedAt)) {
+                await txn.insert('local_addiction_logs', remoteAddiction.toSqliteMap(), conflictAlgorithm: ConflictAlgorithm.replace);
+              }
             }
           }
-        }
-      });
+        });
+      }
+    } catch (e) {
+      print("Sync addiction logs error: $e");
     }
 
-    // G. Sync Finance Transactions
-    final List<dynamic> remoteFinanceTransactions = await _supabase
-        .from('finance_transactions')
-        .select()
-        .eq('user_id', userId)
-        .gt('updated_at', lastSyncString);
+    // G. Sync Finance Transactions (Incremental with safety margin)
+    try {
+      final List<dynamic> remoteFinanceTransactions = await _supabase
+          .from('finance_transactions')
+          .select()
+          .eq('user_id', userId)
+          .gt('updated_at', queryTimestamp);
 
-    if (remoteFinanceTransactions.isNotEmpty) {
-      await db.transaction((txn) async {
-        for (final row in remoteFinanceTransactions) {
-          final remoteFinance = FinanceTransaction.fromJson(row as Map<String, dynamic>);
-          final List<Map<String, dynamic>> localMatch = await txn.query(
-            'local_finance_transactions',
-            where: 'id = ?',
-            whereArgs: [remoteFinance.id],
-          );
+      if (remoteFinanceTransactions.isNotEmpty) {
+        await db.transaction((txn) async {
+          for (final row in remoteFinanceTransactions) {
+            final remoteFinance = FinanceTransaction.fromJson(row as Map<String, dynamic>);
+            final List<Map<String, dynamic>> localMatch = await txn.query(
+              'local_finance_transactions',
+              where: 'id = ?',
+              whereArgs: [remoteFinance.id],
+            );
 
-          if (localMatch.isEmpty) {
-            await txn.insert('local_finance_transactions', remoteFinance.toSqliteMap(), conflictAlgorithm: ConflictAlgorithm.replace);
-          } else {
-            final localFinance = FinanceTransaction.fromSqliteMap(localMatch.first);
-            if (remoteFinance.updatedAt.isAfter(localFinance.updatedAt)) {
+            if (localMatch.isEmpty) {
               await txn.insert('local_finance_transactions', remoteFinance.toSqliteMap(), conflictAlgorithm: ConflictAlgorithm.replace);
+            } else {
+              final localFinance = FinanceTransaction.fromSqliteMap(localMatch.first);
+              if (remoteFinance.updatedAt.isAfter(localFinance.updatedAt)) {
+                await txn.insert('local_finance_transactions', remoteFinance.toSqliteMap(), conflictAlgorithm: ConflictAlgorithm.replace);
+              }
             }
           }
-        }
-      });
+        });
+      }
+    } catch (e) {
+      print("Sync finance transactions error: $e");
     }
 
-    // H. Sync Social Contacts
-    final List<dynamic> remoteSocialContacts = await _supabase
-        .from('social_contacts')
-        .select()
-        .eq('user_id', userId)
-        .gt('updated_at', lastSyncString);
+    // H. Sync Social Contacts (Incremental with safety margin)
+    try {
+      final List<dynamic> remoteSocialContacts = await _supabase
+          .from('social_contacts')
+          .select()
+          .eq('user_id', userId)
+          .gt('updated_at', queryTimestamp);
 
-    if (remoteSocialContacts.isNotEmpty) {
-      await db.transaction((txn) async {
-        for (final row in remoteSocialContacts) {
-          final remoteContact = SocialContact.fromJson(row as Map<String, dynamic>);
-          final List<Map<String, dynamic>> localMatch = await txn.query(
-            'local_social_contacts',
-            where: 'id = ?',
-            whereArgs: [remoteContact.id],
-          );
+      if (remoteSocialContacts.isNotEmpty) {
+        await db.transaction((txn) async {
+          for (final row in remoteSocialContacts) {
+            final remoteContact = SocialContact.fromJson(row as Map<String, dynamic>);
+            final List<Map<String, dynamic>> localMatch = await txn.query(
+              'local_social_contacts',
+              where: 'id = ?',
+              whereArgs: [remoteContact.id],
+            );
 
-          if (localMatch.isEmpty) {
-            await txn.insert('local_social_contacts', remoteContact.toSqliteMap(), conflictAlgorithm: ConflictAlgorithm.replace);
-          } else {
-            final localContact = SocialContact.fromSqliteMap(localMatch.first);
-            if (remoteContact.updatedAt.isAfter(localContact.updatedAt)) {
+            if (localMatch.isEmpty) {
               await txn.insert('local_social_contacts', remoteContact.toSqliteMap(), conflictAlgorithm: ConflictAlgorithm.replace);
+            } else {
+              final localContact = SocialContact.fromSqliteMap(localMatch.first);
+              if (remoteContact.updatedAt.isAfter(localContact.updatedAt)) {
+                await txn.insert('local_social_contacts', remoteContact.toSqliteMap(), conflictAlgorithm: ConflictAlgorithm.replace);
+              }
             }
           }
-        }
-      });
+        });
+      }
+    } catch (e) {
+      print("Sync social contacts error: $e");
     }
 
-    // I. Sync Learning Subjects
-    final List<dynamic> remoteLearningSubjects = await _supabase
-        .from('learning_subjects')
-        .select()
-        .eq('user_id', userId)
-        .gt('updated_at', lastSyncString);
+    // I. Sync Learning Subjects (Incremental with safety margin)
+    try {
+      final List<dynamic> remoteLearningSubjects = await _supabase
+          .from('learning_subjects')
+          .select()
+          .eq('user_id', userId)
+          .gt('updated_at', queryTimestamp);
 
-    if (remoteLearningSubjects.isNotEmpty) {
-      await db.transaction((txn) async {
-        for (final row in remoteLearningSubjects) {
-          final remoteSubject = LearningSubject.fromJson(row as Map<String, dynamic>);
-          final List<Map<String, dynamic>> localMatch = await txn.query(
-            'local_learning_subjects',
-            where: 'id = ?',
-            whereArgs: [remoteSubject.id],
-          );
+      if (remoteLearningSubjects.isNotEmpty) {
+        await db.transaction((txn) async {
+          for (final row in remoteLearningSubjects) {
+            final remoteSubject = LearningSubject.fromJson(row as Map<String, dynamic>);
+            final List<Map<String, dynamic>> localMatch = await txn.query(
+              'local_learning_subjects',
+              where: 'id = ?',
+              whereArgs: [remoteSubject.id],
+            );
 
-          if (localMatch.isEmpty) {
-            await txn.insert('local_learning_subjects', remoteSubject.toSqliteMap(), conflictAlgorithm: ConflictAlgorithm.replace);
-          } else {
-            final localSubject = LearningSubject.fromSqliteMap(localMatch.first);
-            if (remoteSubject.updatedAt.isAfter(localSubject.updatedAt)) {
+            if (localMatch.isEmpty) {
               await txn.insert('local_learning_subjects', remoteSubject.toSqliteMap(), conflictAlgorithm: ConflictAlgorithm.replace);
+            } else {
+              final localSubject = LearningSubject.fromSqliteMap(localMatch.first);
+              if (remoteSubject.updatedAt.isAfter(localSubject.updatedAt)) {
+                await txn.insert('local_learning_subjects', remoteSubject.toSqliteMap(), conflictAlgorithm: ConflictAlgorithm.replace);
+              }
             }
           }
-        }
-      });
+        });
+      }
+    } catch (e) {
+      print("Sync learning subjects error: $e");
     }
 
-    // J. Sync Study Logs
-    final List<dynamic> remoteStudyLogs = await _supabase
-        .from('study_logs')
-        .select()
-        .eq('user_id', userId)
-        .gt('updated_at', lastSyncString);
+    // J. Sync Study Logs (Incremental with safety margin)
+    try {
+      final List<dynamic> remoteStudyLogs = await _supabase
+          .from('study_logs')
+          .select()
+          .eq('user_id', userId)
+          .gt('updated_at', queryTimestamp);
 
-    if (remoteStudyLogs.isNotEmpty) {
-      await db.transaction((txn) async {
-        for (final row in remoteStudyLogs) {
-          final remoteLog = StudyLog.fromJson(row as Map<String, dynamic>);
-          final List<Map<String, dynamic>> localMatch = await txn.query(
-            'local_study_logs',
-            where: 'id = ?',
-            whereArgs: [remoteLog.id],
-          );
+      if (remoteStudyLogs.isNotEmpty) {
+        await db.transaction((txn) async {
+          for (final row in remoteStudyLogs) {
+            final remoteLog = StudyLog.fromJson(row as Map<String, dynamic>);
+            final List<Map<String, dynamic>> localMatch = await txn.query(
+              'local_study_logs',
+              where: 'id = ?',
+              whereArgs: [remoteLog.id],
+            );
 
-          if (localMatch.isEmpty) {
-            await txn.insert('local_study_logs', remoteLog.toSqliteMap(), conflictAlgorithm: ConflictAlgorithm.replace);
-          } else {
-            final localLog = StudyLog.fromSqliteMap(localMatch.first);
-            if (remoteLog.updatedAt.isAfter(localLog.updatedAt)) {
+            if (localMatch.isEmpty) {
               await txn.insert('local_study_logs', remoteLog.toSqliteMap(), conflictAlgorithm: ConflictAlgorithm.replace);
+            } else {
+              final localLog = StudyLog.fromSqliteMap(localMatch.first);
+              if (remoteLog.updatedAt.isAfter(localLog.updatedAt)) {
+                await txn.insert('local_study_logs', remoteLog.toSqliteMap(), conflictAlgorithm: ConflictAlgorithm.replace);
+              }
             }
           }
-        }
-      });
+        });
+      }
+    } catch (e) {
+      print("Sync study logs error: $e");
     }
 
     // K. Sync Profile Username, XP, targets, App Lock, and Restores

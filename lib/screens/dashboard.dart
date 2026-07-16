@@ -107,6 +107,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
     final tables = [
       'tasks',
+      'task_completions',
+      'task_exceptions',
       'workouts',
       'sleep_logs',
       'food_logs',

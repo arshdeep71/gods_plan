@@ -570,7 +570,7 @@ class _TasksViewState extends State<TasksView> {
               ],
             ),
       floatingActionButton: Padding(
-        padding: const EdgeInsets.only(bottom: 16.0),
+        padding: const EdgeInsets.only(bottom: 96.0, right: 8.0),
         child: FloatingActionButton(
           onPressed: () => _showAddTaskSheet(context),
           backgroundColor: AppColors.accent,
