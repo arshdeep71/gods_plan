@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../services/supabase_service.dart';
@@ -240,9 +241,13 @@ class AuthProvider extends ChangeNotifier {
     _errorMessage = null;
     notifyListeners();
 
+    // ── Diagnostics: print credentials shape before the network call ──
+    debugPrint('[Auth] logIn → email: "$email" | password length: ${password.length}');
+
     try {
       final response = await _supabaseService.logIn(email: email, password: password);
       _user = response.user;
+      debugPrint('[Auth] logIn success → userId: ${_user?.id}');
       if (_user != null) {
         await loadUserProfile();
       }
@@ -250,16 +255,38 @@ class AuthProvider extends ChangeNotifier {
       notifyListeners();
       return true;
     } on AuthException catch (e) {
-      _errorMessage = e.message;
+      // The full Supabase 400 error message is in e.message
+      debugPrint('[Auth] AuthException → code: ${e.statusCode} | message: ${e.message}');
+      _errorMessage = _friendlyAuthMessage(e.message);
       _isLoading = false;
       notifyListeners();
       return false;
-    } catch (e) {
+    } catch (e, st) {
+      debugPrint('[Auth] Unexpected login error: $e');
+      debugPrintStack(stackTrace: st, label: '[Auth] stack');
       _errorMessage = 'An unexpected error occurred during login. Please try again.';
       _isLoading = false;
       notifyListeners();
       return false;
     }
+  }
+
+  /// Maps raw Supabase error strings to user-friendly messages.
+  String _friendlyAuthMessage(String raw) {
+    final msg = raw.toLowerCase();
+    if (msg.contains('invalid login credentials') || msg.contains('invalid password')) {
+      return 'Incorrect email or password. Please try again.';
+    }
+    if (msg.contains('email not confirmed')) {
+      return 'Please confirm your email before logging in. Check your inbox.';
+    }
+    if (msg.contains('user not found')) {
+      return 'No account found with that email address.';
+    }
+    if (msg.contains('too many requests') || msg.contains('rate limit')) {
+      return 'Too many login attempts. Please wait a moment and try again.';
+    }
+    return raw; // Fall back to raw Supabase message
   }
 
   // Sign up new user
