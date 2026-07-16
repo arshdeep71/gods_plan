@@ -31,6 +31,17 @@ jobs:
       - name: Setup SQLite Web binaries 🗄️
         run: dart run sqflite_common_ffi_web:setup --force
 
+      - name: Patch sqflite_sw.js with defensive error handling 🛡️
+        run: |
+          if [ -f web/sqflite_sw.js ]; then
+            echo "self.addEventListener('error', function(e) { console.error('Sqflite SW error:', e.error || e.message); e.preventDefault(); }); self.addEventListener('unhandledrejection', function(e) { console.error('Sqflite SW rejection:', e.reason); e.preventDefault(); });" > temp_sw.js
+            cat web/sqflite_sw.js >> temp_sw.js
+            mv temp_sw.js web/sqflite_sw.js
+            echo "Successfully patched web/sqflite_sw.js"
+          else
+            echo "web/sqflite_sw.js not found!"
+          fi
+
       - name: Build Web 🚀
         run: flutter build web --base-href "/gods_plan/"
 
