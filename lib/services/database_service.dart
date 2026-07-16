@@ -91,27 +91,26 @@ class DatabaseService {
     // Ensure all tables are created dynamically (in case SQLite file already existed but was missing tables)
     await _createTables(db);
 
-    // Apply incremental migrations for tasks table
+    // Apply incremental migrations for tasks table by checking existing columns first
     try {
-      await db.execute("ALTER TABLE local_tasks ADD COLUMN is_paused INTEGER DEFAULT 0");
-    } catch (_) {}
-    try {
-      await db.execute("ALTER TABLE local_tasks ADD COLUMN due_time TEXT");
-    } catch (_) {}
-    try {
-      await db.execute("ALTER TABLE local_tasks ADD COLUMN scheduled_date TEXT");
-    } catch (_) {}
-    try {
-      await db.execute("ALTER TABLE local_tasks ADD COLUMN last_completed_date TEXT");
-    } catch (_) {}
-    try {
-      await db.execute("ALTER TABLE local_tasks ADD COLUMN repeat_type TEXT DEFAULT 'daily'");
-    } catch (_) {}
-    try {
-      await db.execute("ALTER TABLE local_tasks ADD COLUMN reminder_time TEXT");
-    } catch (_) {}
-    try {
-      await db.execute("ALTER TABLE local_tasks ADD COLUMN order_index INTEGER DEFAULT 0");
+      final columns = await db.rawQuery('PRAGMA table_info(local_tasks)');
+      final columnNames = columns.map((c) => c['name']?.toString().toLowerCase()).toList();
+
+      Future<void> addColumnIfMissing(String name, String definition) async {
+        if (!columnNames.contains(name.toLowerCase())) {
+          try {
+            await db.execute("ALTER TABLE local_tasks ADD COLUMN $name $definition");
+          } catch (_) {}
+        }
+      }
+
+      await addColumnIfMissing('is_paused', 'INTEGER DEFAULT 0');
+      await addColumnIfMissing('due_time', 'TEXT');
+      await addColumnIfMissing('scheduled_date', 'TEXT');
+      await addColumnIfMissing('last_completed_date', 'TEXT');
+      await addColumnIfMissing('repeat_type', "TEXT DEFAULT 'daily'");
+      await addColumnIfMissing('reminder_time', 'TEXT');
+      await addColumnIfMissing('order_index', 'INTEGER DEFAULT 0');
     } catch (_) {}
 
     return db;
