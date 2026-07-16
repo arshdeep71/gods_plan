@@ -394,3 +394,11 @@ ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS monthly_savings_target NUME
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS big_savings_target NUMERIC DEFAULT 5000;
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS nutrition_profile JSONB;
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS xp_awarded_dates JSONB DEFAULT '{}';
+
+-- ==========================================
+-- 15. Migration queries to alter existing tasks table
+-- ==========================================
+ALTER TABLE public.tasks ADD COLUMN IF NOT EXISTS is_paused BOOLEAN NOT NULL DEFAULT FALSE;
+ALTER TABLE public.tasks ADD COLUMN IF NOT EXISTS due_time TEXT;
+ALTER TABLE public.tasks ADD COLUMN IF NOT EXISTS scheduled_date TEXT;
+ALTER TABLE public.tasks ADD COLUMN IF NOT EXISTS last_completed_date TEXT;
