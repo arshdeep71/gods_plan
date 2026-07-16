@@ -88,29 +88,36 @@ class DatabaseService {
       },
     );
 
-    // Ensure all tables are created dynamically (in case SQLite file already existed but was missing tables)
-    await _createTables(db);
-
-    // Apply incremental migrations for tasks table by checking existing columns first
+    // Apply incremental migrations for tasks table by checking existing columns first.
+    // NOTE: We do NOT call _createTables() again here — doing so caused concurrent
+    // sqlite3_exec/sqlite3_step calls in the sqflite WASM worker on web, producing
+    // the "Uncaught Error" in sqflite_sw.js. The onCreate callback handles creation
+    // for fresh databases, and CREATE TABLE IF NOT EXISTS is idempotent for existing ones.
     try {
-      final columns = await db.rawQuery('PRAGMA table_info(local_tasks)');
-      final columnNames = columns.map((c) => c['name']?.toString().toLowerCase()).toList();
+      // Only run migration if local_tasks already exists (onCreate may have just built it)
+      final tables = await db.rawQuery(
+        "SELECT name FROM sqlite_master WHERE type='table' AND name='local_tasks'",
+      );
+      if (tables.isNotEmpty) {
+        final columns = await db.rawQuery('PRAGMA table_info(local_tasks)');
+        final columnNames = columns.map((c) => c['name']?.toString().toLowerCase()).toList();
 
-      Future<void> addColumnIfMissing(String name, String definition) async {
-        if (!columnNames.contains(name.toLowerCase())) {
-          try {
-            await db.execute("ALTER TABLE local_tasks ADD COLUMN $name $definition");
-          } catch (_) {}
+        Future<void> addColumnIfMissing(String name, String definition) async {
+          if (!columnNames.contains(name.toLowerCase())) {
+            try {
+              await db.execute("ALTER TABLE local_tasks ADD COLUMN $name $definition");
+            } catch (_) {}
+          }
         }
-      }
 
-      await addColumnIfMissing('is_paused', 'INTEGER DEFAULT 0');
-      await addColumnIfMissing('due_time', 'TEXT');
-      await addColumnIfMissing('scheduled_date', 'TEXT');
-      await addColumnIfMissing('last_completed_date', 'TEXT');
-      await addColumnIfMissing('repeat_type', "TEXT DEFAULT 'daily'");
-      await addColumnIfMissing('reminder_time', 'TEXT');
-      await addColumnIfMissing('order_index', 'INTEGER DEFAULT 0');
+        await addColumnIfMissing('is_paused', 'INTEGER DEFAULT 0');
+        await addColumnIfMissing('due_time', 'TEXT');
+        await addColumnIfMissing('scheduled_date', 'TEXT');
+        await addColumnIfMissing('last_completed_date', 'TEXT');
+        await addColumnIfMissing('repeat_type', "TEXT DEFAULT 'daily'");
+        await addColumnIfMissing('reminder_time', 'TEXT');
+        await addColumnIfMissing('order_index', 'INTEGER DEFAULT 0');
+      }
     } catch (_) {}
 
     return db;
