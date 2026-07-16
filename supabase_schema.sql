@@ -398,6 +398,8 @@ ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS xp_awarded_dates JSONB DEFA
 -- ==========================================
 -- 15. Migration queries to alter existing tasks table
 -- ==========================================
+ALTER TABLE public.tasks ADD COLUMN IF NOT EXISTS order_index INTEGER DEFAULT 0;
+ALTER TABLE public.tasks ADD COLUMN IF NOT EXISTS streak_count INTEGER DEFAULT 0;
 ALTER TABLE public.tasks ADD COLUMN IF NOT EXISTS is_paused BOOLEAN NOT NULL DEFAULT FALSE;
 ALTER TABLE public.tasks ADD COLUMN IF NOT EXISTS due_time TEXT;
 ALTER TABLE public.tasks ADD COLUMN IF NOT EXISTS scheduled_date TEXT;
