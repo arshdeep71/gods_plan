@@ -486,13 +486,15 @@ class TaskProvider extends ChangeNotifier {
       }
     }
 
-    await checkAndAwardDailyXp(targetDate, task.userId);
+    // await checkAndAwardDailyXp(targetDate, task.userId);
 
     // Trigger background sync flush
+    /*
     _syncService.sync(task.userId).then((_) async {
       _completions = await _dbService.getLocalTaskCompletions(task.userId);
       notifyListeners();
     });
+    */
   }catch (e, stack) {
   print("=================================");
   print("TOGGLE TASK ERROR");
