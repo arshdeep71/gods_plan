@@ -183,4 +183,11 @@ class AddictionProvider with ChangeNotifier {
       _dbService.settingsBox.put('longest_addiction_streak', maxStreak);
     }
   }
+
+  void clear() {
+    _logs = [];
+    _currentStreak = 0;
+    _longestStreak = 0;
+    notifyListeners();
+  }
 }

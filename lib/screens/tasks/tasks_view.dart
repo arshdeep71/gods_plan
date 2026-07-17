@@ -7,7 +7,8 @@ import '../../utils/colors.dart';
 
 class TasksView extends StatefulWidget {
   final bool isTab;
-  const TasksView({super.key, this.isTab = false});
+  final DateTime? initialDate;
+  const TasksView({super.key, this.isTab = false, this.initialDate});
 
   @override
   State<TasksView> createState() => _TasksViewState();
@@ -19,13 +20,23 @@ class _TasksViewState extends State<TasksView> {
   @override
   void initState() {
     super.initState();
-    _selectedDate = DateTime.now();
+    _selectedDate = widget.initialDate ?? DateTime.now();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final user = Provider.of<AuthProvider>(context, listen: false).user;
       if (user != null) {
         Provider.of<TaskProvider>(context, listen: false).fetchTasks(user.id);
       }
     });
+  }
+
+  @override
+  void didUpdateWidget(TasksView oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.initialDate != oldWidget.initialDate && widget.initialDate != null) {
+      setState(() {
+        _selectedDate = widget.initialDate!;
+      });
+    }
   }
 
   void _showAddTaskSheet(BuildContext context) {

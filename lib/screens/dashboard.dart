@@ -28,6 +28,7 @@ import 'dashboard/badges_view.dart';
 import 'dashboard/analytics_view.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../services/sync_service.dart';
+import '../services/profile_reset_service.dart';
 
 
 class DashboardScreen extends StatefulWidget {
@@ -44,6 +45,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
   // Navigation & Tabs state
   int _selectedIndex = 0; // 0 = Home, 1 = Tasks, 2 = Placeholder (+), 3 = Stats/Badges, 4 = Settings
   int _activeTab = 0; // 0 = Overview, 1 = Productivity/Trackers
+  DateTime? _tasksInitialDate;
+
+  void goToTodayTasks() {
+    setState(() {
+      _tasksInitialDate = DateTime.now();
+      _selectedIndex = 1;
+    });
+  }
 
   int _totalDays = 0;
   int _daysElapsed = 0;
@@ -339,6 +348,147 @@ class _DashboardScreenState extends State<DashboardScreen> {
         MaterialPageRoute(builder: (_) => const LoginScreen()),
         (route) => false,
       );
+    }
+  }
+
+  void _showResetProfileDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: const Color(0xFF1C1C1E),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Row(
+          children: [
+            Icon(Icons.warning_amber_rounded, color: AppColors.error, size: 28),
+            SizedBox(width: 12),
+            Text("Reset Your Profile?", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+          ],
+        ),
+        content: const Text(
+          "This will permanently remove all your data including tasks, streaks, XP, analytics, logs, goals, weekly progress, completions, exceptions and synced cloud data.\n\nThis action cannot be undone.",
+          style: TextStyle(color: AppColors.textSecondary, fontSize: 14, height: 1.4),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text("Cancel", style: TextStyle(color: AppColors.textSecondary)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.error,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+            onPressed: () {
+              Navigator.pop(context);
+              _showFinalResetConfirmationDialog();
+            },
+            child: const Text("Continue", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showFinalResetConfirmationDialog() {
+    final controller = TextEditingController();
+    bool isResetTyped = false;
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              backgroundColor: const Color(0xFF1C1C1E),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+              title: const Text("Final Confirmation", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    "This will permanently erase your entire profile.\n\nType RESET below to continue.",
+                    style: TextStyle(color: AppColors.textSecondary, fontSize: 14, height: 1.4),
+                  ),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: controller,
+                    autofocus: true,
+                    style: const TextStyle(color: Colors.white),
+                    decoration: const InputDecoration(
+                      hintText: "RESET",
+                      hintStyle: TextStyle(color: AppColors.textMuted),
+                      enabledBorder: UnderlineInputBorder(borderSide: BorderSide(color: AppColors.border)),
+                      focusedBorder: UnderlineInputBorder(borderSide: BorderSide(color: AppColors.error)),
+                    ),
+                    onChanged: (val) {
+                      setDialogState(() {
+                        isResetTyped = val.trim() == "RESET";
+                      });
+                    },
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text("Cancel", style: TextStyle(color: AppColors.textSecondary)),
+                ),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: isResetTyped ? AppColors.error : Colors.grey[800],
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                  onPressed: isResetTyped
+                      ? () {
+                          Navigator.pop(context);
+                          _performProfileReset();
+                        }
+                      : null,
+                  child: const Text("Delete Everything", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Future<void> _performProfileReset() async {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const Center(
+        child: CircularProgressIndicator(
+          valueColor: AlwaysStoppedAnimation<Color>(AppColors.error),
+        ),
+      ),
+    );
+
+    try {
+      final resetService = ProfileResetService();
+      await resetService.performProfileReset(context);
+
+      if (mounted) {
+        Navigator.of(context).pop(); // dismiss loading
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(builder: (_) => const LoginScreen()),
+          (route) => false,
+        );
+      }
+    } catch (e) {
+      print("Error during profile reset: $e");
+      if (mounted) {
+        Navigator.of(context).pop(); // dismiss loading
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text("Error resetting profile: $e"),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
     }
   }
 
@@ -643,7 +793,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     // Build the bottom nav pages
     final List<Widget> pages = [
       _buildHomeDashboard(context, username),
-      const TasksView(isTab: true),
+      TasksView(isTab: true, initialDate: _tasksInitialDate),
       const SizedBox.shrink(), // Placeholder for central button
       user != null ? BadgesView(userId: user.id, username: username) : const SizedBox.shrink(),
       _buildSettingsTab(context, username),
@@ -830,7 +980,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
           Row(
             children: [
               Expanded(
-                child: _buildStatCard("Today's Tasks", "$completedToday / $totalToday", Icons.check_circle_outline, AppColors.primary),
+                child: GestureDetector(
+                  onTap: goToTodayTasks,
+                  child: _buildStatCard("Today's Tasks", "$completedToday / $totalToday", Icons.check_circle_outline, AppColors.primary),
+                ),
               ),
               const SizedBox(width: 16),
               Expanded(
@@ -1026,6 +1179,63 @@ class _DashboardScreenState extends State<DashboardScreen> {
             _handleLogout,
             textColor: AppColors.error,
           ),
+          const SizedBox(height: 32),
+          const Text(
+            "Danger Zone",
+            style: TextStyle(
+              color: AppColors.error,
+              fontSize: 13,
+              fontWeight: FontWeight.bold,
+              letterSpacing: 0.5,
+            ),
+          ),
+          const SizedBox(height: 8),
+          const Divider(color: AppColors.error, thickness: 1),
+          const SizedBox(height: 12),
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: AppColors.error.withOpacity(0.05),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: AppColors.error.withOpacity(0.2)),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Row(
+                  children: [
+                    Icon(Icons.warning_amber_rounded, color: AppColors.error, size: 20),
+                    SizedBox(width: 8),
+                    Text(
+                      "Reset Profile",
+                      style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  "This permanently removes all your personal data and starts your profile from scratch.",
+                  style: TextStyle(color: AppColors.textSecondary, fontSize: 12, height: 1.4),
+                ),
+                const SizedBox(height: 16),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.error,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                    onPressed: _showResetProfileDialog,
+                    child: const Text(
+                      "Reset Profile",
+                      style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
         ],
       ),
     );
@@ -1146,7 +1356,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Widget _buildNavItem(int index, IconData icon, String label) {
     final isSelected = _selectedIndex == index;
     return GestureDetector(
-      onTap: () => setState(() => _selectedIndex = index),
+      onTap: () {
+        setState(() {
+          if (index != 1) {
+            _tasksInitialDate = null;
+          }
+          _selectedIndex = index;
+        });
+      },
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
         decoration: BoxDecoration(

@@ -208,4 +208,9 @@ class FinanceProvider with ChangeNotifier {
   bool _isSameDay(DateTime a, DateTime b) {
     return a.day == b.day && a.month == b.month && a.year == b.year;
   }
+
+  void clear() {
+    _transactions = [];
+    notifyListeners();
+  }
 }

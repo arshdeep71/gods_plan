@@ -739,4 +739,31 @@ class DatabaseService {
     await db.delete('local_study_logs');
     await db.delete('offline_sync_queue');
   }
+
+  Future<void> clearLocalCacheExceptPendingDeletion(String userId, bool isPendingDeletion) async {
+    if (isPendingDeletion) {
+      final keys = settingsBox.keys.toList();
+      for (final key in keys) {
+        if (key != 'pending_profile_deletion_$userId') {
+          await settingsBox.delete(key);
+        }
+      }
+    } else {
+      await settingsBox.clear();
+    }
+    final db = await database;
+    await db.delete('local_tasks');
+    await db.delete('local_task_completions');
+    await db.delete('local_task_exceptions');
+    await db.delete('local_workouts');
+    await db.delete('local_sleep_logs');
+    await db.delete('local_food_logs');
+    await db.delete('local_water_logs');
+    await db.delete('local_addiction_logs');
+    await db.delete('local_finance_transactions');
+    await db.delete('local_social_contacts');
+    await db.delete('local_learning_subjects');
+    await db.delete('local_study_logs');
+    await db.delete('offline_sync_queue');
+  }
 }

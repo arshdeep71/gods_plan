@@ -210,4 +210,10 @@ class HealthProvider extends ChangeNotifier {
       notifyListeners();
     });
   }
+
+  void clear() {
+    _workouts = [];
+    _sleepLogs = [];
+    notifyListeners();
+  }
 }

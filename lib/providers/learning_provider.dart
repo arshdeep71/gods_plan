@@ -167,4 +167,10 @@ class LearningProvider with ChangeNotifier {
 
     return streak;
   }
+
+  void clear() {
+    _subjects = [];
+    _studyLogs = [];
+    notifyListeners();
+  }
 }

@@ -716,4 +716,14 @@ class TaskProvider extends ChangeNotifier {
       NotificationService().cancelReminder(task.id.hashCode);
     }
   }
+
+  void clear() {
+    _tasks = [];
+    _completions = [];
+    _exceptions = [];
+    _shouldShowCongrats = false;
+    _shouldShowXpAnimation = false;
+    _lastAwardedXpAmount = 0;
+    notifyListeners();
+  }
 }

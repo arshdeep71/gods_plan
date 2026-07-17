@@ -27,6 +27,12 @@ class SyncService {
     if (!await isConnected()) return;
 
     try {
+      final isPendingDelete = _dbService.settingsBox.get('pending_profile_deletion_$userId', defaultValue: false) as bool;
+      if (isPendingDelete) {
+        await deleteRemoteUserProfileData(userId);
+        await _dbService.settingsBox.put('pending_profile_deletion_$userId', false);
+      }
+
       // 1. Upload local pending modifications
       await _uploadLocalMutations();
 
@@ -35,6 +41,49 @@ class SyncService {
     } catch (e) {
       // Fail silently or log error locally, app runs offline-first
       print("Sync error encountered: $e");
+    }
+  }
+
+  Future<void> deleteRemoteUserProfileData(String userId) async {
+    final tables = [
+      'tasks',
+      'task_completions',
+      'task_exceptions',
+      'workouts',
+      'sleep_logs',
+      'food_logs',
+      'water_logs',
+      'addiction_logs',
+      'finance_transactions',
+      'social_contacts',
+      'learning_subjects',
+      'study_logs',
+      'goals'
+    ];
+    for (final table in tables) {
+      try {
+        await _supabase.from(table).delete().eq('user_id', userId);
+      } catch (e) {
+        print("Failed to delete table $table remote data: $e");
+      }
+    }
+    // Update profiles table instead of deleting it
+    try {
+      await _supabase.from('profiles').update({
+        'xp': 0,
+        'streak_restores': 3,
+        'restored_dates': [],
+        'last_restore_reset': null,
+        'app_lock_pin': null,
+        'daily_savings_target': 500,
+        'monthly_savings_target': 15000,
+        'big_savings_target': 5000,
+        'nutrition_profile': null,
+        'xp_awarded_dates': {},
+        'updated_at': DateTime.now().toUtc().toIso8601String(),
+      }).eq('id', userId);
+    } catch (e) {
+      print("Failed to update profile remote data: $e");
     }
   }
 

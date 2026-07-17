@@ -280,4 +280,11 @@ class NutritionProvider extends ChangeNotifier {
       notifyListeners();
     });
   }
+
+  void clear() {
+    _foodLogs = [];
+    _waterLogs = [];
+    _profile = NutritionProfile.defaultProfile();
+    notifyListeners();
+  }
 }

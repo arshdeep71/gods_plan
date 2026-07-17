@@ -114,4 +114,9 @@ class SocialProvider with ChangeNotifier {
     }
     return false;
   }
+
+  void clear() {
+    _contacts = [];
+    notifyListeners();
+  }
 }
