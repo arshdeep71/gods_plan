@@ -461,7 +461,9 @@ class TaskProvider extends ChangeNotifier {
       };
       
       print("STEP 7");
-      _completions.add(completion);
+      final temp = List<Map<String, dynamic>>.from(_completions);
+      temp.add(completion);
+      _completions = temp;
       
       print("STEP 8");
       notifyListeners();
