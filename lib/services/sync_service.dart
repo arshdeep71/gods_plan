@@ -47,6 +47,9 @@ class SyncService {
       try {
         if (item.actionType == 'INSERT' || item.actionType == 'UPDATE') {
           if (item.payload != null) {
+            print("AUTH UID = ${_supabase.auth.currentUser?.id}");
+            print("PAYLOAD USER_ID = ${item.payload?['user_id']}");
+            print(item.payload);
             await _supabase.from(item.tableName).upsert(item.payload!);
           }
         } else if (item.actionType == 'DELETE') {
