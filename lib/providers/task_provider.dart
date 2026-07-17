@@ -418,6 +418,7 @@ class TaskProvider extends ChangeNotifier {
 
   // Toggle completion status of a task for a specific date
   Future<void> toggleTaskCompletion(Task task, {DateTime? date}) async {
+    try {
     final targetDate = date ?? DateTime.now();
     final formattedDate = "${targetDate.year}-${targetDate.month.toString().padLeft(2, '0')}-${targetDate.day.toString().padLeft(2, '0')}";
     
@@ -492,7 +493,14 @@ class TaskProvider extends ChangeNotifier {
       _completions = await _dbService.getLocalTaskCompletions(task.userId);
       notifyListeners();
     });
-  }
+  }catch (e, stack) {
+  print("=================================");
+  print("TOGGLE TASK ERROR");
+  print("Type: ${e.runtimeType}");
+  print("Error: $e");
+  print(stack);
+  rethrow;
+}}
 
   // Edit task details
   Future<void> updateTask({
