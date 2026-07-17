@@ -426,13 +426,19 @@ class TaskProvider extends ChangeNotifier {
     final wasSuccessful = getDayStreakStatus(targetDate, userId: task.userId) == DayStreakStatus.perfect || 
                          getDayStreakStatus(targetDate, userId: task.userId) == DayStreakStatus.successful;
 
+    print("STEP 1");
     final bool isCurrentlyCompleted = _completions.any((c) => c['task_id'] == task.id && c['completed_date'] == formattedDate);
 
+    print("STEP 2");
+
     if (isCurrentlyCompleted) {
-      // Remove completion
+      print("STEP 3");
       _completions.removeWhere((c) => c['task_id'] == task.id && c['completed_date'] == formattedDate);
+      
+      print("STEP 4");
       notifyListeners();
       
+      print("STEP 5");
       await _dbService.deleteLocalTaskCompletion(task.id, formattedDate);
       
       // Queue delete mutation
@@ -441,6 +447,7 @@ class TaskProvider extends ChangeNotifier {
         tableName: 'task_completions',
         recordId: '${task.id}_$formattedDate', // Using composite key conceptually
       );
+      print("STEP 6");
       await _dbService.queueMutation(syncItem);
     } else {
       // Add completion
@@ -453,9 +460,13 @@ class TaskProvider extends ChangeNotifier {
         'created_at': DateTime.now().toUtc().toIso8601String(),
       };
       
+      print("STEP 7");
       _completions.add(completion);
+      
+      print("STEP 8");
       notifyListeners();
       
+      print("STEP 9");
       await _dbService.upsertLocalTaskCompletion(completion);
       
       // Queue insert mutation
@@ -465,6 +476,7 @@ class TaskProvider extends ChangeNotifier {
         recordId: completionId,
         payload: completion,
       );
+      print("STEP 10");
       await _dbService.queueMutation(syncItem);
     }
 
