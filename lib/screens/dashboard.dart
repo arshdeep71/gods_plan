@@ -832,7 +832,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
     
     for (int i = 0; i < 7; i++) {
       final checkDate = startOfWeek.add(Duration(days: i));
-      final dateString = "${checkDate.year}-${checkDate.month.toString().padLeft(2, '0')}-${checkDate.day.toString().padLeft(2, '0')}";
       
       final activeForDay = taskProvider.getActiveTasksForDate(checkDate);
       final completedForDay = taskProvider.getCompletedTasksForDate(checkDate);
@@ -866,22 +865,55 @@ class _DashboardScreenState extends State<DashboardScreen> {
     }
 
     return SingleChildScrollView(
-      padding: const EdgeInsets.only(left: 24.0, right: 24.0, top: 40.0, bottom: 120.0),
+      padding: const EdgeInsets.only(left: 20.0, right: 20.0, top: 40.0, bottom: 120.0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // Good Morning Header
+          // Good Evening Header
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                "$greeting,\n$username",
-                style: const TextStyle(
-                  color: AppColors.textPrimary,
-                  fontSize: 28,
-                  fontWeight: FontWeight.bold,
-                  height: 1.2,
-                ),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    "$greeting,",
+                    style: const TextStyle(
+                      color: AppColors.textSecondary,
+                      fontSize: 15,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Row(
+                    children: [
+                      Text(
+                        "$username's",
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 28,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(width: 4),
+                      const Text(
+                        "✦",
+                        style: TextStyle(
+                          color: Color(0xFFF72585),
+                          fontSize: 22,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+                  const Text(
+                    "Discipline today, freedom tomorrow.",
+                    style: TextStyle(
+                      color: AppColors.textSecondary,
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
               ),
               GestureDetector(
                 onTap: () {
@@ -892,124 +924,348 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     );
                   }
                 },
-                child: Container(
-                  width: 48,
-                  height: 48,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    border: Border.all(color: AppColors.primary, width: 2),
-                    gradient: AppColors.primaryGradient,
-                  ),
-                  child: Center(
-                    child: Text(
-                      username.isNotEmpty ? username[0].toUpperCase() : 'U',
-                      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 20),
+                child: Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    Container(
+                      width: 48,
+                      height: 48,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        border: Border.all(color: const Color(0xFFF72585), width: 2),
+                        boxShadow: [
+                          BoxShadow(
+                            color: const Color(0xFFF72585).withOpacity(0.3),
+                            blurRadius: 10,
+                            spreadRadius: 1,
+                          ),
+                        ],
+                        color: const Color(0xFF101012),
+                      ),
+                      child: Center(
+                        child: Text(
+                          username.isNotEmpty ? username[0].toUpperCase() : 'A',
+                          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 20),
+                        ),
+                      ),
                     ),
+                    Positioned(
+                      top: 0,
+                      right: 0,
+                      child: Container(
+                        width: 8,
+                        height: 8,
+                        decoration: const BoxDecoration(
+                          color: Color(0xFFF72585),
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 24),
+
+          // Current Week Banner Card
+          Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: const Color(0xFF1C1C1E).withOpacity(0.6),
+              borderRadius: BorderRadius.circular(24),
+              border: Border.all(color: Colors.white.withOpacity(0.05)),
+            ),
+            child: Row(
+              children: [
+                // Circular progress ring
+                Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    SizedBox(
+                      width: 72,
+                      height: 72,
+                      child: CircularProgressIndicator(
+                        value: totalWeekly > 0 ? (weeklyCompleted / totalWeekly) : 0.0,
+                        strokeWidth: 6,
+                        backgroundColor: Colors.white.withOpacity(0.08),
+                        valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFFF72585)),
+                      ),
+                    ),
+                    Text(
+                      "$weeklyProgress%",
+                      style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+                    ),
+                  ],
+                ),
+                const SizedBox(width: 16),
+                // Title & subtitle
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        "Current Week",
+                        style: TextStyle(color: AppColors.textSecondary, fontSize: 12),
+                      ),
+                      const SizedBox(height: 4),
+                      const Text(
+                        "Progress",
+                        style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold),
+                      ),
+                      const SizedBox(height: 8),
+                      const Text(
+                        "Stay consistent and\nmake it count.",
+                        style: TextStyle(color: AppColors.textSecondary, fontSize: 11, height: 1.3),
+                      ),
+                    ],
+                  ),
+                ),
+                // Mini bar chart
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Text(
+                      weekString,
+                      style: const TextStyle(color: AppColors.textSecondary, fontSize: 11, fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(height: 16),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: List.generate(7, (index) {
+                        final dayDate = startOfWeek.add(Duration(days: index));
+                        final completedForDay = taskProvider.getCompletedTasksForDate(dayDate);
+                        final activeForDay = taskProvider.getActiveTasksForDate(dayDate);
+                        final totalForDay = completedForDay.length + activeForDay.length;
+                        final isCompleted = totalForDay > 0 && completedForDay.length == totalForDay;
+                        
+                        double heightFraction = 0.2;
+                        if (totalForDay > 0) {
+                          heightFraction = (completedForDay.length / totalForDay).clamp(0.2, 1.0);
+                        }
+                        final dayName = ['M', 'T', 'W', 'T', 'F', 'S', 'S'][index];
+                        return Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 3),
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.end,
+                            children: [
+                              Container(
+                                width: 6,
+                                height: 40 * heightFraction,
+                                decoration: BoxDecoration(
+                                  color: isCompleted ? const Color(0xFFF72585) : Colors.white.withOpacity(0.12),
+                                  borderRadius: BorderRadius.circular(3),
+                                ),
+                              ),
+                              const SizedBox(height: 6),
+                              Text(
+                                dayName,
+                                style: const TextStyle(color: AppColors.textSecondary, fontSize: 9, fontWeight: FontWeight.bold),
+                              ),
+                            ],
+                          ),
+                        );
+                      }),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 24),
+
+          // "Today" Section Header
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text(
+                "Today",
+                style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold),
+              ),
+              GestureDetector(
+                onTap: goToTodayTasks,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.08),
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Row(
+                    children: [
+                      const Text(
+                        "View all",
+                        style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
+                      ),
+                      const SizedBox(width: 4),
+                      Icon(Icons.arrow_forward_rounded, color: Colors.white.withOpacity(0.8), size: 14),
+                    ],
                   ),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 40),
+          const SizedBox(height: 16),
 
-          // Current Week Banner
-          Container(
-            padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 20),
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: [Color(0xFF2C2C2E), Color(0xFF1C1C1E)],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
+          // Today's Tasks Glowing Gradient Card
+          GestureDetector(
+            onTap: goToTodayTasks,
+            child: Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: [Color(0xFF250C1B), Color(0xFF0E040A)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                borderRadius: BorderRadius.circular(24),
+                border: Border.all(color: const Color(0xFFF72585).withOpacity(0.15)),
               ),
-              borderRadius: BorderRadius.circular(24),
-              border: Border.all(color: AppColors.border),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.4),
-                  blurRadius: 15,
-                  offset: const Offset(0, 8),
-                )
-              ],
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const Text(
-                      "Current Week",
-                      style: TextStyle(color: AppColors.textSecondary, fontSize: 14, fontWeight: FontWeight.w600),
+              child: Stack(
+                children: [
+                  // Crescent moon glow
+                  Positioned(
+                    right: -10,
+                    bottom: -10,
+                    child: Container(
+                      width: 100,
+                      height: 100,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(
+                            color: const Color(0xFFF72585).withOpacity(0.12),
+                            blurRadius: 30,
+                            spreadRadius: 10,
+                          )
+                        ],
+                      ),
                     ),
-                    Text(
-                      weekString,
-                      style: const TextStyle(color: AppColors.textPrimary, fontSize: 14, fontWeight: FontWeight.bold),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 24),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      "Progress",
-                      style: TextStyle(color: Colors.white.withOpacity(0.9), fontSize: 24, fontWeight: FontWeight.bold),
-                    ),
-                    Text(
-                      "$weeklyProgress%",
-                      style: const TextStyle(color: AppColors.primary, fontSize: 28, fontWeight: FontWeight.w900),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(8),
-                  child: LinearProgressIndicator(
-                    value: totalWeekly > 0 ? (weeklyCompleted / totalWeekly) : 0.0,
-                    minHeight: 12,
-                    backgroundColor: Colors.white.withOpacity(0.1),
-                    valueColor: const AlwaysStoppedAnimation<Color>(AppColors.primary),
                   ),
-                ),
-              ],
+                  // Crescent moon
+                  Positioned(
+                    right: 24,
+                    top: 10,
+                    child: Stack(
+                      children: [
+                        Container(
+                          width: 50,
+                          height: 50,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: Colors.transparent,
+                            boxShadow: [
+                              BoxShadow(
+                                color: const Color(0xFFFFB7B2).withOpacity(0.35),
+                                blurRadius: 15,
+                                spreadRadius: 2,
+                              ),
+                            ],
+                          ),
+                        ),
+                        ClipPath(
+                          clipper: CrescentClipper(),
+                          child: Container(
+                            width: 50,
+                            height: 50,
+                            color: const Color(0xFFFFD1D1),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  // Content
+                  Row(
+                    children: [
+                      Container(
+                        width: 48,
+                        height: 48,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          border: Border.all(color: const Color(0xFFF72585), width: 2),
+                          color: const Color(0xFFF72585).withOpacity(0.1),
+                        ),
+                        child: const Icon(Icons.check, color: Color(0xFFF72585), size: 24),
+                      ),
+                      const SizedBox(width: 20),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            "Today's Tasks",
+                            style: TextStyle(color: AppColors.textSecondary, fontSize: 12),
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            "$completedToday / $totalToday",
+                            style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold),
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            completedToday == totalToday && totalToday > 0 ? "All tasks completed 🎉" : "Keep moving forward!",
+                            style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w500),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ],
+              ),
             ),
           ),
           const SizedBox(height: 20),
 
-          // Stats Grid
+          // Stats Grid (3 columns, 2 rows)
           Row(
             children: [
               Expanded(
-                child: GestureDetector(
-                  onTap: goToTodayTasks,
-                  child: _buildStatCard("Today's Tasks", "$completedToday / $totalToday", Icons.check_circle_outline, AppColors.primary),
+                child: _buildExactStatCard(
+                  title: "Today's Progress",
+                  value: "$todayProgress%",
+                  description: "● On track",
+                  icon: Icons.trending_up_rounded,
+                  iconColor: const Color(0xFF06D6A0),
+                  descColor: const Color(0xFF06D6A0),
                 ),
               ),
-              const SizedBox(width: 16),
+              const SizedBox(width: 12),
               Expanded(
-                child: _buildStatCard("Today's Progress", "$todayProgress%", Icons.trending_up, Colors.greenAccent),
+                child: _buildExactStatCard(
+                  title: "Weekly Completed",
+                  value: "$weeklyCompleted",
+                  description: "Tasks this week",
+                  icon: Icons.check_circle_outline_rounded,
+                  iconColor: const Color(0xFF3A86F0),
+                  descColor: AppColors.textSecondary,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _buildExactStatCard(
+                  title: "Pending",
+                  value: "$weeklyPending",
+                  description: "Tasks pending",
+                  icon: Icons.hourglass_empty_rounded,
+                  iconColor: const Color(0xFFFFB703),
+                  descColor: AppColors.textSecondary,
+                ),
               ),
             ],
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 12),
           Row(
             children: [
               Expanded(
-                child: _buildStatCard("Weekly Completed", "$weeklyCompleted", Icons.done_all, Colors.blueAccent),
+                child: _buildExactStatCard(
+                  title: "Missed",
+                  value: "$weeklyMissed",
+                  description: "Tasks missed",
+                  icon: Icons.cancel_outlined,
+                  iconColor: const Color(0xFFEF476F),
+                  descColor: AppColors.textSecondary,
+                ),
               ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: _buildStatCard("Pending", "$weeklyPending", Icons.hourglass_empty, Colors.orangeAccent),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          Row(
-            children: [
-              Expanded(
-                child: _buildStatCard("Missed", "$weeklyMissed", Icons.close, Colors.redAccent),
-              ),
-              const SizedBox(width: 16),
+              const SizedBox(width: 12),
               Expanded(
                 child: GestureDetector(
                   onTap: () {
@@ -1018,37 +1274,158 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       MaterialPageRoute(builder: (_) => const StreakView()),
                     );
                   },
-                  child: _buildStatCard("Current Streak", "$currentStreak Days", Icons.local_fire_department, Colors.orange),
+                  child: _buildExactStatCard(
+                    title: "Current Streak",
+                    value: "$currentStreak Days",
+                    description: "Keep it going!",
+                    icon: Icons.local_fire_department_rounded,
+                    iconColor: const Color(0xFF9D4EDD),
+                    descColor: const Color(0xFFF72585),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _buildExactStatCard(
+                  title: "Best Streak",
+                  value: "${taskProvider.settingsBox.get('longest_streak', defaultValue: 0)}",
+                  description: "Personal best",
+                  icon: Icons.emoji_events_rounded,
+                  iconColor: const Color(0xFFFFD166),
+                  descColor: AppColors.textSecondary,
                 ),
               ),
             ],
+          ),
+          const SizedBox(height: 20),
+
+          // Bottom Quote Card
+          Container(
+            height: 90,
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                colors: [Color(0xFF180E1C), Color(0xFF0F0612)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.circular(24),
+              border: Border.all(color: Colors.white.withOpacity(0.05)),
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(24),
+              child: Stack(
+                children: [
+                  // Mountain Peak drawing
+                  Positioned.fill(
+                    child: CustomPaint(
+                      painter: MountainPainter(),
+                    ),
+                  ),
+                  // Flag
+                  Positioned(
+                    right: 48,
+                    bottom: 30,
+                    child: Column(
+                      children: [
+                        Row(
+                          children: [
+                            Container(
+                              width: 10,
+                              height: 7,
+                              color: const Color(0xFFF72585),
+                            ),
+                            const SizedBox(width: 1),
+                          ],
+                        ),
+                        Container(
+                          width: 1.5,
+                          height: 12,
+                          color: const Color(0xFFF72585),
+                        ),
+                      ],
+                    ),
+                  ),
+                  // Quote text
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          "“",
+                          style: TextStyle(color: Color(0xFFF72585), fontSize: 36, fontWeight: FontWeight.bold, height: 0.8),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: const [
+                              Text(
+                                "Discipline today,",
+                                style: TextStyle(color: Colors.white, fontSize: 13, fontStyle: FontStyle.italic, fontWeight: FontWeight.w600),
+                              ),
+                              SizedBox(height: 2),
+                              Text(
+                                "freedom tomorrow.",
+                                style: TextStyle(color: Colors.white, fontSize: 13, fontStyle: FontStyle.italic, fontWeight: FontWeight.w600),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildStatCard(String title, String value, IconData icon, Color color) {
+  Widget _buildExactStatCard({
+    required String title,
+    required String value,
+    required String description,
+    required IconData icon,
+    required Color iconColor,
+    required Color descColor,
+  }) {
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: const Color(0xFF1C1C1E),
+        color: const Color(0xFF1C1C1E).withOpacity(0.6),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.white.withOpacity(0.05)),
+        border: Border.all(color: Colors.white.withOpacity(0.04)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, color: color, size: 28),
-          const SizedBox(height: 16),
+          Container(
+            padding: const EdgeInsets.all(6),
+            decoration: BoxDecoration(
+              color: iconColor.withOpacity(0.1),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(icon, color: iconColor, size: 18),
+          ),
+          const SizedBox(height: 12),
           Text(
-            value,
-            style: const TextStyle(color: AppColors.textPrimary, fontSize: 22, fontWeight: FontWeight.bold),
+            title,
+            style: const TextStyle(color: AppColors.textSecondary, fontSize: 11, fontWeight: FontWeight.w500),
           ),
           const SizedBox(height: 4),
           Text(
-            title,
-            style: const TextStyle(color: AppColors.textSecondary, fontSize: 13, fontWeight: FontWeight.w500),
+            value,
+            style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            description,
+            style: TextStyle(color: descColor, fontSize: 10, fontWeight: FontWeight.w500),
+            overflow: TextOverflow.ellipsis,
           ),
         ],
       ),
@@ -1315,29 +1692,29 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   _buildNavItem(0, Icons.grid_view_rounded, "Summary"),
                   _buildNavItem(1, Icons.assignment_turned_in_rounded, "Tasks"),
                   
-                  // Central plus log item
+                  // Central pink plus log button
                   GestureDetector(
                     onTap: _showQuickLogSheet,
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            Icons.add_rounded,
-                            color: Colors.white.withOpacity(0.8),
-                            size: 24,
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            "Log",
-                            style: TextStyle(
-                              color: Colors.white.withOpacity(0.8),
-                              fontSize: 10,
-                              fontWeight: FontWeight.bold,
-                            ),
+                      width: 48,
+                      height: 48,
+                      decoration: const BoxDecoration(
+                        shape: BoxShape.circle,
+                        gradient: AppColors.primaryGradient,
+                        boxShadow: [
+                          BoxShadow(
+                            color: Color(0xFFFF004F),
+                            blurRadius: 8,
+                            spreadRadius: 1,
                           ),
                         ],
+                      ),
+                      child: const Center(
+                        child: Icon(
+                          Icons.add_rounded,
+                          color: Colors.white,
+                          size: 28,
+                        ),
                       ),
                     ),
                   ),
@@ -1375,14 +1752,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
           children: [
             Icon(
               icon,
-              color: isSelected ? AppColors.accent : Colors.white,
+              color: isSelected ? const Color(0xFFF72585) : Colors.white.withOpacity(0.6),
               size: 24,
             ),
             const SizedBox(height: 4),
             Text(
               label,
               style: TextStyle(
-                color: isSelected ? AppColors.accent : Colors.white,
+                color: isSelected ? const Color(0xFFF72585) : Colors.white.withOpacity(0.6),
                 fontSize: 10,
                 fontWeight: FontWeight.bold,
               ),
@@ -1393,4 +1770,59 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
+}
+
+class CrescentClipper extends CustomClipper<Path> {
+  @override
+  Path getClip(Size size) {
+    var path = Path();
+    path.addOval(Rect.fromLTRB(0, 0, size.width, size.height));
+    var path2 = Path();
+    path2.addOval(Rect.fromLTRB(-size.width * 0.4, -size.height * 0.4, size.width * 0.8, size.height * 0.8));
+    return Path.combine(PathOperation.difference, path, path2);
+  }
+
+  @override
+  bool shouldReclip(CustomClipper<Path> oldClipper) => false;
+}
+
+class MountainPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..shader = LinearGradient(
+        colors: [
+          const Color(0xFFF72585).withOpacity(0.01),
+          const Color(0xFFF72585).withOpacity(0.18),
+        ],
+        begin: Alignment.topCenter,
+        end: Alignment.bottomCenter,
+      ).createShader(Rect.fromLTRB(0, 0, size.width, size.height));
+
+    final path = Path();
+    path.moveTo(0, size.height);
+    path.lineTo(size.width * 0.3, size.height * 0.85);
+    path.lineTo(size.width * 0.5, size.height * 0.95);
+    path.lineTo(size.width * 0.85, size.height * 0.45);
+    path.lineTo(size.width, size.height * 0.7);
+    path.lineTo(size.width, size.height);
+    path.close();
+
+    canvas.drawPath(path, paint);
+
+    final linePaint = Paint()
+      ..color = const Color(0xFFF72585).withOpacity(0.35)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.5;
+
+    final pathLines = Path();
+    pathLines.moveTo(size.width * 0.5, size.height * 0.95);
+    pathLines.lineTo(size.width * 0.85, size.height * 0.45);
+    pathLines.lineTo(size.width, size.height * 0.7);
+
+    canvas.drawPath(pathLines, linePaint);
+  }
+
+  @override
+  bool shouldRepaint(CustomPainter oldDelegate) => false;
 }
