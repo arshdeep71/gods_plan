@@ -1288,7 +1288,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
               Expanded(
                 child: _buildExactStatCard(
                   title: "Best Streak",
-                  value: "${taskProvider.settingsBox.get('longest_streak', defaultValue: 0)}",
+                  value: "${_dbService.settingsBox.get('longest_streak', defaultValue: 0)}",
                   description: "Personal best",
                   icon: Icons.emoji_events_rounded,
                   iconColor: const Color(0xFFFFD166),
