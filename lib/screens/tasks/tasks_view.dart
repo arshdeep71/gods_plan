@@ -189,6 +189,7 @@ Notes: [Optional multiline details, or leave empty]
 
 3. Do not include any chat conversation, introductory remarks, or concluding comments.
 4. Return ONLY the raw document text. Do not wrap the document in triple backticks or any Markdown code fence.
+5. The generated text will be saved into a file with a `.gplan` or `.md` extension to be imported into the app.
 
 User request/schedule to plan:
 """;
