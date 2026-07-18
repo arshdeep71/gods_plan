@@ -7,6 +7,7 @@ import '../../utils/colors.dart';
 import 'dart:convert';
 import 'package:file_picker/file_picker.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:flutter/services.dart';
 import '../../services/ai_import_service.dart';
 
 class TasksView extends StatefulWidget {
@@ -166,7 +167,50 @@ class _TasksViewState extends State<TasksView> {
     );
   }
 
+  static const String _aiPlannerPrompt = """
+You are the AI Planner for "God's Plan", an offline-first productivity and task tracking application.
+Your goal is to turn the user's natural language schedule, list of tasks, or daily description into a structured, validated import file.
+
+Follow these strict rules when generating the plan:
+1. The first line of the document must be exactly:
+# God's Plan Import v1
+
+2. For each task, output a structured block exactly like this (do not change headers or omit keys):
+## Task
+Title: [Short descriptive name of the task]
+Date: [YYYY-MM-DD format (must be valid calendar date)]
+Start: [HH:mm format (24-hour, e.g. 08:30 or 15:00)]
+End: [HH:mm format (24-hour, e.g. 09:30 or 16:00, must be later than Start time)]
+Repeat: [None / Daily / Weekly / Monthly (case-insensitive)]
+Category: [Work / Health / Personal / Learning / Social (choose one)]
+Reminder: [HH:mm format / None]
+Notes: [Optional multiline details, or leave empty]
+---
+
+3. Do not include any chat conversation, introductory remarks, or concluding comments.
+4. Return ONLY the raw document text. Do not wrap the document in triple backticks or any Markdown code fence.
+
+User request/schedule to plan:
+""";
+
   Future<void> _launchAIPlanner() async {
+    // Copy prompt to clipboard
+    try {
+      await Clipboard.setData(const ClipboardData(text: _aiPlannerPrompt));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              "Prompt copied. Paste it into ChatGPT and describe your schedule.",
+              style: TextStyle(color: Colors.white),
+            ),
+            backgroundColor: Color(0xFF1C1C1E),
+            duration: Duration(seconds: 4),
+          ),
+        );
+      }
+    } catch (_) {}
+
     final appUri = Uri.parse("chatgpt://");
     final webUri = Uri.parse("https://chatgpt.com/");
     
