@@ -173,18 +173,15 @@ class _TasksViewState extends State<TasksView> {
 You are the AI Planner for "God's Plan", an offline-first productivity and task tracking application.
 Your goal is to turn the user's natural language schedule, list of tasks, or daily description into a structured task import file.
 
-The user is planning tasks specifically for: $selectedDateStr
-Every task you generate MUST use this exact date. Do not generate tasks for any other day.
+The user is planning tasks specifically for: $selectedDateStr.
 
 Follow these strict rules when generating the plan:
 1. The first line of the document must be exactly:
 # God's Plan Import v1
 
-2. The second line of the document must be exactly:
-Date: $selectedDateStr
+2. Do not output any dates or other fields.
 
-3. For each task, output a structured block exactly like this (do not change headers or omit keys):
-Task:
+3. For each task, output a structured block exactly like this:
 Title: [Short descriptive name of the task]
 Start: [HH:mm format (24-hour, e.g. 08:30 or 15:00)]
 End: [HH:mm format (24-hour, e.g. 09:30 or 16:00, must be later than Start time)]
@@ -192,7 +189,6 @@ Notes: [Optional details, or leave empty]
 
 4. Separate each task block with a line containing exactly three dashes: ---
 For example:
-Task:
 Title: Gym
 Start: 06:00
 End: 07:00
@@ -200,7 +196,6 @@ Notes: Morning workout
 
 ---
 
-Task:
 Title: Study DSA
 Start: 19:00
 End: 21:00
@@ -253,6 +248,7 @@ User request/schedule to plan:
   }
 
   Future<void> _importAIPlan(BuildContext context) async {
+    debugPrint("AI Import: Started");
     try {
       final result = await FilePicker.platform.pickFiles(
         type: FileType.custom,
@@ -261,32 +257,43 @@ User request/schedule to plan:
       );
 
       if (result == null || result.files.isEmpty) {
+        debugPrint("AI Import: Canceled by user");
         return; // User canceled
       }
 
       final file = result.files.first;
+      debugPrint("AI Import: Selected file: ${file.name} (size: ${file.size} bytes)");
       final bytes = file.bytes;
       if (bytes == null) {
+        debugPrint("AI Import: Error - Could not read file bytes");
         _showErrorDialog(context, "Could not read file data.");
         return;
       }
 
       final content = utf8.decode(bytes);
+      debugPrint("AI Import: File content loaded. Characters: ${content.length}");
       if (content.isEmpty) {
+        debugPrint("AI Import: Error - File content is empty");
         _showErrorDialog(context, "The imported file is empty.");
         return;
       }
 
+      final selectedDateStr = "${_selectedDate.year}-${_selectedDate.month.toString().padLeft(2, '0')}-${_selectedDate.day.toString().padLeft(2, '0')}";
+      debugPrint("AI Import: Current selected date context: $selectedDateStr");
+
       // Parse
       List<ParsedTask> parsedTasks;
       try {
-        parsedTasks = AiImportService.parseGPlanContent(content);
+        parsedTasks = AiImportService.parseGPlanContent(content, selectedDateStr);
+        debugPrint("AI Import: Parser found ${parsedTasks.length} tasks");
       } catch (e) {
+        debugPrint("AI Import: Parser Error: $e");
         _showErrorDialog(context, e.toString().replaceFirst("Exception: ", ""));
         return;
       }
 
       if (parsedTasks.isEmpty) {
+        debugPrint("AI Import: Error - Parser returned 0 tasks");
         _showErrorDialog(context, "No tasks found in the plan file.");
         return;
       }
@@ -295,15 +302,18 @@ User request/schedule to plan:
       for (int i = 0; i < parsedTasks.length; i++) {
         final error = AiImportService.validateParsedTask(parsedTasks[i], i);
         if (error != null) {
+          debugPrint("AI Import: Validation failed for task index $i: $error");
           _showErrorDialog(context, error);
           return;
         }
       }
+      debugPrint("AI Import: Validation successful for all tasks");
 
       // Show Preview Screen
       _showImportPreviewSheet(context, parsedTasks);
 
     } catch (e) {
+      debugPrint("AI Import: Unexpected Error: $e");
       _showErrorDialog(context, "Failed to read or parse file: ${e.toString()}");
     }
   }
@@ -444,9 +454,13 @@ User request/schedule to plan:
   }
 
   Future<void> _processImport(BuildContext context, List<ParsedTask> parsedTasks) async {
+    debugPrint("AI Import: Processing import for ${parsedTasks.length} tasks");
     final taskProvider = Provider.of<TaskProvider>(context, listen: false);
     final user = Provider.of<AuthProvider>(context, listen: false).user;
-    if (user == null) return;
+    if (user == null) {
+      debugPrint("AI Import: Error - No authenticated user found");
+      return;
+    }
 
     int importedCount = 0;
     int skippedCount = 0;
@@ -463,7 +477,9 @@ User request/schedule to plan:
         }
 
         if (duplicate != null) {
+          debugPrint("AI Import: Duplicate found for task '${importedTask.title}'");
           final choice = await _showConflictDialog(context, importedTask);
+          debugPrint("AI Import: User conflict choice: $choice");
           if (choice == 'skip' || choice == null) {
             skippedCount++;
             continue;
@@ -476,15 +492,19 @@ User request/schedule to plan:
             importedCount++;
           }
         } else {
+          debugPrint("AI Import: No duplicate for task '${importedTask.title}', inserting...");
           await _insertImportedTask(taskProvider, importedTask, user.id);
           importedCount++;
         }
       }
 
+      debugPrint("AI Import: Import processing complete. Imported: $importedCount, Skipped: $skippedCount");
+
       if (context.mounted) {
         _showSuccessSummaryDialog(context, importedCount, skippedCount);
       }
     } catch (e) {
+      debugPrint("AI Import: Exception in _processImport: $e");
       if (context.mounted) {
         _showErrorDialog(context, "Error during import: ${e.toString()}");
       }
@@ -588,6 +608,7 @@ User request/schedule to plan:
       formattedDueTime = "$displayHour:${minute.toString().padLeft(2, '0')} $amPm";
     }
 
+    debugPrint("AI Import: Inserting task '${imported.title}' for date ${imported.date} at $formattedDueTime");
     await taskProvider.addTask(
       userId: userId,
       title: imported.title.trim(),
@@ -596,6 +617,7 @@ User request/schedule to plan:
       dueTime: formattedDueTime,
       scheduledDate: imported.date,
     );
+    debugPrint("AI Import: Successfully inserted task '${imported.title}'");
   }
 
   void _showTaskOptionsSheet(Task task) {

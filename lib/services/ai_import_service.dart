@@ -19,8 +19,8 @@ class ParsedTask {
 
 class AiImportService {
   /// Parses .gplan or .md content containing task import instructions.
-  /// Throws descriptive exception if the header or date is invalid.
-  static List<ParsedTask> parseGPlanContent(String content) {
+  /// Throws descriptive exception if the header is invalid.
+  static List<ParsedTask> parseGPlanContent(String content, String selectedDate) {
     // Unwrapping code fence blocks if any
     if (content.contains("```")) {
       content = content.replaceAll(RegExp(r'^```[a-zA-Z]*\n', multiLine: true), '');
@@ -30,19 +30,12 @@ class AiImportService {
 
     final lines = content.split('\n').map((l) => l.trim()).toList();
     
-    // Find version header and date
+    // Find version header
     String firstLine = '';
-    String dateLine = '';
-    
     for (var line in lines) {
-      if (line.isEmpty) continue;
-      if (firstLine.isEmpty) {
+      if (line.isNotEmpty) {
         firstLine = line;
-      } else if (dateLine.isEmpty) {
-        if (line.startsWith('Date:')) {
-          dateLine = line;
-          break;
-        }
+        break;
       }
     }
 
@@ -56,17 +49,12 @@ class AiImportService {
       throw Exception("Unsupported import version: v$version");
     }
 
-    if (dateLine.isEmpty) {
-      throw Exception("Missing Date in the plan file header.");
-    }
-    final planDate = dateLine.substring('Date:'.length).trim();
-
     final tasks = <ParsedTask>[];
     
-    // Split the content by "Task:"
-    final taskBlocks = content.split('Task:');
-    for (int i = 1; i < taskBlocks.length; i++) {
-      final block = taskBlocks[i];
+    // Split content by dashes separator
+    final blocks = content.split(RegExp(r'\n\s*---\s*\n|\n\s*---|\s*---\s*\n'));
+    
+    for (var block in blocks) {
       final blockLines = block.split('\n').map((l) => l.trim()).toList();
       
       String title = '';
@@ -77,23 +65,28 @@ class AiImportService {
 
       for (var line in blockLines) {
         if (line.isEmpty) continue;
-        if (line == '---') break; // end of task block
+        if (line.startsWith('#')) continue; // Skip header comments or titles if present in the block
+        if (line == '---') continue;
 
-        if (line.startsWith('Title:')) {
-          title = line.substring('Title:'.length).trim();
+        final lowerLine = line.toLowerCase();
+        if (lowerLine.startsWith('title:')) {
+          title = line.substring('title:'.length).trim();
           parsingNotes = false;
-        } else if (line.startsWith('Start:')) {
-          start = line.substring('Start:'.length).trim();
+        } else if (lowerLine.startsWith('start:')) {
+          start = line.substring('start:'.length).trim();
           parsingNotes = false;
-        } else if (line.startsWith('End:')) {
-          end = line.substring('End:'.length).trim();
+        } else if (lowerLine.startsWith('end:')) {
+          end = line.substring('end:'.length).trim();
           parsingNotes = false;
-        } else if (line.startsWith('Notes:')) {
+        } else if (lowerLine.startsWith('notes:')) {
           parsingNotes = true;
-          final restOfLine = line.substring('Notes:'.length).trim();
+          final restOfLine = line.substring('notes:'.length).trim();
           if (restOfLine.isNotEmpty) {
             notesBuffer.write(restOfLine);
           }
+        } else if (lowerLine.startsWith('task:')) {
+          // Just ignore the 'Task:' prefix line
+          parsingNotes = false;
         } else {
           if (parsingNotes) {
             if (notesBuffer.isNotEmpty) notesBuffer.write('\n');
@@ -102,11 +95,11 @@ class AiImportService {
         }
       }
 
-      // If we got a block, let's add it
+      // If we got a block with at least title or times, let's add it
       if (title.isNotEmpty || start.isNotEmpty || end.isNotEmpty) {
         tasks.add(ParsedTask(
           title: title,
-          date: planDate,
+          date: selectedDate,
           start: start,
           end: end,
           notes: notesBuffer.toString(),
