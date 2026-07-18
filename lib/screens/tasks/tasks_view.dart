@@ -55,8 +55,6 @@ class _TasksViewState extends State<TasksView> {
     );
   }
 
-  static const String _gptLink = "https://chatgpt.com/g/g-678a9c3b2e-gods-plan-planner";
-
   void _showPlusOptionsSheet(BuildContext context) {
     showModalBottomSheet(
       context: context,
@@ -169,11 +167,23 @@ class _TasksViewState extends State<TasksView> {
   }
 
   Future<void> _launchAIPlanner() async {
-    final url = Uri.parse(_gptLink);
-    if (await canLaunchUrl(url)) {
-      await launchUrl(url, mode: LaunchMode.externalApplication);
-    } else {
-      await launchUrl(url);
+    final appUri = Uri.parse("chatgpt://");
+    final webUri = Uri.parse("https://chatgpt.com/");
+    
+    try {
+      final launched = await launchUrl(
+        appUri,
+        mode: LaunchMode.externalNonBrowserApplication,
+      );
+      if (!launched) {
+        await launchUrl(webUri, mode: LaunchMode.externalApplication);
+      }
+    } catch (_) {
+      try {
+        await launchUrl(webUri, mode: LaunchMode.externalApplication);
+      } catch (_) {
+        await launchUrl(webUri);
+      }
     }
   }
 
