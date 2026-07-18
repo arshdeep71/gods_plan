@@ -6,9 +6,6 @@ class ParsedTask {
   final String date;
   final String start;
   final String end;
-  final String repeat;
-  final String category;
-  final String reminder;
   final String notes;
 
   ParsedTask({
@@ -16,16 +13,13 @@ class ParsedTask {
     required this.date,
     required this.start,
     required this.end,
-    required this.repeat,
-    required this.category,
-    required this.reminder,
     required this.notes,
   });
 }
 
 class AiImportService {
   /// Parses .gplan or .md content containing task import instructions.
-  /// Throws descriptive exception if the header is invalid.
+  /// Throws descriptive exception if the header or date is invalid.
   static List<ParsedTask> parseGPlanContent(String content) {
     // Unwrapping code fence blocks if any
     if (content.contains("```")) {
@@ -36,12 +30,19 @@ class AiImportService {
 
     final lines = content.split('\n').map((l) => l.trim()).toList();
     
-    // Find the first non-empty line
+    // Find version header and date
     String firstLine = '';
+    String dateLine = '';
+    
     for (var line in lines) {
-      if (line.isNotEmpty) {
+      if (line.isEmpty) continue;
+      if (firstLine.isEmpty) {
         firstLine = line;
-        break;
+      } else if (dateLine.isEmpty) {
+        if (line.startsWith('Date:')) {
+          dateLine = line;
+          break;
+        }
       }
     }
 
@@ -55,21 +56,22 @@ class AiImportService {
       throw Exception("Unsupported import version: v$version");
     }
 
+    if (dateLine.isEmpty) {
+      throw Exception("Missing Date in the plan file header.");
+    }
+    final planDate = dateLine.substring('Date:'.length).trim();
+
     final tasks = <ParsedTask>[];
     
-    // Split the content by "## Task"
-    final taskBlocks = content.split('## Task');
+    // Split the content by "Task:"
+    final taskBlocks = content.split('Task:');
     for (int i = 1; i < taskBlocks.length; i++) {
       final block = taskBlocks[i];
       final blockLines = block.split('\n').map((l) => l.trim()).toList();
       
       String title = '';
-      String date = '';
       String start = '';
       String end = '';
-      String repeat = '';
-      String category = '';
-      String reminder = '';
       StringBuffer notesBuffer = StringBuffer();
       bool parsingNotes = false;
 
@@ -80,23 +82,11 @@ class AiImportService {
         if (line.startsWith('Title:')) {
           title = line.substring('Title:'.length).trim();
           parsingNotes = false;
-        } else if (line.startsWith('Date:')) {
-          date = line.substring('Date:'.length).trim();
-          parsingNotes = false;
         } else if (line.startsWith('Start:')) {
           start = line.substring('Start:'.length).trim();
           parsingNotes = false;
         } else if (line.startsWith('End:')) {
           end = line.substring('End:'.length).trim();
-          parsingNotes = false;
-        } else if (line.startsWith('Repeat:')) {
-          repeat = line.substring('Repeat:'.length).trim();
-          parsingNotes = false;
-        } else if (line.startsWith('Category:')) {
-          category = line.substring('Category:'.length).trim();
-          parsingNotes = false;
-        } else if (line.startsWith('Reminder:')) {
-          reminder = line.substring('Reminder:'.length).trim();
           parsingNotes = false;
         } else if (line.startsWith('Notes:')) {
           parsingNotes = true;
@@ -112,16 +102,16 @@ class AiImportService {
         }
       }
 
-      tasks.add(ParsedTask(
-        title: title,
-        date: date,
-        start: start,
-        end: end,
-        repeat: repeat,
-        category: category,
-        reminder: reminder,
-        notes: notesBuffer.toString(),
-      ));
+      // If we got a block, let's add it
+      if (title.isNotEmpty || start.isNotEmpty || end.isNotEmpty) {
+        tasks.add(ParsedTask(
+          title: title,
+          date: planDate,
+          start: start,
+          end: end,
+          notes: notesBuffer.toString(),
+        ));
+      }
     }
     return tasks;
   }
@@ -172,16 +162,6 @@ class AiImportService {
       return "Task $taskNum\nInvalid Time Range\nEnd time (${task.end}) must be after start time (${task.start}).";
     }
 
-    // Repeat: supported values (None, Daily, Weekly, Monthly, Yearly)
-    final allowedRepeats = ['none', 'daily', 'weekly', 'monthly', 'yearly'];
-    if (!allowedRepeats.contains(task.repeat.toLowerCase())) {
-      return "Task $taskNum\nUnsupported Repeat\n${task.repeat}";
-    }
-
-    if (task.category.isEmpty) {
-      return "Task $taskNum\nInvalid Category\nCategory cannot be empty.";
-    }
-
     return null; // Valid!
   }
 
@@ -222,14 +202,8 @@ class AiImportService {
       return false;
     }
     
-    // Date matches
-    final importedIsRecurring = imported.repeat.toLowerCase() != 'none';
-    bool sameDate = false;
-    if (importedIsRecurring) {
-      sameDate = existing.isRecurring;
-    } else {
-      sameDate = !existing.isRecurring && existing.scheduledDate == imported.date;
-    }
+    // Date matches (AI Planner tasks are one-day only so they are non-recurring)
+    final sameDate = !existing.isRecurring && existing.scheduledDate == imported.date;
     if (!sameDate) return false;
     
     // Start time matches

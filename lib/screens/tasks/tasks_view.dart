@@ -167,37 +167,57 @@ class _TasksViewState extends State<TasksView> {
     );
   }
 
-  static const String _aiPlannerPrompt = """
+  Future<void> _launchAIPlanner() async {
+    final selectedDateStr = "${_selectedDate.year}-${_selectedDate.month.toString().padLeft(2, '0')}-${_selectedDate.day.toString().padLeft(2, '0')}";
+    final prompt = """
 You are the AI Planner for "God's Plan", an offline-first productivity and task tracking application.
-Your goal is to turn the user's natural language schedule, list of tasks, or daily description into a structured, validated import file.
+Your goal is to turn the user's natural language schedule, list of tasks, or daily description into a structured task import file.
+
+The user is planning tasks specifically for: $selectedDateStr
+Every task you generate MUST use this exact date. Do not generate tasks for any other day.
 
 Follow these strict rules when generating the plan:
 1. The first line of the document must be exactly:
 # God's Plan Import v1
 
-2. For each task, output a structured block exactly like this (do not change headers or omit keys):
-## Task
+2. The second line of the document must be exactly:
+Date: $selectedDateStr
+
+3. For each task, output a structured block exactly like this (do not change headers or omit keys):
+Task:
 Title: [Short descriptive name of the task]
-Date: [YYYY-MM-DD format (must be valid calendar date)]
 Start: [HH:mm format (24-hour, e.g. 08:30 or 15:00)]
 End: [HH:mm format (24-hour, e.g. 09:30 or 16:00, must be later than Start time)]
-Repeat: [None / Daily / Weekly / Monthly (case-insensitive)]
-Category: [Work / Health / Personal / Learning / Social (choose one)]
-Reminder: [HH:mm format / None]
-Notes: [Optional multiline details, or leave empty]
+Notes: [Optional details, or leave empty]
+
+4. Separate each task block with a line containing exactly three dashes: ---
+For example:
+Task:
+Title: Gym
+Start: 06:00
+End: 07:00
+Notes: Morning workout
+
 ---
 
-3. Do not include any chat conversation, introductory remarks, or concluding comments.
-4. Return ONLY the raw document text. Do not wrap the document in triple backticks or any Markdown code fence.
-5. The generated text will be saved into a file with a `.gplan` or `.md` extension to be imported into the app.
+Task:
+Title: Study DSA
+Start: 19:00
+End: 21:00
+Notes: Binary Trees
+
+---
+
+5. Do not include any chat conversation, introductory remarks, or concluding comments.
+6. Return ONLY the raw document text. Do not wrap the document in triple backticks or any Markdown code fence.
+7. The user will save this output text as a `.gplan` or `.md` file to import it into the app.
 
 User request/schedule to plan:
 """;
 
-  Future<void> _launchAIPlanner() async {
     // Copy prompt to clipboard
     try {
-      await Clipboard.setData(const ClipboardData(text: _aiPlannerPrompt));
+      await Clipboard.setData(ClipboardData(text: prompt));
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -372,7 +392,7 @@ User request/schedule to plan:
                         ),
                         title: Text(t.title, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
                         subtitle: Text(
-                          "${t.date}  •  ${t.start} - ${t.end}  •  ${t.category}",
+                          "${t.date}  •  ${t.start} - ${t.end}${t.notes.isNotEmpty ? '  •  ${t.notes}' : ''}",
                           style: const TextStyle(color: AppColors.textSecondary, fontSize: 12),
                         ),
                       );
@@ -558,11 +578,6 @@ User request/schedule to plan:
   }
 
   Future<void> _insertImportedTask(TaskProvider taskProvider, ParsedTask imported, String userId) async {
-    final isRecurring = imported.repeat.toLowerCase() != 'none';
-    final repeatType = imported.repeat.toLowerCase() == 'none'
-        ? 'never'
-        : imported.repeat.toLowerCase();
-
     final tImported = AiImportService.parseDueTime(imported.start);
     String? formattedDueTime;
     if (tImported != null) {
@@ -576,10 +591,10 @@ User request/schedule to plan:
     await taskProvider.addTask(
       userId: userId,
       title: imported.title.trim(),
-      isRecurring: isRecurring,
-      repeatType: repeatType,
+      isRecurring: false,
+      repeatType: 'never',
       dueTime: formattedDueTime,
-      scheduledDate: isRecurring ? null : imported.date,
+      scheduledDate: imported.date,
     );
   }
 
