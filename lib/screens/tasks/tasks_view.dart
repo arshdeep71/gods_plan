@@ -4,6 +4,10 @@ import '../../providers/auth_provider.dart';
 import '../../providers/task_provider.dart';
 import '../../models/task.dart';
 import '../../utils/colors.dart';
+import 'dart:convert';
+import 'package:file_picker/file_picker.dart';
+import 'package:url_launcher/url_launcher.dart';
+import '../../services/ai_import_service.dart';
 
 class TasksView extends StatefulWidget {
   final bool isTab;
@@ -48,6 +52,479 @@ class _TasksViewState extends State<TasksView> {
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       builder: (context) => const AddTaskSheet(),
+    );
+  }
+
+  static const String _gptLink = "https://chatgpt.com/g/g-678a9c3b2e-gods-plan-planner";
+
+  void _showPlusOptionsSheet(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: const Color(0xFF1C1C1E),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) {
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                margin: const EdgeInsets.only(top: 12, bottom: 8),
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.grey[700],
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 16.0),
+                child: Text(
+                  "Create Tasks",
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+              const Divider(color: Colors.white10, height: 1),
+              ListTile(
+                leading: const Icon(Icons.edit_rounded, color: AppColors.accent),
+                title: const Text("Add Manually", style: TextStyle(color: Colors.white)),
+                onTap: () {
+                  Navigator.pop(context);
+                  _showAddTaskSheet(context);
+                },
+              ),
+              const Divider(color: Colors.white10, height: 1),
+              ListTile(
+                leading: const Icon(Icons.star_rounded, color: Color(0xFF9D4EDD)),
+                title: const Text("Plan with AI", style: TextStyle(color: Colors.white)),
+                onTap: () {
+                  Navigator.pop(context);
+                  _showPlanWithAIDialog(context);
+                },
+              ),
+              const Divider(color: Colors.white10, height: 1),
+              ListTile(
+                leading: const Icon(Icons.file_download_rounded, color: Colors.blueAccent),
+                title: const Text("Import AI Plan", style: TextStyle(color: Colors.white)),
+                onTap: () {
+                  Navigator.pop(context);
+                  _importAIPlan(context);
+                },
+              ),
+              const SizedBox(height: 12),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  void _showPlanWithAIDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (dialogCtx) {
+        return AlertDialog(
+          backgroundColor: const Color(0xFF1C1C1E),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: const Text("Plan with AI", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: const [
+              Text("You'll be redirected to ChatGPT.", style: TextStyle(color: Colors.white, fontSize: 14)),
+              SizedBox(height: 16),
+              Text("1. Describe your schedule naturally.", style: TextStyle(color: Colors.white70, fontSize: 13)),
+              SizedBox(height: 8),
+              Text("2. Download the generated .gplan file.", style: TextStyle(color: Colors.white70, fontSize: 13)),
+              SizedBox(height: 8),
+              Text("3. Return here and tap 'Import AI Plan'.", style: TextStyle(color: Colors.white70, fontSize: 13)),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogCtx),
+              child: const Text("Cancel", style: TextStyle(color: AppColors.textSecondary)),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.accent,
+                foregroundColor: Colors.black,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              ),
+              onPressed: () {
+                Navigator.pop(dialogCtx);
+                _launchAIPlanner();
+              },
+              child: const Text("Continue"),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Future<void> _launchAIPlanner() async {
+    final url = Uri.parse(_gptLink);
+    if (await canLaunchUrl(url)) {
+      await launchUrl(url, mode: LaunchMode.externalApplication);
+    } else {
+      await launchUrl(url);
+    }
+  }
+
+  Future<void> _importAIPlan(BuildContext context) async {
+    try {
+      final result = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['gplan', 'md'],
+        withData: true,
+      );
+
+      if (result == null || result.files.isEmpty) {
+        return; // User canceled
+      }
+
+      final file = result.files.first;
+      final bytes = file.bytes;
+      if (bytes == null) {
+        _showErrorDialog(context, "Could not read file data.");
+        return;
+      }
+
+      final content = utf8.decode(bytes);
+      if (content.isEmpty) {
+        _showErrorDialog(context, "The imported file is empty.");
+        return;
+      }
+
+      // Parse
+      List<ParsedTask> parsedTasks;
+      try {
+        parsedTasks = AiImportService.parseGPlanContent(content);
+      } catch (e) {
+        _showErrorDialog(context, e.toString().replaceFirst("Exception: ", ""));
+        return;
+      }
+
+      if (parsedTasks.isEmpty) {
+        _showErrorDialog(context, "No tasks found in the plan file.");
+        return;
+      }
+
+      // Validate
+      for (int i = 0; i < parsedTasks.length; i++) {
+        final error = AiImportService.validateParsedTask(parsedTasks[i], i);
+        if (error != null) {
+          _showErrorDialog(context, error);
+          return;
+        }
+      }
+
+      // Show Preview Screen
+      _showImportPreviewSheet(context, parsedTasks);
+
+    } catch (e) {
+      _showErrorDialog(context, "Failed to read or parse file: ${e.toString()}");
+    }
+  }
+
+  void _showErrorDialog(BuildContext context, String message) {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          backgroundColor: const Color(0xFF1C1C1E),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: Row(
+            children: const [
+              Icon(Icons.error_outline_rounded, color: AppColors.error),
+              SizedBox(width: 10),
+              Text("Import Error", style: TextStyle(color: Colors.white)),
+            ],
+          ),
+          content: Text(
+            message,
+            style: const TextStyle(color: Colors.white70),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text("OK", style: TextStyle(color: AppColors.accent)),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _showImportPreviewSheet(BuildContext context, List<ParsedTask> parsedTasks) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: const Color(0xFF1C1C1E),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (sheetContext) {
+        return DraggableScrollableSheet(
+          initialChildSize: 0.6,
+          maxChildSize: 0.9,
+          minChildSize: 0.4,
+          expand: false,
+          builder: (sheetContext, scrollController) {
+            return Column(
+              children: [
+                Container(
+                  margin: const EdgeInsets.only(top: 12, bottom: 8),
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: Colors.grey[700],
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+                const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 12.0),
+                  child: Text(
+                    "Import Tasks",
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+                const Divider(color: Colors.white10, height: 1),
+                Expanded(
+                  child: ListView.builder(
+                    controller: scrollController,
+                    itemCount: parsedTasks.length,
+                    itemBuilder: (context, index) {
+                      final t = parsedTasks[index];
+                      return ListTile(
+                        leading: Container(
+                          padding: const EdgeInsets.all(4),
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: AppColors.accent.withOpacity(0.1),
+                          ),
+                          child: const Icon(Icons.check, color: AppColors.accent, size: 18),
+                        ),
+                        title: Text(t.title, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
+                        subtitle: Text(
+                          "${t.date}  •  ${t.start} - ${t.end}  •  ${t.category}",
+                          style: const TextStyle(color: AppColors.textSecondary, fontSize: 12),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+                const Divider(color: Colors.white10, height: 1),
+                Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton(
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: Colors.white,
+                            side: const BorderSide(color: Colors.white24),
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          ),
+                          onPressed: () => Navigator.pop(sheetContext),
+                          child: const Text("Cancel"),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.accent,
+                            foregroundColor: Colors.black,
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          ),
+                          onPressed: () async {
+                            Navigator.pop(sheetContext); // Close preview sheet
+                            await _processImport(context, parsedTasks);
+                          },
+                          child: const Text("Import", style: TextStyle(fontWeight: FontWeight.bold)),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Future<void> _processImport(BuildContext context, List<ParsedTask> parsedTasks) async {
+    final taskProvider = Provider.of<TaskProvider>(context, listen: false);
+    final user = Provider.of<AuthProvider>(context, listen: false).user;
+    if (user == null) return;
+
+    int importedCount = 0;
+    int skippedCount = 0;
+
+    try {
+      for (var importedTask in parsedTasks) {
+        // Search for duplicates
+        Task? duplicate;
+        for (var t in taskProvider.tasks) {
+          if (AiImportService.isDuplicate(t, importedTask)) {
+            duplicate = t;
+            break;
+          }
+        }
+
+        if (duplicate != null) {
+          final choice = await _showConflictDialog(context, importedTask);
+          if (choice == 'skip' || choice == null) {
+            skippedCount++;
+            continue;
+          } else if (choice == 'replace') {
+            await taskProvider.deleteTask(duplicate);
+            await _insertImportedTask(taskProvider, importedTask, user.id);
+            importedCount++;
+          } else if (choice == 'keep_both') {
+            await _insertImportedTask(taskProvider, importedTask, user.id);
+            importedCount++;
+          }
+        } else {
+          await _insertImportedTask(taskProvider, importedTask, user.id);
+          importedCount++;
+        }
+      }
+
+      if (context.mounted) {
+        _showSuccessSummaryDialog(context, importedCount, skippedCount);
+      }
+    } catch (e) {
+      if (context.mounted) {
+        _showErrorDialog(context, "Error during import: ${e.toString()}");
+      }
+    }
+  }
+
+  Future<String?> _showConflictDialog(BuildContext context, ParsedTask task) async {
+    return showDialog<String>(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) {
+        return AlertDialog(
+          backgroundColor: const Color(0xFF1C1C1E),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: Row(
+            children: const [
+              Icon(Icons.warning_amber_rounded, color: Colors.orangeAccent),
+              SizedBox(width: 10),
+              Text("Conflict Detected", style: TextStyle(color: Colors.white)),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                "Task '${task.title}' on ${task.date} at ${task.start} already exists in your list.",
+                style: const TextStyle(color: Colors.white70, fontSize: 14),
+              ),
+              const SizedBox(height: 12),
+              const Text(
+                "What would you like to do?",
+                style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14),
+              ),
+            ],
+          ),
+          actionsAlignment: MainAxisAlignment.spaceBetween,
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, 'skip'),
+              child: const Text("Skip", style: TextStyle(color: AppColors.textSecondary)),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(context, 'replace'),
+              child: const Text("Replace", style: TextStyle(color: AppColors.accent)),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(context, 'keep_both'),
+              child: const Text("Keep Both", style: TextStyle(color: Colors.blueAccent)),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _showSuccessSummaryDialog(BuildContext context, int imported, int skipped) {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          backgroundColor: const Color(0xFF1C1C1E),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: Row(
+            children: const [
+              Icon(Icons.check_circle_outline_rounded, color: AppColors.success),
+              SizedBox(width: 10),
+              Text("Imported Successfully", style: TextStyle(color: Colors.white)),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text("✓ $imported Tasks Imported", style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.bold)),
+              if (skipped > 0) ...[
+                const SizedBox(height: 8),
+                Text("⚠ $skipped Duplicates Skipped", style: const TextStyle(color: Colors.orangeAccent, fontSize: 14)),
+              ],
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text("Done", style: TextStyle(color: AppColors.accent, fontWeight: FontWeight.bold)),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Future<void> _insertImportedTask(TaskProvider taskProvider, ParsedTask imported, String userId) async {
+    final isRecurring = imported.repeat.toLowerCase() != 'none';
+    final repeatType = imported.repeat.toLowerCase() == 'none'
+        ? 'never'
+        : imported.repeat.toLowerCase();
+
+    final tImported = AiImportService.parseDueTime(imported.start);
+    String? formattedDueTime;
+    if (tImported != null) {
+      final hour = tImported.hour;
+      final minute = tImported.minute;
+      final amPm = hour >= 12 ? 'PM' : 'AM';
+      final displayHour = hour > 12 ? hour - 12 : (hour == 0 ? 12 : hour);
+      formattedDueTime = "$displayHour:${minute.toString().padLeft(2, '0')} $amPm";
+    }
+
+    await taskProvider.addTask(
+      userId: userId,
+      title: imported.title.trim(),
+      isRecurring: isRecurring,
+      repeatType: repeatType,
+      dueTime: formattedDueTime,
+      scheduledDate: isRecurring ? null : imported.date,
     );
   }
 
@@ -583,7 +1060,7 @@ class _TasksViewState extends State<TasksView> {
       floatingActionButton: Padding(
         padding: const EdgeInsets.only(bottom: 96.0, right: 8.0),
         child: FloatingActionButton(
-          onPressed: () => _showAddTaskSheet(context),
+          onPressed: () => _showPlusOptionsSheet(context),
           backgroundColor: AppColors.accent,
           child: const Icon(Icons.add_rounded, color: Colors.black, size: 30),
         ),
