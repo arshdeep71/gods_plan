@@ -4,7 +4,6 @@ import sys
 import json
 import re
 import datetime
-import subprocess
 
 ALTERNATE_ICONS_DIR = os.path.join("assets", "alternate_icons")
 THUMBNAILS_DIR = os.path.join(ALTERNATE_ICONS_DIR, "thumbnails")
@@ -15,21 +14,15 @@ METADATA_PATH = os.path.join(ALTERNATE_ICONS_DIR, "metadata.json")
 os.makedirs(ALTERNATE_ICONS_DIR, exist_ok=True)
 os.makedirs(THUMBNAILS_DIR, exist_ok=True)
 
-# Attempt to install and import Pillow for thumbnail generation
-PIL_AVAILABLE = False
+# Pillow is installed by the CI venv step (or locally). Fail loudly if missing.
 try:
     from PIL import Image as PILImage
     PIL_AVAILABLE = True
 except ImportError:
-    print("[Manifest Generator] Pillow not found. Attempting to install...")
-    try:
-        subprocess.run([sys.executable, "-m", "pip", "install", "Pillow"], check=True)
-        from PIL import Image as PILImage
-        PIL_AVAILABLE = True
-        print("[Manifest Generator] Pillow installed successfully.")
-    except Exception as e:
-        print(f"[Manifest Generator] Warning: Could not install Pillow ({e}). Will fallback to full resolution icons.")
-        PIL_AVAILABLE = False
+    print("[Manifest Generator] ERROR: Pillow is not installed.")
+    print("[Manifest Generator] In CI this should be installed by the venv step.")
+    print("[Manifest Generator] Locally: python3 -m pip install Pillow")
+    sys.exit(1)
 
 def validate_filename(filename):
     # Enforce safe filenames: lowercase letters, numbers, and underscores only
@@ -185,16 +178,13 @@ def main():
 
         # Generate thumbnail
         dest_thumb_path = os.path.join(THUMBNAILS_DIR, filename)
-        if PIL_AVAILABLE:
-            try:
-                # Open 1024px PNG and downscale
-                img = PILImage.open(filepath)
-                img.thumbnail((128, 128))
-                img.save(dest_thumb_path, "PNG")
-            except Exception as e:
-                print(f"[Manifest Generator] Warning: Failed to generate thumbnail for '{filename}' ({e}). Falling back to original path.")
-                icon_meta["thumbnailPath"] = icon_meta["assetPath"]
-        else:
+        try:
+            # Open 1024px PNG and downscale to 128px thumbnail
+            img = PILImage.open(filepath)
+            img.thumbnail((128, 128))
+            img.save(dest_thumb_path, "PNG")
+        except Exception as e:
+            print(f"[Manifest Generator] Warning: Failed to generate thumbnail for '{filename}' ({e}). Falling back to original path.")
             icon_meta["thumbnailPath"] = icon_meta["assetPath"]
 
         icons_list.append(icon_meta)

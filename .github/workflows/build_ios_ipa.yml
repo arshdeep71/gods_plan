@@ -30,8 +30,11 @@ jobs:
 
      - name: Generate App Icon Manifest & Thumbnails
        run: |
-         pip3 install Pillow
-         python3 generate_app_icon_manifest.py
+         python3 -m venv .venv
+         source .venv/bin/activate
+         python -m pip install --upgrade pip --quiet
+         python -m pip install Pillow --quiet
+         python generate_app_icon_manifest.py
 
      - name: Ensure iOS project exists
        run: |
