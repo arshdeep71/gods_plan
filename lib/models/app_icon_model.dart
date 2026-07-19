@@ -62,7 +62,7 @@ class AppIconModel {
       'assetPath': assetPath,
       'thumbnailPath': thumbnailPath,
       'category': category,
-      'addedAt': addedAt.toIsoFormat(),
+      'addedAt': addedAt.toIso8601String(),
       'author': author,
       'tags': tags,
       'sortOrder': sortOrder,

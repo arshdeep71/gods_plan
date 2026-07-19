@@ -75,7 +75,7 @@ class _IconPreviewDialogState extends State<IconPreviewDialog> with SingleTicker
         _isApplying = false;
         _errorMessage = e.toString().replaceFirst('Exception: ', '');
       });
-      HapticFeedback.error();
+      HapticFeedback.mediumImpact();
     }
   }
 
