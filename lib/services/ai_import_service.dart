@@ -166,24 +166,33 @@ class AiImportService {
     final reg24 = RegExp(r'^(\d{1,2}):(\d{2})$');
     final match24 = reg24.firstMatch(dueTime.trim());
     if (match24 != null) {
-      final h = int.tryParse(match24.group(1)!) ?? 0;
-      final m = int.tryParse(match24.group(2)!) ?? 0;
-      return TimeOfDay(hour: h, minute: m);
+      final g1 = match24.group(1);
+      final g2 = match24.group(2);
+      if (g1 != null && g2 != null) {
+        final h = int.tryParse(g1) ?? 0;
+        final m = int.tryParse(g2) ?? 0;
+        return TimeOfDay(hour: h, minute: m);
+      }
     }
     
     // Try 12h format (e.g. "7:00 PM" or "8:00 AM" or "08:00 AM")
     final reg12 = RegExp(r'^(\d{1,2}):(\d{2})\s*(AM|PM|am|pm)$');
     final match12 = reg12.firstMatch(dueTime.trim());
     if (match12 != null) {
-      var h = int.tryParse(match12.group(1)!) ?? 0;
-      final m = int.tryParse(match12.group(2)!) ?? 0;
-      final amPm = match12.group(3)!.toUpperCase();
-      if (amPm == 'PM' && h < 12) {
-        h += 12;
-      } else if (amPm == 'AM' && h == 12) {
-        h = 0;
+      final g1 = match12.group(1);
+      final g2 = match12.group(2);
+      final g3 = match12.group(3);
+      if (g1 != null && g2 != null && g3 != null) {
+        var h = int.tryParse(g1) ?? 0;
+        final m = int.tryParse(g2) ?? 0;
+        final amPm = g3.toUpperCase();
+        if (amPm == 'PM' && h < 12) {
+          h += 12;
+        } else if (amPm == 'AM' && h == 12) {
+          h = 0;
+        }
+        return TimeOfDay(hour: h, minute: m);
       }
-      return TimeOfDay(hour: h, minute: m);
     }
     return null;
   }

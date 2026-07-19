@@ -63,7 +63,7 @@ class _TasksViewState extends State<TasksView> {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      builder: (context) {
+      builder: (sheetCtx) {
         return SafeArea(
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -93,7 +93,7 @@ class _TasksViewState extends State<TasksView> {
                 leading: const Icon(Icons.edit_rounded, color: AppColors.accent),
                 title: const Text("Add Manually", style: TextStyle(color: Colors.white)),
                 onTap: () {
-                  Navigator.pop(context);
+                  Navigator.pop(sheetCtx);
                   _showAddTaskSheet(context);
                 },
               ),
@@ -102,7 +102,7 @@ class _TasksViewState extends State<TasksView> {
                 leading: const Icon(Icons.star_rounded, color: Color(0xFF9D4EDD)),
                 title: const Text("Plan with AI", style: TextStyle(color: Colors.white)),
                 onTap: () {
-                  Navigator.pop(context);
+                  Navigator.pop(sheetCtx);
                   _showPlanWithAIDialog(context);
                 },
               ),
@@ -111,7 +111,7 @@ class _TasksViewState extends State<TasksView> {
                 leading: const Icon(Icons.file_download_rounded, color: Colors.blueAccent),
                 title: const Text("Import AI Plan", style: TextStyle(color: Colors.white)),
                 onTap: () {
-                  Navigator.pop(context);
+                  Navigator.pop(sheetCtx);
                   _importAIPlan(context);
                 },
               ),
