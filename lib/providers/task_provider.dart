@@ -60,6 +60,27 @@ class TaskProvider extends ChangeNotifier {
   // Completed tasks (Default to today's date)
   List<Task> get completedTasks => getCompletedTasksForDate(DateTime.now());
 
+  bool _isPastDate(DateTime date) {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final target = DateTime(date.year, date.month, date.day);
+    return target.isBefore(today);
+  }
+
+  bool _isDateOnOrAfter(DateTime date, String startDateStr) {
+    final parts = startDateStr.split('-');
+    if (parts.length < 3) return true;
+    final sYear = int.tryParse(parts[0]) ?? 0;
+    final sMonth = int.tryParse(parts[1]) ?? 0;
+    final sDay = int.tryParse(parts[2]) ?? 0;
+
+    if (date.year > sYear) return true;
+    if (date.year < sYear) return false;
+    if (date.month > sMonth) return true;
+    if (date.month < sMonth) return false;
+    return date.day >= sDay;
+  }
+
   // Get active tasks for a specific date
   List<Task> getActiveTasksForDate(DateTime date) {
     final formattedDate = "${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}";
@@ -74,7 +95,7 @@ class TaskProvider extends ChangeNotifier {
       final isException = _exceptions.any((e) => e['task_id'] == t.id && e['exception_date'] == formattedDate && e['is_deleted'] == 1);
       if (isException) return false;
 
-      final isScheduled = t.isRecurring || (t.scheduledDate == formattedDate);
+      final isScheduled = (t.isRecurring && (t.startDate == null || _isDateOnOrAfter(date, t.startDate!))) || (t.scheduledDate == formattedDate);
       if (!isScheduled) return false;
       
       // Check if completed
@@ -95,7 +116,7 @@ class TaskProvider extends ChangeNotifier {
       final isException = _exceptions.any((e) => e['task_id'] == t.id && e['exception_date'] == formattedDate && e['is_deleted'] == 1);
       if (isException) return false;
 
-      final isScheduled = t.isRecurring || (t.scheduledDate == formattedDate);
+      final isScheduled = (t.isRecurring && (t.startDate == null || _isDateOnOrAfter(date, t.startDate!))) || (t.scheduledDate == formattedDate);
       if (!isScheduled) return false;
 
       final isComp = _completions.any((c) => c['task_id'] == t.id && c['completed_date'] == formattedDate);
@@ -124,7 +145,7 @@ class TaskProvider extends ChangeNotifier {
       if (!t.isPaused) return false;
       final isException = _exceptions.any((e) => e['task_id'] == t.id && e['exception_date'] == formattedDate && e['is_deleted'] == 1);
       if (isException) return false;
-      return t.isRecurring || (t.scheduledDate == formattedDate);
+      return (t.isRecurring && (t.startDate == null || _isDateOnOrAfter(date, t.startDate!))) || (t.scheduledDate == formattedDate);
     }).length;
     
     final totalActiveTasks = active.length + completed.length;
@@ -370,11 +391,26 @@ class TaskProvider extends ChangeNotifier {
     String? reminderTime,
     String? dueTime,
     String? scheduledDate,
+    String? startDate,
   }) async {
+    if (scheduledDate != null) {
+      final parsedDate = DateTime.tryParse(scheduledDate);
+      if (parsedDate != null && _isPastDate(parsedDate)) {
+        print("Cannot add tasks to archived dates.");
+        return;
+      }
+    }
+
     final now = DateTime.now().toUtc();
     
     // Assign orderIndex at the end
     int nextOrderIndex = _tasks.isNotEmpty ? _tasks.map((t) => t.orderIndex).reduce((a, b) => a > b ? a : b) + 1 : 0;
+    
+    String? taskStartDate = startDate;
+    if (isRecurring && taskStartDate == null) {
+      final nowLocal = DateTime.now().toLocal();
+      taskStartDate = "${nowLocal.year}-${nowLocal.month.toString().padLeft(2, '0')}-${nowLocal.day.toString().padLeft(2, '0')}";
+    }
     
     final newTask = Task(
       id: _uuid.v4(),
@@ -391,6 +427,7 @@ class TaskProvider extends ChangeNotifier {
       isPaused: false,
       dueTime: dueTime,
       scheduledDate: scheduledDate,
+      startDate: taskStartDate,
     );
 
     // Optimistic UI updates - Save locally and update memory
@@ -416,10 +453,13 @@ class TaskProvider extends ChangeNotifier {
     });
   }
 
-  // Toggle completion status of a task for a specific date
   Future<void> toggleTaskCompletion(Task task, {DateTime? date}) async {
     try {
     final targetDate = date ?? DateTime.now();
+    if (_isPastDate(targetDate)) {
+      print("Cannot toggle task completions on archived dates.");
+      return;
+    }
     final formattedDate = "${targetDate.year}-${targetDate.month.toString().padLeft(2, '0')}-${targetDate.day.toString().padLeft(2, '0')}";
     
     // Check status before toggle
@@ -505,7 +545,6 @@ class TaskProvider extends ChangeNotifier {
   rethrow;
 }}
 
-  // Edit task details
   Future<void> updateTask({
     required String taskId,
     required String title,
@@ -520,6 +559,22 @@ class TaskProvider extends ChangeNotifier {
     if (index == -1) return;
     
     final task = _tasks[index];
+
+    // Guard edit: if the task is scheduled on a past date, block updating it
+    if (task.scheduledDate != null) {
+      final parsedDate = DateTime.tryParse(task.scheduledDate!);
+      if (parsedDate != null && _isPastDate(parsedDate)) {
+        print("Cannot edit tasks scheduled on archived dates.");
+        return;
+      }
+    }
+
+    String? newStartDate = task.startDate;
+    if (isRecurring && newStartDate == null) {
+      final nowLocal = DateTime.now().toLocal();
+      newStartDate = "${nowLocal.year}-${nowLocal.month.toString().padLeft(2, '0')}-${nowLocal.day.toString().padLeft(2, '0')}";
+    }
+
     final updatedTask = task.copyWith(
       title: title,
       isRecurring: isRecurring,
@@ -528,6 +583,7 @@ class TaskProvider extends ChangeNotifier {
       dueTime: dueTime,
       scheduledDate: scheduledDate,
       isPaused: isPaused ?? task.isPaused,
+      startDate: newStartDate,
       updatedAt: DateTime.now().toUtc(),
     );
 
@@ -581,8 +637,15 @@ class TaskProvider extends ChangeNotifier {
     });
   }
 
-  // Delete a task
   Future<void> deleteTask(Task task) async {
+    if (task.scheduledDate != null) {
+      final parsedDate = DateTime.tryParse(task.scheduledDate!);
+      if (parsedDate != null && _isPastDate(parsedDate)) {
+        print("Cannot delete tasks scheduled on archived dates.");
+        return;
+      }
+    }
+
     // Optimistic UI update - delete from memory
     _tasks.removeWhere((t) => t.id == task.id);
     NotificationService().cancelReminder(task.id.hashCode);
@@ -606,6 +669,10 @@ class TaskProvider extends ChangeNotifier {
   }
   // Delete a specific occurrence
   Future<void> deleteTaskOccurrence(Task task, DateTime date) async {
+    if (_isPastDate(date)) {
+      print("Cannot delete task occurrences on archived dates.");
+      return;
+    }
     final formattedDate = "${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}";
     
     final exceptionId = _uuid.v4();
@@ -633,8 +700,11 @@ class TaskProvider extends ChangeNotifier {
     _syncService.sync(task.userId);
   }
 
-  // Reorder tasks
   Future<void> reorderTasks(int oldIndex, int newIndex, DateTime selectedDate) async {
+    if (_isPastDate(selectedDate)) {
+      print("Cannot reorder tasks on archived dates.");
+      return;
+    }
     final active = getActiveTasksForDate(selectedDate);
     if (oldIndex < newIndex) {
       newIndex -= 1;

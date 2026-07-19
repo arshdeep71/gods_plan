@@ -117,6 +117,14 @@ class DatabaseService {
         await addColumnIfMissing('repeat_type', "TEXT DEFAULT 'daily'");
         await addColumnIfMissing('reminder_time', 'TEXT');
         await addColumnIfMissing('order_index', 'INTEGER DEFAULT 0');
+        await addColumnIfMissing('start_date', 'TEXT');
+
+        // Migrate existing recurring tasks with NULL start_date to their creation date prefix (YYYY-MM-DD)
+        try {
+          await db.execute(
+            "UPDATE local_tasks SET start_date = substr(created_at, 1, 10) WHERE is_recurring = 1 AND start_date IS NULL"
+          );
+        } catch (_) {}
       }
     } catch (_) {}
 
@@ -142,7 +150,8 @@ class DatabaseService {
         is_paused INTEGER DEFAULT 0,
         due_time TEXT,
         scheduled_date TEXT,
-        last_completed_date TEXT
+        last_completed_date TEXT,
+        start_date TEXT
       )
     ''');
 

@@ -14,6 +14,7 @@ class Task {
   final String? dueTime;
   final String? scheduledDate;
   final String? lastCompletedDate;
+  final String? startDate;
 
   Task({
     required this.id,
@@ -31,6 +32,7 @@ class Task {
     this.dueTime,
     this.scheduledDate,
     this.lastCompletedDate,
+    this.startDate,
   });
 
   // Convert to Map for Supabase / JSON serialization
@@ -51,6 +53,7 @@ class Task {
       'due_time': dueTime,
       'scheduled_date': scheduledDate,
       'last_completed_date': lastCompletedDate,
+      'start_date': startDate,
     };
   }
 
@@ -72,6 +75,7 @@ class Task {
       'due_time': dueTime,
       'scheduled_date': scheduledDate,
       'last_completed_date': lastCompletedDate,
+      'start_date': startDate,
     };
   }
 
@@ -93,6 +97,10 @@ class Task {
       dueTime: json['due_time'] as String?,
       scheduledDate: json['scheduled_date'] as String?,
       lastCompletedDate: json['last_completed_date'] as String?,
+      startDate: json['start_date'] as String? ??
+          (json['created_at'] != null && (json['created_at'] as String).length >= 10
+              ? (json['created_at'] as String).substring(0, 10)
+              : null),
     );
   }
 
@@ -114,6 +122,10 @@ class Task {
       dueTime: map['due_time'] as String?,
       scheduledDate: map['scheduled_date'] as String?,
       lastCompletedDate: map['last_completed_date'] as String?,
+      startDate: map['start_date'] as String? ??
+          (map['created_at'] != null && (map['created_at'] as String).length >= 10
+              ? (map['created_at'] as String).substring(0, 10)
+              : null),
     );
   }
 
@@ -131,6 +143,7 @@ class Task {
     String? dueTime,
     String? scheduledDate,
     String? lastCompletedDate,
+    String? startDate,
   }) {
     return Task(
       id: id,
@@ -148,6 +161,7 @@ class Task {
       dueTime: dueTime ?? this.dueTime,
       scheduledDate: scheduledDate ?? this.scheduledDate,
       lastCompletedDate: lastCompletedDate ?? this.lastCompletedDate,
+      startDate: startDate ?? this.startDate,
     );
   }
 }

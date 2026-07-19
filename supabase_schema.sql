@@ -90,7 +90,8 @@ CREATE TABLE IF NOT EXISTS public.tasks (
     order_index INTEGER DEFAULT 0,
     streak_count INTEGER DEFAULT 0,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
+    start_date TEXT
 );
 
 -- Enable Row-Level Security for tasks
@@ -406,3 +407,4 @@ ALTER TABLE public.tasks ADD COLUMN IF NOT EXISTS is_paused BOOLEAN NOT NULL DEF
 ALTER TABLE public.tasks ADD COLUMN IF NOT EXISTS due_time TEXT;
 ALTER TABLE public.tasks ADD COLUMN IF NOT EXISTS scheduled_date TEXT;
 ALTER TABLE public.tasks ADD COLUMN IF NOT EXISTS last_completed_date TEXT;
+ALTER TABLE public.tasks ADD COLUMN IF NOT EXISTS start_date TEXT;

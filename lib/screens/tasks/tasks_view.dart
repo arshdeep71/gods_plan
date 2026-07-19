@@ -22,6 +22,45 @@ class TasksView extends StatefulWidget {
 class _TasksViewState extends State<TasksView> {
   late DateTime _selectedDate;
 
+  bool isPastDate(DateTime date) {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final target = DateTime(date.year, date.month, date.day);
+    return target.isBefore(today);
+  }
+
+  void _showArchivedFABDialog() {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF1C1C1E),
+        title: Row(
+          children: const [
+            Icon(Icons.lock_rounded, color: AppColors.error),
+            SizedBox(width: 8),
+            Text(
+              "Archived Day",
+              style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+            ),
+          ],
+        ),
+        content: const Text(
+          "You can't add tasks to past dates. Switch to today or a future date to create new tasks.",
+          style: TextStyle(color: Colors.white70),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text(
+              "OK",
+              style: TextStyle(color: AppColors.accent, fontWeight: FontWeight.bold),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   void initState() {
     super.initState();
@@ -632,6 +671,89 @@ User request/schedule to plan:
       ),
       builder: (context) {
         final isCompleted = taskProvider.completions.any((c) => c['task_id'] == task.id && c['completed_date'] == selectedDateStr);
+        final isArchived = isPastDate(_selectedDate);
+
+        if (isArchived) {
+          return SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.all(24.0),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: const [
+                      Icon(Icons.lock_rounded, color: AppColors.error, size: 20),
+                      SizedBox(width: 8),
+                      Text(
+                        "Archived Task Details",
+                        style: TextStyle(
+                          color: AppColors.error,
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
+                  Text(
+                    task.title,
+                    style: const TextStyle(
+                      fontSize: 22,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Icon(
+                        task.isRecurring ? Icons.repeat_rounded : Icons.calendar_today_rounded,
+                        color: AppColors.textSecondary,
+                        size: 16,
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        task.isRecurring
+                            ? "Daily Habit"
+                            : "Single Task • ${task.scheduledDate ?? 'No date'}",
+                        style: const TextStyle(color: AppColors.textSecondary, fontSize: 14),
+                      ),
+                    ],
+                  ),
+                  if (task.dueTime != null) ...[
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        const Icon(Icons.access_time_rounded, color: AppColors.textSecondary, size: 16),
+                        const SizedBox(width: 8),
+                        Text(
+                          task.dueTime!,
+                          style: const TextStyle(color: AppColors.textSecondary, fontSize: 14),
+                        ),
+                      ],
+                    ),
+                  ],
+                  const SizedBox(height: 24),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.surface,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        side: const BorderSide(color: AppColors.border),
+                      ),
+                      onPressed: () => Navigator.pop(context),
+                      child: const Text("Close", style: TextStyle(fontWeight: FontWeight.bold)),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        }
 
         return SafeArea(
           child: Column(
@@ -845,14 +967,34 @@ User request/schedule to plan:
                         ),
                       ),
                       const SizedBox(height: 8),
-                      Text(
-                        "${dayDate.day}",
-                        style: TextStyle(
-                          color: isSelected ? Colors.black : AppColors.textPrimary,
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
+                      isPastDate(dayDate)
+                          ? Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Text(
+                                  "${dayDate.day}",
+                                  style: TextStyle(
+                                    color: isSelected ? Colors.black : AppColors.textPrimary,
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                const SizedBox(width: 2),
+                                Icon(
+                                  Icons.lock_rounded,
+                                  color: isSelected ? Colors.black54 : AppColors.textSecondary,
+                                  size: 10,
+                                ),
+                              ],
+                            )
+                          : Text(
+                              "${dayDate.day}",
+                              style: TextStyle(
+                                color: isSelected ? Colors.black : AppColors.textPrimary,
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
                       const SizedBox(height: 6),
                       if (active.isEmpty && completed.isNotEmpty && !isSelected)
                         const Icon(Icons.check_circle_rounded, color: Colors.greenAccent, size: 12)
@@ -1085,76 +1227,159 @@ User request/schedule to plan:
           : Column(
               children: [
                 _buildWeeklyCalendar(taskProvider),
+                if (isPastDate(_selectedDate)) ...[
+                  const SizedBox(height: 6),
+                  Container(
+                    margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: AppColors.error.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: AppColors.error.withOpacity(0.3)),
+                    ),
+                    child: Row(
+                      children: const [
+                        Icon(Icons.lock_rounded, color: AppColors.error, size: 16),
+                        SizedBox(width: 8),
+                        Text(
+                          "Archived Day (Read-only)",
+                          style: TextStyle(
+                            color: AppColors.error,
+                            fontSize: 13,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
                 const SizedBox(height: 12),
                 Expanded(
                   child: taskProvider.tasks.isEmpty
                     ? _buildEmptyState(context)
-                    : ReorderableListView(
-                        padding: const EdgeInsets.only(left: 20.0, right: 20.0, top: 12.0, bottom: 120.0),
-                        header: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            if (active.isNotEmpty) ...[
-                              const Text(
-                                "Active Tasks",
-                                style: TextStyle(
-                                  color: AppColors.textSecondary,
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.bold,
-                                  letterSpacing: 1.0,
+                    : (isPastDate(_selectedDate)
+                        ? ListView(
+                            padding: const EdgeInsets.only(left: 20.0, right: 20.0, top: 12.0, bottom: 120.0),
+                            children: [
+                              if (active.isNotEmpty) ...[
+                                const Text(
+                                  "Active Tasks",
+                                  style: TextStyle(
+                                    color: AppColors.textSecondary,
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.bold,
+                                    letterSpacing: 1.0,
+                                  ),
                                 ),
-                              ),
-                              const SizedBox(height: 10),
+                                const SizedBox(height: 10),
+                                ...active.map((task) => _buildTaskTile(task)),
+                              ],
+                              if (active.isNotEmpty && (completed.isNotEmpty || paused.isNotEmpty))
+                                const SizedBox(height: 24),
+                              if (completed.isNotEmpty) ...[
+                                const Text(
+                                  "Completed",
+                                  style: TextStyle(
+                                    color: AppColors.textMuted,
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.bold,
+                                    letterSpacing: 1.0,
+                                  ),
+                                ),
+                                const SizedBox(height: 10),
+                                ...completed.map((task) => _buildTaskTile(task)),
+                              ],
+                              if (completed.isNotEmpty && paused.isNotEmpty)
+                                const SizedBox(height: 24),
+                              if (paused.isNotEmpty) ...[
+                                const Text(
+                                  "Paused Habits",
+                                  style: TextStyle(
+                                    color: AppColors.textMuted,
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.bold,
+                                    letterSpacing: 1.0,
+                                  ),
+                                ),
+                                const SizedBox(height: 10),
+                                ...paused.map((task) => _buildTaskTile(task)),
+                              ],
                             ],
-                          ],
-                        ),
-                        footer: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            if (active.isNotEmpty) const SizedBox(height: 24),
-                            if (completed.isNotEmpty) ...[
-                              const Text(
-                                "Completed",
-                                style: TextStyle(
-                                  color: AppColors.textMuted,
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.bold,
-                                  letterSpacing: 1.0,
-                                ),
-                              ),
-                              const SizedBox(height: 10),
-                              ...completed.map((task) => _buildTaskTile(task)),
-                              const SizedBox(height: 24),
-                            ],
-                            if (paused.isNotEmpty) ...[
-                              const Text(
-                                "Paused Habits",
-                                style: TextStyle(
-                                  color: AppColors.textMuted,
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.bold,
-                                  letterSpacing: 1.0,
-                                ),
-                              ),
-                              const SizedBox(height: 10),
-                              ...paused.map((task) => _buildTaskTile(task)),
-                            ]
-                          ],
-                        ),
-                        onReorder: (oldIndex, newIndex) {
-                          taskProvider.reorderTasks(oldIndex, newIndex, _selectedDate);
-                        },
-                        children: active.map((task) => _buildTaskTile(task)).toList(),
-                      ),
+                          )
+                        : ReorderableListView(
+                            padding: const EdgeInsets.only(left: 20.0, right: 20.0, top: 12.0, bottom: 120.0),
+                            header: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                if (active.isNotEmpty) ...[
+                                  const Text(
+                                    "Active Tasks",
+                                    style: TextStyle(
+                                      color: AppColors.textSecondary,
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.bold,
+                                      letterSpacing: 1.0,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 10),
+                                ],
+                              ],
+                            ),
+                            footer: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                if (active.isNotEmpty) const SizedBox(height: 24),
+                                if (completed.isNotEmpty) ...[
+                                  const Text(
+                                    "Completed",
+                                    style: TextStyle(
+                                      color: AppColors.textMuted,
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.bold,
+                                      letterSpacing: 1.0,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 10),
+                                  ...completed.map((task) => _buildTaskTile(task)),
+                                  const SizedBox(height: 24),
+                                ],
+                                if (paused.isNotEmpty) ...[
+                                  const Text(
+                                    "Paused Habits",
+                                    style: TextStyle(
+                                      color: AppColors.textMuted,
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.bold,
+                                      letterSpacing: 1.0,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 10),
+                                  ...paused.map((task) => _buildTaskTile(task)),
+                                ]
+                              ],
+                            ),
+                            onReorder: (oldIndex, newIndex) {
+                              taskProvider.reorderTasks(oldIndex, newIndex, _selectedDate);
+                            },
+                            children: active.map((task) => _buildTaskTile(task)).toList(),
+                          )),
                 ),
               ],
             ),
       floatingActionButton: Padding(
         padding: const EdgeInsets.only(bottom: 96.0, right: 8.0),
         child: FloatingActionButton(
-          onPressed: () => _showPlusOptionsSheet(context),
-          backgroundColor: AppColors.accent,
-          child: const Icon(Icons.add_rounded, color: Colors.black, size: 30),
+          onPressed: isPastDate(_selectedDate)
+              ? () => _showArchivedFABDialog()
+              : () => _showPlusOptionsSheet(context),
+          backgroundColor: isPastDate(_selectedDate)
+              ? AppColors.border
+              : AppColors.accent,
+          child: Icon(
+            isPastDate(_selectedDate) ? Icons.lock_outline_rounded : Icons.add_rounded,
+            color: isPastDate(_selectedDate) ? AppColors.textSecondary : Colors.black,
+            size: 30,
+          ),
         ),
       ),
     );
@@ -1211,9 +1436,11 @@ User request/schedule to plan:
     final selectedDateStr = "${_selectedDate.year}-${_selectedDate.month.toString().padLeft(2, '0')}-${_selectedDate.day.toString().padLeft(2, '0')}";
     final isCompleted = taskProvider.completions.any((c) => c['task_id'] == task.id && c['completed_date'] == selectedDateStr);
 
+    final isArchived = isPastDate(_selectedDate);
+
     return Dismissible(
       key: Key(task.id),
-      direction: DismissDirection.endToStart,
+      direction: isArchived ? DismissDirection.none : DismissDirection.endToStart,
       background: Container(
         alignment: Alignment.centerRight,
         padding: const EdgeInsets.only(right: 20.0),
@@ -1244,9 +1471,11 @@ User request/schedule to plan:
           ),
         ),
         child: ListTile(
-          onTap: () {
-            taskProvider.toggleTaskCompletion(task, date: _selectedDate);
-          },
+          onTap: isArchived
+              ? null
+              : () {
+                  taskProvider.toggleTaskCompletion(task, date: _selectedDate);
+                },
           onLongPress: () => _showTaskOptionsSheet(task),
           contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
           leading: task.isPaused
@@ -1255,13 +1484,15 @@ User request/schedule to plan:
                   scale: 1.1,
                   child: Checkbox(
                     value: isCompleted,
-                    activeColor: AppColors.accent,
+                    activeColor: isArchived ? AppColors.textMuted : AppColors.accent,
                     checkColor: Colors.black,
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
                     side: const BorderSide(color: AppColors.textSecondary, width: 1.5),
-                    onChanged: (_) {
-                      taskProvider.toggleTaskCompletion(task, date: _selectedDate);
-                    },
+                    onChanged: isArchived
+                        ? null
+                        : (_) {
+                            taskProvider.toggleTaskCompletion(task, date: _selectedDate);
+                          },
                   ),
                 ),
           title: Text(
