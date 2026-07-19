@@ -23,6 +23,7 @@ import 'learning/learning_view.dart';
 import 'social/social_view.dart';
 import 'widgets/ai_coach_card.dart';
 import 'settings/app_lock_view.dart';
+import 'settings/app_icon_view.dart';
 import '../services/analytics_service.dart';
 import 'dashboard/badges_view.dart';
 import 'dashboard/analytics_view.dart';
@@ -1128,6 +1129,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
             "Edit Profile Name",
             "Change your profile display name",
             _showEditProfileDialog,
+          ),
+          const SizedBox(height: 16),
+          const Text("Appearance", style: TextStyle(color: AppColors.textSecondary, fontSize: 13, fontWeight: FontWeight.bold, letterSpacing: 0.5)),
+          const SizedBox(height: 12),
+          _buildSettingsTile(
+            Icons.app_shortcut_rounded,
+            "App Icon",
+            "Switch bundled icons or manage your saved icon gallery",
+            () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AppIconView())),
           ),
           const SizedBox(height: 16),
           const Text("Security & Setup", style: TextStyle(color: AppColors.textSecondary, fontSize: 13, fontWeight: FontWeight.bold, letterSpacing: 0.5)),
