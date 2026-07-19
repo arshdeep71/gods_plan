@@ -12,10 +12,14 @@ import '../models/social.dart';
 import '../models/learning.dart';
 import 'package:sqflite_common/sqlite_api.dart';
 import '../utils/network_helper.dart';
+import 'dart:convert';
 
 class SyncService {
   final DatabaseService _dbService = DatabaseService();
   final SupabaseClient _supabase = Supabase.instance.client;
+
+  bool _syncInProgress = false;
+  bool _syncNeededAfterCurrent = false;
 
   // Check if network is available
   Future<bool> isConnected() async {
@@ -24,9 +28,21 @@ class SyncService {
 
   // Master synchronization coordination
   Future<void> sync(String userId) async {
-    if (!await isConnected()) return;
+    print("[SYNC] sync() requested for user: $userId");
+    if (_syncInProgress) {
+      print("[SYNC] Synchronization already in progress. Setting follow-up flag to true.");
+      _syncNeededAfterCurrent = true;
+      return;
+    }
+    _syncInProgress = true;
 
     try {
+      print("[SYNC] Starting synchronization cycle...");
+      if (!await isConnected()) {
+        print("[SYNC] Connection failed, offline-first. Aborting sync.");
+        return;
+      }
+
       final isPendingDelete = _dbService.settingsBox.get('pending_profile_deletion_$userId', defaultValue: false) as bool;
       if (isPendingDelete) {
         await deleteRemoteUserProfileData(userId);
@@ -38,9 +54,18 @@ class SyncService {
 
       // 2. Download remote updates
       await _downloadRemoteUpdates(userId);
+      print("[SYNC] Synchronization cycle completed successfully.");
     } catch (e) {
       // Fail silently or log error locally, app runs offline-first
-      print("Sync error encountered: $e");
+      print("[SYNC] Sync error encountered: $e");
+    } finally {
+      _syncInProgress = false;
+      if (_syncNeededAfterCurrent) {
+        print("[SYNC] Follow-up synchronization requested. Starting next cycle.");
+        _syncNeededAfterCurrent = false;
+        // Schedule follow-up sync asynchronously to prevent stack overflow
+        Future.microtask(() => sync(userId));
+      }
     }
   }
 
@@ -90,16 +115,19 @@ class SyncService {
   // Push local changes to Supabase
   Future<void> _uploadLocalMutations() async {
     final queue = await _dbService.getSyncQueue();
+    print("[SYNC QUEUE] Upload started. Items pending: ${queue.length}");
     if (queue.isEmpty) return;
 
     for (final item in queue) {
       try {
+        print("[SYNC QUEUE] Uploading item ID: ${item.id}, Table: ${item.tableName}, Action: ${item.actionType}");
         if (item.actionType == 'INSERT' || item.actionType == 'UPDATE') {
           if (item.payload != null) {
             print("AUTH UID = ${_supabase.auth.currentUser?.id}");
             print("PAYLOAD USER_ID = ${item.payload?['user_id']}");
             print(item.payload);
             await _supabase.from(item.tableName).upsert(item.payload!);
+            print("[SYNC QUEUE] Upsert remote success for table: ${item.tableName}, ID: ${item.recordId}");
           }
         } else if (item.actionType == 'DELETE') {
           if (item.tableName == 'task_completions') {
@@ -112,6 +140,7 @@ class SyncService {
                   .delete()
                   .eq('task_id', taskId)
                   .eq('completed_date', completedDate);
+              print("[SYNC QUEUE] Delete remote completion success for task: $taskId, date: $completedDate");
             }
           } else if (item.tableName == 'task_exceptions') {
             final parts = item.recordId.split('_');
@@ -123,19 +152,22 @@ class SyncService {
                   .delete()
                   .eq('task_id', taskId)
                   .eq('exception_date', exceptionDate);
+              print("[SYNC QUEUE] Delete remote exception success for task: $taskId, date: $exceptionDate");
             }
           } else {
             await _supabase.from(item.tableName).delete().eq('id', item.recordId);
+            print("[SYNC QUEUE] Delete remote success for table: ${item.tableName}, ID: ${item.recordId}");
           }
         }
         
         // Remove item from queue upon success
         if (item.id != null) {
           await _dbService.removeSyncItem(item.id!);
+          print("[SYNC QUEUE] Removed item ID ${item.id} from local queue");
         }
       } catch (e) {
         // If it's a validation error or database conflict, log and skip to prevent blocking the queue
-        print("Failed to sync queue item ${item.id}: $e");
+        print("[SYNC QUEUE] Failed to sync queue item ${item.id}: $e");
       }
     }
   }
@@ -148,6 +180,7 @@ class SyncService {
     ) as String;
 
     final currentSyncTime = DateTime.now().toUtc().toIso8601String();
+    final syncStart = DateTime.now().toUtc();
     final db = await _dbService.database;
 
     // Use a 1-day safety window to pull other updates (protects against clock skew)
@@ -156,10 +189,12 @@ class SyncService {
 
     // A. Sync Tasks (Full Mirroring to handle deletes)
     try {
+      print("[LOAD] Method: _downloadRemoteUpdates -> tasks, Reason: Sync mirror, Source: Supabase remote");
       final List<dynamic> remoteTasks = await _supabase
           .from('tasks')
           .select()
           .eq('user_id', userId);
+      print("[SUPABASE] GET /tasks. Received remote task count: ${remoteTasks.length}");
 
       await db.transaction((txn) async {
         // Get all local tasks for this user
@@ -168,13 +203,49 @@ class SyncService {
           where: 'user_id = ?',
           whereArgs: [userId],
         );
+        print("[DATABASE] Task count in SQLite before mirror = ${localTasks.length}");
 
         final remoteIds = remoteTasks.map((t) => t['id'] as String).toSet();
+
+        // Query pending mutations from the offline sync queue
+        final List<Map<String, dynamic>> pendingQueue = await txn.query(
+          'offline_sync_queue',
+          where: 'table_name = ?',
+          whereArgs: ['tasks'],
+        );
+        final pendingIds = pendingQueue.map((item) => item['record_id'] as String).toSet();
+        print("[SYNC] Pending task IDs in sync queue: $pendingIds");
 
         // Delete local tasks that are not present in remote (deleted on another device)
         for (final local in localTasks) {
           final localId = local['id'] as String;
           if (!remoteIds.contains(localId)) {
+            // VERIFY NO PREMATURE DELETION CHECKS:
+            // 1. Check if ID is in offline_sync_queue (any action: INSERT, UPDATE, DELETE)
+            final inQueue = pendingIds.contains(localId);
+            
+            // 2, 3, 4. Check specific mutations
+            final hasInsert = pendingQueue.any((item) => item['record_id'] == localId && item['action_type'] == 'INSERT');
+            final hasUpdate = pendingQueue.any((item) => item['record_id'] == localId && item['action_type'] == 'UPDATE');
+            final hasDelete = pendingQueue.any((item) => item['record_id'] == localId && item['action_type'] == 'DELETE');
+
+            // 5. Check if task was created during the current synchronization cycle
+            final createdAtStr = local['created_at'] as String?;
+            bool createdThisCycle = false;
+            if (createdAtStr != null) {
+              final taskCreatedAt = DateTime.tryParse(createdAtStr);
+              if (taskCreatedAt != null) {
+                // If created within last 5 minutes of sync start, consider it created this cycle
+                createdThisCycle = syncStart.difference(taskCreatedAt).inMinutes < 5;
+              }
+            }
+
+            if (inQueue || hasInsert || hasUpdate || hasDelete || createdThisCycle) {
+              print("[SYNC] Deletion skipped for local task '$localId'. Reason: inQueue=$inQueue, hasInsert=$hasInsert, hasUpdate=$hasUpdate, hasDelete=$hasDelete, createdThisCycle=$createdThisCycle");
+              continue;
+            }
+
+            print("[SYNC] Deleting local task '$localId' from SQLite (not in remote tasks and no pending mutations)");
             await txn.delete(
               'local_tasks',
               where: 'id = ?',
@@ -188,6 +259,9 @@ class SyncService {
           final remoteTask = Task.fromJson(row as Map<String, dynamic>);
           await txn.insert('local_tasks', remoteTask.toSqliteMap(), conflictAlgorithm: ConflictAlgorithm.replace);
         }
+
+        final localCountAfter = Sqflite.firstIntValue(await txn.rawQuery("SELECT COUNT(*) FROM local_tasks WHERE user_id = ?", [userId])) ?? 0;
+        print("[DATABASE] Task count in SQLite after mirror = $localCountAfter");
       });
     } catch (e) {
       print("Sync tasks error: $e");
@@ -195,16 +269,65 @@ class SyncService {
 
     // A.1 Sync Task Completions (Full Mirroring to handle deletes)
     try {
+      print("[LOAD] Method: _downloadRemoteUpdates -> task_completions, Reason: Sync mirror, Source: Supabase remote");
       final List<dynamic> remoteCompletions = await _supabase
           .from('task_completions')
           .select()
           .eq('user_id', userId);
+      print("[SUPABASE] GET /task_completions. Received count: ${remoteCompletions.length}");
 
       await db.transaction((txn) async {
+        // Query pending mutations from offline sync queue for task completions
+        final List<Map<String, dynamic>> pendingQueue = await txn.query(
+          'offline_sync_queue',
+          where: 'table_name = ?',
+          whereArgs: ['task_completions'],
+        );
+
+        final pendingInserts = pendingQueue
+            .where((item) => item['action_type'] == 'INSERT')
+            .map((item) {
+              final payloadStr = item['payload'] as String?;
+              if (payloadStr != null) {
+                try {
+                  return Map<String, dynamic>.from(jsonDecode(payloadStr));
+                } catch (_) {}
+              }
+              return null;
+            })
+            .whereType<Map<String, dynamic>>()
+            .toList();
+
+        final pendingDeletes = pendingQueue
+            .where((item) => item['action_type'] == 'DELETE')
+            .map((item) {
+              final recordId = item['record_id'] as String;
+              final parts = recordId.split('_');
+              if (parts.length >= 2) {
+                return {'task_id': parts[0], 'completed_date': parts[1]};
+              }
+              return null;
+            })
+            .whereType<Map<String, dynamic>>()
+            .toList();
+
         // Clear local completions and rewrite them to match remote exactly
         await txn.delete('local_task_completions');
+        
+        // Write remote completions
         for (final row in remoteCompletions) {
-          await txn.insert('local_task_completions', Map<String, dynamic>.from(row), conflictAlgorithm: ConflictAlgorithm.replace);
+          final map = Map<String, dynamic>.from(row);
+          // Don't insert remote completions that have a pending delete locally
+          final isPendingDelete = pendingDeletes.any((d) =>
+              d['task_id'] == map['task_id'] && d['completed_date'] == map['completed_date']);
+          if (!isPendingDelete) {
+            await txn.insert('local_task_completions', map, conflictAlgorithm: ConflictAlgorithm.replace);
+          }
+        }
+
+        // Restore pending inserts
+        for (final completion in pendingInserts) {
+          await txn.insert('local_task_completions', completion, conflictAlgorithm: ConflictAlgorithm.replace);
         }
       });
     } catch (e) {
@@ -213,20 +336,66 @@ class SyncService {
 
     // A.2 Sync Task Exceptions (Full Mirroring to handle deletes)
     try {
+      print("[LOAD] Method: _downloadRemoteUpdates -> task_exceptions, Reason: Sync mirror, Source: Supabase remote");
       final List<dynamic> remoteExceptions = await _supabase
           .from('task_exceptions')
           .select()
           .eq('user_id', userId);
+      print("[SUPABASE] GET /task_exceptions. Received count: ${remoteExceptions.length}");
 
       await db.transaction((txn) async {
+        final List<Map<String, dynamic>> pendingQueue = await txn.query(
+          'offline_sync_queue',
+          where: 'table_name = ?',
+          whereArgs: ['task_exceptions'],
+        );
+
+        final pendingInserts = pendingQueue
+            .where((item) => item['action_type'] == 'INSERT')
+            .map((item) {
+              final payloadStr = item['payload'] as String?;
+              if (payloadStr != null) {
+                try {
+                  return Map<String, dynamic>.from(jsonDecode(payloadStr));
+                } catch (_) {}
+              }
+              return null;
+            })
+            .whereType<Map<String, dynamic>>()
+            .toList();
+
+        final pendingDeletes = pendingQueue
+            .where((item) => item['action_type'] == 'DELETE')
+            .map((item) {
+              final recordId = item['record_id'] as String;
+              final parts = recordId.split('_');
+              if (parts.length >= 2) {
+                return {'task_id': parts[0], 'exception_date': parts[1]};
+              }
+              return null;
+            })
+            .whereType<Map<String, dynamic>>()
+            .toList();
+
         // Clear local exceptions and rewrite them to match remote exactly
         await txn.delete('local_task_exceptions');
+        
+        // Write remote exceptions
         for (final row in remoteExceptions) {
           final map = Map<String, dynamic>.from(row);
           if (map['is_deleted'] is bool) {
             map['is_deleted'] = (map['is_deleted'] as bool) ? 1 : 0;
           }
-          await txn.insert('local_task_exceptions', map, conflictAlgorithm: ConflictAlgorithm.replace);
+          final isPendingDelete = pendingDeletes.any((d) =>
+              d['task_id'] == map['task_id'] && d['exception_date'] == map['exception_date']);
+          if (!isPendingDelete) {
+            await txn.insert('local_task_exceptions', map, conflictAlgorithm: ConflictAlgorithm.replace);
+          }
+        }
+
+        // Restore pending inserts
+        for (final exception in pendingInserts) {
+          await txn.insert('local_task_exceptions', exception, conflictAlgorithm: ConflictAlgorithm.replace);
         }
       });
     } catch (e) {

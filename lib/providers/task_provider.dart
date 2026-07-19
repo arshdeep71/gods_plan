@@ -353,31 +353,54 @@ class TaskProvider extends ChangeNotifier {
 
   // Load tasks from local SQLite database and trigger background cloud sync
   Future<void> fetchTasks(String userId) async {
+    print("[LOAD] Method: fetchTasks, Reason: Initial load / manual refresh, Source: SQLite & Supabase");
     _isLoading = true;
     notifyListeners();
 
     try {
       // 1. Fetch from local cache instantly
+      final prevCount = _tasks.length;
       _tasks = await _dbService.getLocalTasks(userId);
       _completions = await _dbService.getLocalTaskCompletions(userId);
       _exceptions = await _dbService.getLocalTaskExceptions(userId);
+      print("[STATE CHANGE] Function: fetchTasks (Local SQLite loaded), Previous count: $prevCount, New count: ${_tasks.length}");
       _isLoading = false;
       notifyListeners();
 
       // 2. Perform background synchronization with Supabase
+      print("[LOAD] Triggering background sync from fetchTasks");
       _isSyncing = true;
       notifyListeners();
 
       await _syncService.sync(userId);
       
       // 3. Reload local cache in case background sync pulled updates
+      final beforeReload = _tasks.length;
       _tasks = await _dbService.getLocalTasks(userId);
       _completions = await _dbService.getLocalTaskCompletions(userId);
       _exceptions = await _dbService.getLocalTaskExceptions(userId);
+      print("[STATE CHANGE] Function: fetchTasks (After background sync), Previous count: $beforeReload, New count: ${_tasks.length}");
     } catch (e) {
       print("Error loading tasks: $e");
     } finally {
       _isLoading = false;
+      _isSyncing = false;
+      notifyListeners();
+    }
+  }
+
+  Future<void> triggerSync(String userId) async {
+    print("[PROVIDER] triggerSync started for user: $userId");
+    _isSyncing = true;
+    notifyListeners();
+    try {
+      await _syncService.sync(userId);
+      final beforeReload = _tasks.length;
+      _tasks = await _dbService.getLocalTasks(userId);
+      _completions = await _dbService.getLocalTaskCompletions(userId);
+      _exceptions = await _dbService.getLocalTaskExceptions(userId);
+      print("[STATE CHANGE] Function: triggerSync, Previous count: $beforeReload, New count: ${_tasks.length}");
+    } finally {
       _isSyncing = false;
       notifyListeners();
     }
@@ -392,7 +415,9 @@ class TaskProvider extends ChangeNotifier {
     String? dueTime,
     String? scheduledDate,
     String? startDate,
+    bool triggerSync = true,
   }) async {
+    print("[PROVIDER] addTask started for task title: '$title'. Previous total count: ${_tasks.length}");
     if (scheduledDate != null) {
       final parsedDate = DateTime.tryParse(scheduledDate);
       if (parsedDate != null && _isPastDate(parsedDate)) {
@@ -433,9 +458,11 @@ class TaskProvider extends ChangeNotifier {
     // Optimistic UI updates - Save locally and update memory
     _tasks.insert(0, newTask);
     _scheduleNotification(newTask);
+    print("[STATE CHANGE] Function: addTask (Optimistic update), Previous count: ${_tasks.length - 1}, New count: ${_tasks.length}");
     notifyListeners();
 
     await _dbService.upsertLocalTask(newTask);
+    print("[DATABASE] SQLite insert successful. Saved task ID: ${newTask.id}");
 
     // Queue mutation for sync
     final syncItem = SyncItem(
@@ -445,12 +472,20 @@ class TaskProvider extends ChangeNotifier {
       payload: newTask.toJson(),
     );
     await _dbService.queueMutation(syncItem);
+    print("[SYNC QUEUE] Mutation queued for task: ${newTask.title}");
 
     // Trigger background sync flush
-    _syncService.sync(userId).then((_) async {
-      _tasks = await _dbService.getLocalTasks(userId);
-      notifyListeners();
-    });
+    if (triggerSync) {
+      print("[PROVIDER] addTask - Triggering background sync flush");
+      _syncService.sync(userId).then((_) async {
+        final beforeReload = _tasks.length;
+        _tasks = await _dbService.getLocalTasks(userId);
+        print("[STATE CHANGE] Function: addTask (Sync complete reload), Previous count: $beforeReload, New count: ${_tasks.length}");
+        notifyListeners();
+      });
+    } else {
+      print("[PROVIDER] addTask - Skipping background sync flush (triggerSync is false)");
+    }
   }
 
   Future<void> toggleTaskCompletion(Task task, {DateTime? date}) async {

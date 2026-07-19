@@ -287,7 +287,7 @@ User request/schedule to plan:
   }
 
   Future<void> _importAIPlan(BuildContext context) async {
-    debugPrint("AI Import: Started");
+    debugPrint("[AI IMPORT] Import started");
     try {
       final result = await FilePicker.platform.pickFiles(
         type: FileType.custom,
@@ -296,43 +296,43 @@ User request/schedule to plan:
       );
 
       if (result == null || result.files.isEmpty) {
-        debugPrint("AI Import: Canceled by user");
+        debugPrint("[AI IMPORT] Canceled by user");
         return; // User canceled
       }
 
       final file = result.files.first;
-      debugPrint("AI Import: Selected file: ${file.name} (size: ${file.size} bytes)");
+      debugPrint("[AI IMPORT] Selected file: ${file.name} (size: ${file.size} bytes)");
       final bytes = file.bytes;
       if (bytes == null) {
-        debugPrint("AI Import: Error - Could not read file bytes");
+        debugPrint("[AI IMPORT] Error - Could not read file bytes");
         _showErrorDialog(context, "Could not read file data.");
         return;
       }
 
       final content = utf8.decode(bytes);
-      debugPrint("AI Import: File content loaded. Characters: ${content.length}");
+      debugPrint("[AI IMPORT] File content loaded. Characters: ${content.length}");
       if (content.isEmpty) {
-        debugPrint("AI Import: Error - File content is empty");
+        debugPrint("[AI IMPORT] Error - File content is empty");
         _showErrorDialog(context, "The imported file is empty.");
         return;
       }
 
       final selectedDateStr = "${_selectedDate.year}-${_selectedDate.month.toString().padLeft(2, '0')}-${_selectedDate.day.toString().padLeft(2, '0')}";
-      debugPrint("AI Import: Current selected date context: $selectedDateStr");
+      debugPrint("[AI IMPORT] Current selected date context: $selectedDateStr");
 
       // Parse
       List<ParsedTask> parsedTasks;
       try {
         parsedTasks = AiImportService.parseGPlanContent(content, selectedDateStr);
-        debugPrint("AI Import: Parser found ${parsedTasks.length} tasks");
+        debugPrint("[AI IMPORT] Parsed ${parsedTasks.length} tasks");
       } catch (e) {
-        debugPrint("AI Import: Parser Error: $e");
+        debugPrint("[AI IMPORT] Parser Error: $e");
         _showErrorDialog(context, e.toString().replaceFirst("Exception: ", ""));
         return;
       }
 
       if (parsedTasks.isEmpty) {
-        debugPrint("AI Import: Error - Parser returned 0 tasks");
+        debugPrint("[AI IMPORT] Error - Parser returned 0 tasks");
         _showErrorDialog(context, "No tasks found in the plan file.");
         return;
       }
@@ -341,18 +341,18 @@ User request/schedule to plan:
       for (int i = 0; i < parsedTasks.length; i++) {
         final error = AiImportService.validateParsedTask(parsedTasks[i], i);
         if (error != null) {
-          debugPrint("AI Import: Validation failed for task index $i: $error");
+          debugPrint("[AI IMPORT] Validation failed for task index $i: $error");
           _showErrorDialog(context, error);
           return;
         }
       }
-      debugPrint("AI Import: Validation successful for all tasks");
+      debugPrint("[AI IMPORT] Validation successful for all tasks");
 
       // Show Preview Screen
       _showImportPreviewSheet(context, parsedTasks);
 
     } catch (e) {
-      debugPrint("AI Import: Unexpected Error: $e");
+      debugPrint("[AI IMPORT] Unexpected Error: $e");
       _showErrorDialog(context, "Failed to read or parse file: ${e.toString()}");
     }
   }
@@ -493,11 +493,11 @@ User request/schedule to plan:
   }
 
   Future<void> _processImport(BuildContext context, List<ParsedTask> parsedTasks) async {
-    debugPrint("AI Import: Processing import for ${parsedTasks.length} tasks");
+    debugPrint("[AI IMPORT] Processing import for ${parsedTasks.length} tasks");
     final taskProvider = Provider.of<TaskProvider>(context, listen: false);
     final user = Provider.of<AuthProvider>(context, listen: false).user;
     if (user == null) {
-      debugPrint("AI Import: Error - No authenticated user found");
+      debugPrint("[AI IMPORT] Error - No authenticated user found");
       return;
     }
 
@@ -505,6 +505,7 @@ User request/schedule to plan:
     int skippedCount = 0;
 
     try {
+      debugPrint("[AI IMPORT] Visible task count before import: ${taskProvider.tasks.length}");
       for (var importedTask in parsedTasks) {
         // Search for duplicates
         Task? duplicate;
@@ -516,34 +517,40 @@ User request/schedule to plan:
         }
 
         if (duplicate != null) {
-          debugPrint("AI Import: Duplicate found for task '${importedTask.title}'");
+          debugPrint("[AI IMPORT] Duplicate found for task '${importedTask.title}'");
           final choice = await _showConflictDialog(context, importedTask);
-          debugPrint("AI Import: User conflict choice: $choice");
+          debugPrint("[AI IMPORT] User conflict choice: $choice");
           if (choice == 'skip' || choice == null) {
             skippedCount++;
             continue;
           } else if (choice == 'replace') {
             await taskProvider.deleteTask(duplicate);
-            await _insertImportedTask(taskProvider, importedTask, user.id);
+            await _insertImportedTask(taskProvider, importedTask, user.id, triggerSync: false);
             importedCount++;
           } else if (choice == 'keep_both') {
-            await _insertImportedTask(taskProvider, importedTask, user.id);
+            await _insertImportedTask(taskProvider, importedTask, user.id, triggerSync: false);
             importedCount++;
           }
         } else {
-          debugPrint("AI Import: No duplicate for task '${importedTask.title}', inserting...");
-          await _insertImportedTask(taskProvider, importedTask, user.id);
+          debugPrint("[AI IMPORT] No duplicate for task '${importedTask.title}', inserting...");
+          await _insertImportedTask(taskProvider, importedTask, user.id, triggerSync: false);
           importedCount++;
         }
       }
 
-      debugPrint("AI Import: Import processing complete. Imported: $importedCount, Skipped: $skippedCount");
+      debugPrint("[AI IMPORT] Import processing complete. Imported: $importedCount, Skipped: $skippedCount");
+      debugPrint("[AI IMPORT] Visible task count after import (before sync): ${taskProvider.tasks.length}");
+
+      if (importedCount > 0) {
+        debugPrint("[AI IMPORT] Triggering single synchronization session for user ${user.id}");
+        await taskProvider.triggerSync(user.id);
+      }
 
       if (context.mounted) {
         _showSuccessSummaryDialog(context, importedCount, skippedCount);
       }
     } catch (e) {
-      debugPrint("AI Import: Exception in _processImport: $e");
+      debugPrint("[AI IMPORT] Exception in _processImport: $e");
       if (context.mounted) {
         _showErrorDialog(context, "Error during import: ${e.toString()}");
       }
@@ -636,7 +643,7 @@ User request/schedule to plan:
     );
   }
 
-  Future<void> _insertImportedTask(TaskProvider taskProvider, ParsedTask imported, String userId) async {
+  Future<void> _insertImportedTask(TaskProvider taskProvider, ParsedTask imported, String userId, {bool triggerSync = true}) async {
     final tImported = AiImportService.parseDueTime(imported.start);
     String? formattedDueTime;
     if (tImported != null) {
@@ -647,7 +654,7 @@ User request/schedule to plan:
       formattedDueTime = "$displayHour:${minute.toString().padLeft(2, '0')} $amPm";
     }
 
-    debugPrint("AI Import: Inserting task '${imported.title}' for date ${imported.date} at $formattedDueTime");
+    debugPrint("[AI IMPORT] Inserting task '${imported.title}' for date ${imported.date} at $formattedDueTime");
     await taskProvider.addTask(
       userId: userId,
       title: imported.title.trim(),
@@ -655,8 +662,9 @@ User request/schedule to plan:
       repeatType: 'never',
       dueTime: formattedDueTime,
       scheduledDate: imported.date,
+      triggerSync: triggerSync,
     );
-    debugPrint("AI Import: Successfully inserted task '${imported.title}'");
+    debugPrint("[AI IMPORT] Successfully inserted task '${imported.title}'");
   }
 
   void _showTaskOptionsSheet(Task task) {
@@ -1167,6 +1175,12 @@ User request/schedule to plan:
     final taskProvider = context.watch<TaskProvider>();
     final authProvider = context.read<AuthProvider>();
 
+    final active = taskProvider.getActiveTasksForDate(_selectedDate);
+    final completed = taskProvider.getCompletedTasksForDate(_selectedDate);
+    final paused = taskProvider.tasks.where((t) => t.isPaused).toList();
+
+    debugPrint("[UI] Rebuilt. Selected Date: $_selectedDate. Active tasks count: ${active.length}. Completed tasks count: ${completed.length}. Total tasks count: ${taskProvider.tasks.length}");
+
     if (taskProvider.shouldShowCongrats || taskProvider.shouldShowXpAnimation) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (taskProvider.shouldShowCongrats) {
@@ -1176,10 +1190,6 @@ User request/schedule to plan:
         }
       });
     }
-    
-    final active = taskProvider.getActiveTasksForDate(_selectedDate);
-    final completed = taskProvider.getCompletedTasksForDate(_selectedDate);
-    final paused = taskProvider.tasks.where((t) => t.isPaused).toList();
 
     return Scaffold(
       backgroundColor: AppColors.background,
