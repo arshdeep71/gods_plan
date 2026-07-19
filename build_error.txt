@@ -3,9 +3,9 @@ Building com.godsplan.godsPlan for device (ios-release)...
 The following plugins do not support Swift Package Manager for ios:
   - flutter_local_notifications
 This will become an error in a future version of Flutter. Please contact the plugin maintainers to request Swift Package Manager adoption.
-Running pod install...                                             620ms
+Running pod install...                                             633ms
 Running Xcode build...                                          
-Xcode build done.                                           39.3s
+Xcode build done.                                           44.7s
 Failed to build iOS app
 Error output from Xcode build:
 ↳
@@ -15,7 +15,7 @@ Error output from Xcode build:
 Xcode's output:
 ↳
     Writing result bundle at path:
-    	/var/folders/g3/pffjr_y96bq06blnkf72x_hw0000gn/T/flutter_tools.P9mlij/flutter_ios_build_temp_dirQ4nqgw/temporary_xcresult_bundle
+    	/var/folders/g3/pffjr_y96bq06blnkf72x_hw0000gn/T/flutter_tools.ceNqhI/flutter_ios_build_temp_dirDHXkPB/temporary_xcresult_bundle
 
     /Users/runner/.pub-cache/hosted/pub.dev/flutter_local_notifications-17.2.4/ios/Classes/FlutterLocalNotificationsPlugin.m:6:17: warning: method definition for 'setRegisterPlugins:' not found [-Wincomplete-implementation]
     @implementation FlutterLocalNotificationsPlugin {
@@ -25,11 +25,11 @@ Xcode's output:
     + (void)setRegisterPlugins:(FlutterPluginRegistrantCallback *)callback;
     ^
     1 warning generated.
-    lib/screens/dashboard.dart:1291:42: Error: The getter 'settingsBox' isn't defined for the type 'TaskProvider'.
-     - 'TaskProvider' is from 'package:gods_plan/providers/task_provider.dart' ('lib/providers/task_provider.dart').
-    Try correcting the name to the name of an existing getter, or defining a getter or field named 'settingsBox'.
-                      value: "${taskProvider.settingsBox.get('longest_streak', defaultValue: 0)}",
-                                             ^^^^^^^^^^^
+    lib/services/sync_service.dart:263:33: Error: The getter 'Sqflite' isn't defined for the type 'SyncService'.
+     - 'SyncService' is from 'package:gods_plan/services/sync_service.dart' ('lib/services/sync_service.dart').
+    Try correcting the name to the name of an existing getter, or defining a getter or field named 'Sqflite'.
+            final localCountAfter = Sqflite.firstIntValue(await txn.rawQuery("SELECT COUNT(*) FROM local_tasks WHERE user_id = ?", [userId])) ?? 0;
+                                    ^^^^^^^
     Target kernel_snapshot_program failed: Exception
     Failed to package /Users/runner/work/gods_plan/gods_plan.
     Command PhaseScriptExecution failed with a nonzero exit code
