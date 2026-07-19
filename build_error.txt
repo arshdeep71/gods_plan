@@ -4,9 +4,9 @@ The following plugins do not support Swift Package Manager for ios:
   - flutter_dynamic_icon_plus
   - flutter_local_notifications
 This will become an error in a future version of Flutter. Please contact the plugin maintainers to request Swift Package Manager adoption.
-Running pod install...                                             724ms
+Running pod install...                                             588ms
 Running Xcode build...                                          
-Xcode build done.                                           52.1s
+Xcode build done.                                           61.3s
 Failed to build iOS app
 Error output from Xcode build:
 ↳
@@ -16,7 +16,7 @@ Error output from Xcode build:
 Xcode's output:
 ↳
     Writing result bundle at path:
-    	/var/folders/g3/pffjr_y96bq06blnkf72x_hw0000gn/T/flutter_tools.8ea2lx/flutter_ios_build_temp_dirLzzHoc/temporary_xcresult_bundle
+    	/var/folders/g3/pffjr_y96bq06blnkf72x_hw0000gn/T/flutter_tools.md5Nll/flutter_ios_build_temp_diroqFybY/temporary_xcresult_bundle
 
     /Users/runner/.pub-cache/hosted/pub.dev/flutter_local_notifications-17.2.4/ios/Classes/FlutterLocalNotificationsPlugin.m:6:17: warning: method definition for 'setRegisterPlugins:' not found [-Wincomplete-implementation]
     @implementation FlutterLocalNotificationsPlugin {
@@ -26,34 +26,9 @@ Xcode's output:
     + (void)setRegisterPlugins:(FlutterPluginRegistrantCallback *)callback;
     ^
     1 warning generated.
-    lib/screens/settings/app_icon_view.dart:136:56: Error: Too many positional arguments: 0 allowed, but 1 found.
-    Try removing the extra positional arguments.
-          await FlutterDynamicIconPlus.setAlternateIconName(desired);
-                                                           ^
-    ../../../.pub-cache/hosted/pub.dev/flutter_dynamic_icon_plus-1.4.1/lib/flutter_dynamic_icon_plus.dart:16:23: Context: Found this candidate, but the arguments don't match.
-      static Future<void> setAlternateIconName({
-                          ^^^^^^^^^^^^^^^^^^^^
-    lib/screens/settings/app_icon_view.dart:162:56: Error: Too many positional arguments: 0 allowed, but 1 found.
-    Try removing the extra positional arguments.
-          await FlutterDynamicIconPlus.setAlternateIconName(iconName);
-                                                           ^
-    ../../../.pub-cache/hosted/pub.dev/flutter_dynamic_icon_plus-1.4.1/lib/flutter_dynamic_icon_plus.dart:16:23: Context: Found this candidate, but the arguments don't match.
-      static Future<void> setAlternateIconName({
-                          ^^^^^^^^^^^^^^^^^^^^
-    lib/screens/settings/app_icon_view.dart:200:9: Error: No named parameter with the name 'aspectRatioPresets'.
-            aspectRatioPresets: [CropAspectRatioPreset.square],
-            ^^^^^^^^^^^^^^^^^^
-    lib/screens/settings/app_icon_view.dart:245:24: Error: The method 'PictureRecorder' isn't defined for the type '_AppIconViewState'.
-     - '_AppIconViewState' is from 'package:gods_plan/screens/settings/app_icon_view.dart' ('lib/screens/settings/app_icon_view.dart').
-    Try correcting the name to the name of an existing method, or defining a method named 'PictureRecorder'.
-          final recorder = PictureRecorder();
-                           ^^^^^^^^^^^^^^^
-    lib/screens/settings/app_icon_view.dart:257:53: Error: The getter 'ImageByteFormat' isn't defined for the type '_AppIconViewState'.
-     - '_AppIconViewState' is from 'package:gods_plan/screens/settings/app_icon_view.dart' ('lib/screens/settings/app_icon_view.dart').
-    Try correcting the name to the name of an existing getter, or defining a getter or field named 'ImageByteFormat'.
-          final pngBytes = await img.toByteData(format: ImageByteFormat.png);
-                                                        ^^^^^^^^^^^^^^^
-    Target kernel_snapshot_program failed: Exception
+    No file or variants found for asset: assets/app_logo_1.jpg.
+
+    Target release_ios_bundle_flutter_assets failed: Exception: Failed to bundle asset files.
     Failed to package /Users/runner/work/gods_plan/gods_plan.
     Command PhaseScriptExecution failed with a nonzero exit code
     /Users/runner/work/gods_plan/gods_plan/ios/Pods/Pods.xcodeproj: warning: The iOS deployment target 'IPHONEOS_DEPLOYMENT_TARGET' is set to 9.0, but the range of supported deployment target versions is 12.0 to 17.5.99. (in target 'flutter_local_notifications-flutter_local_notifications_privacy' from project 'Pods')
