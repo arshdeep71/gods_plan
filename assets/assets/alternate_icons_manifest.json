@@ -1,0 +1,40 @@
+{
+  "version": 1,
+  "generatedAt": "2026-07-19T16:32:38.584515Z",
+  "icons": [
+    {
+      "id": "GPIconDark",
+      "name": "Dark AMOLED",
+      "assetPath": "assets/alternate_icons/icon_dark.png",
+      "thumbnailPath": "assets/alternate_icons/thumbnails/icon_dark.png",
+      "category": "Dark",
+      "author": "God's Plan",
+      "tags": [
+        "night",
+        "amoled",
+        "general",
+        "dark",
+        "icon"
+      ],
+      "sortOrder": 2,
+      "addedAt": "2026-07-19T22:00:37.076018Z"
+    },
+    {
+      "id": "default",
+      "name": "System Default",
+      "assetPath": "assets/alternate_icons/icon_default.png",
+      "thumbnailPath": "assets/alternate_icons/thumbnails/icon_default.png",
+      "category": "Default",
+      "author": "God's Plan",
+      "tags": [
+        "light",
+        "default",
+        "system",
+        "general",
+        "icon"
+      ],
+      "sortOrder": 1,
+      "addedAt": "2026-07-19T22:00:37.209980Z"
+    }
+  ]
+}

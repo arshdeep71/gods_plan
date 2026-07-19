@@ -1,0 +1,16 @@
+{
+  "icon_default": {
+    "name": "System Default",
+    "category": "Default",
+    "author": "God's Plan",
+    "tags": ["default", "system", "light"],
+    "sortOrder": 1
+  },
+  "icon_dark": {
+    "name": "Dark AMOLED",
+    "category": "Dark",
+    "author": "God's Plan",
+    "tags": ["dark", "amoled", "night"],
+    "sortOrder": 2
+  }
+}
