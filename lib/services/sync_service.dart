@@ -260,7 +260,8 @@ class SyncService {
           await txn.insert('local_tasks', remoteTask.toSqliteMap(), conflictAlgorithm: ConflictAlgorithm.replace);
         }
 
-        final localCountAfter = Sqflite.firstIntValue(await txn.rawQuery("SELECT COUNT(*) FROM local_tasks WHERE user_id = ?", [userId])) ?? 0;
+        final result = await txn.rawQuery("SELECT COUNT(*) AS count FROM local_tasks WHERE user_id = ?", [userId]);
+        final localCountAfter = (result.first['count'] as int?) ?? 0;
         print("[DATABASE] Task count in SQLite after mirror = $localCountAfter");
       });
     } catch (e) {
