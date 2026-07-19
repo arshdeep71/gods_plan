@@ -50,14 +50,12 @@ dev_dependencies:
 flutter_launcher_icons:
   android: false
   ios: true
-  image_path: "assets/app_logo_1.jpg"
+  image_path: "assets/alternate_icons/icon_default.png"
   remove_alpha_ios: true
 
 flutter:
   uses-material-design: true
   assets:
-    - assets/app_logo_1.jpg
-    - assets/app_logo_2.jpg
     - assets/alternate_icons/
     - assets/alternate_icons/thumbnails/
     - assets/alternate_icons_manifest.json
