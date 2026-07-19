@@ -11,6 +11,7 @@ import 'providers/learning_provider.dart';
 import 'providers/social_provider.dart';
 import 'services/database_service.dart';
 import 'services/notification_service.dart';
+import 'services/app_icon_service.dart';
 import 'utils/constants.dart';
 import 'utils/colors.dart';
 import 'screens/auth/login_screen.dart';

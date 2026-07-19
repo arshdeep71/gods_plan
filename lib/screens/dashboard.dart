@@ -30,6 +30,7 @@ import 'dashboard/analytics_view.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../services/sync_service.dart';
 import '../services/profile_reset_service.dart';
+import 'package:flutter/foundation.dart';
 
 
 class DashboardScreen extends StatefulWidget {
@@ -1130,15 +1131,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
             "Change your profile display name",
             _showEditProfileDialog,
           ),
-          const SizedBox(height: 16),
-          const Text("Appearance", style: TextStyle(color: AppColors.textSecondary, fontSize: 13, fontWeight: FontWeight.bold, letterSpacing: 0.5)),
-          const SizedBox(height: 12),
-          _buildSettingsTile(
-            Icons.app_shortcut_rounded,
-            "App Icon",
-            "Switch bundled icons or manage your saved icon gallery",
-            () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AppIconView())),
-          ),
+          if (!kIsWeb) ...[
+            const SizedBox(height: 16),
+            const Text("Appearance", style: TextStyle(color: AppColors.textSecondary, fontSize: 13, fontWeight: FontWeight.bold, letterSpacing: 0.5)),
+            const SizedBox(height: 12),
+            _buildSettingsTile(
+              Icons.app_shortcut_rounded,
+              "App Icon",
+              "Switch bundled icons or manage your saved icon gallery",
+              () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AppIconView())),
+            ),
+          ],
           const SizedBox(height: 16),
           const Text("Security & Setup", style: TextStyle(color: AppColors.textSecondary, fontSize: 13, fontWeight: FontWeight.bold, letterSpacing: 0.5)),
           const SizedBox(height: 12),

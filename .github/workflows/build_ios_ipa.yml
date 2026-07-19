@@ -28,6 +28,11 @@ jobs:
          channel: 'stable'
          cache: true
 
+     - name: Generate App Icon Manifest & Thumbnails
+       run: |
+         pip3 install Pillow
+         python3 generate_app_icon_manifest.py
+
      - name: Ensure iOS project exists
        run: |
          if [ ! -d "ios" ]; then

@@ -1,78 +1,22 @@
-import 'dart:convert';
-import 'dart:io';
-import 'dart:typed_data';
-
-import 'package:flutter/material.dart';
+import 'dart:ui';
 import 'package:flutter/foundation.dart';
-import 'package:image_picker/image_picker.dart';
-import 'package:image_cropper/image_cropper.dart';
-import 'package:path_provider/path_provider.dart';
-import 'package:hive_flutter/hive_flutter.dart';
-import 'package:uuid/uuid.dart';
-import 'package:flutter_dynamic_icon_plus/flutter_dynamic_icon_plus.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:provider/provider.dart';
+import '../../models/app_icon_model.dart';
+import '../../services/app_icon_service.dart';
+import '../../widgets/app_icon_tile.dart';
+import '../../widgets/current_icon_card.dart';
+import '../../widgets/icon_preview_dialog.dart';
 
-import '../../utils/colors.dart';
+// ─── Sort Options ──────────────────────────────────────────────────────────────
 
-// ─── Model ───────────────────────────────────────────────────────────────────
-
-class CustomIconMeta {
-  final String id;
-  String name;
-  final String path;
-  final String createdAt;
-  bool favorite;
-
-  CustomIconMeta({
-    required this.id,
-    required this.name,
-    required this.path,
-    required this.createdAt,
-    this.favorite = false,
-  });
-
-  Map<String, dynamic> toMap() => {
-        'id': id,
-        'name': name,
-        'path': path,
-        'createdAt': createdAt,
-        'favorite': favorite,
-      };
-
-  factory CustomIconMeta.fromMap(Map<String, dynamic> m) => CustomIconMeta(
-        id: m['id'] as String,
-        name: m['name'] as String,
-        path: m['path'] as String,
-        createdAt: m['createdAt'] as String,
-        favorite: m['favorite'] as bool? ?? false,
-      );
+enum IconSortOption {
+  alphabetical,
+  newest,
+  favorites,
+  recentlyUsed,
 }
-
-// ─── Bundled Icon Definition ─────────────────────────────────────────────────
-
-class _BundledIcon {
-  final String label;
-  final String? iconName; // null = default system icon
-  final String assetPath;
-
-  const _BundledIcon({
-    required this.label,
-    required this.iconName,
-    required this.assetPath,
-  });
-}
-
-const List<_BundledIcon> _bundledIcons = [
-  _BundledIcon(
-    label: 'Default',
-    iconName: null,
-    assetPath: 'assets/alternate_icons/icon_default.png',
-  ),
-  _BundledIcon(
-    label: 'Dark',
-    iconName: 'icon_dark',
-    assetPath: 'assets/alternate_icons/icon_dark.png',
-  ),
-];
 
 // ─── Screen ──────────────────────────────────────────────────────────────────
 
@@ -83,776 +27,583 @@ class AppIconView extends StatefulWidget {
   State<AppIconView> createState() => _AppIconViewState();
 }
 
-class _AppIconViewState extends State<AppIconView> {
-  static const String _hiveCustomIconsKey = 'custom_icons';
-  static const String _hiveSelectedIconKey = 'selected_icon';
+class _AppIconViewState extends State<AppIconView> with TickerProviderStateMixin {
+  static const _bgColor = Color(0xFF0D0D0F);
+  static const _surfaceColor = Color(0xFF1C1C1E);
+  static const _borderColor = Color(0xFF2C2C2E);
+  static const _accentColor = Color(0xFFFFD60A);
+  static const _textSecondary = Color(0xFF8E8E93);
 
-  late Box _settingsBox;
-  List<CustomIconMeta> _customIcons = [];
-  String? _selectedIconName; // null = default
-  bool _isSwitching = false;
+  final TextEditingController _searchController = TextEditingController();
+  final ScrollController _scrollController = ScrollController();
+
+  String _searchQuery = '';
+  String? _selectedCategory;
+  IconSortOption _sortOption = IconSortOption.alphabetical;
+  bool _isChangingIcon = false;
+
+  late AnimationController _warningAnimCtrl;
+  late Animation<double> _warningAnim;
+
+  bool get _isIOS => !kIsWeb && defaultTargetPlatform == TargetPlatform.iOS;
 
   @override
   void initState() {
     super.initState();
-    _settingsBox = Hive.box('settings_box');
-    _loadState();
-    _restoreIconOnStartup();
-  }
 
-  // ── Persistence ─────────────────────────────────────────────────────────
-
-  void _loadState() {
-    _selectedIconName = _settingsBox.get(_hiveSelectedIconKey) as String?;
-    final raw = _settingsBox.get(_hiveCustomIconsKey) as String?;
-    if (raw != null) {
-      try {
-        final list = jsonDecode(raw) as List<dynamic>;
-        _customIcons =
-            list.map((e) => CustomIconMeta.fromMap(Map<String, dynamic>.from(e as Map))).toList();
-      } catch (_) {
-        _customIcons = [];
-      }
-    }
-  }
-
-  Future<void> _saveCustomIcons() async {
-    final encoded = jsonEncode(_customIcons.map((e) => e.toMap()).toList());
-    await _settingsBox.put(_hiveCustomIconsKey, encoded);
-  }
-
-  // ── Startup Restore (refinement #11) ─────────────────────────────────────
-
-  Future<void> _restoreIconOnStartup() async {
-    if (!Platform.isIOS) return;
-    try {
-      final desired = _selectedIconName;
-      final isSupported = await FlutterDynamicIconPlus.supportsAlternateIcons;
-      if (!isSupported) return;
-
-      // Only call setAlternateIconName if the desired icon is NOT already active.
-      // We can't query the current icon on all versions, so we attempt a no-op
-      // by setting the same name. If it throws, we catch silently.
-      await FlutterDynamicIconPlus.setAlternateIconName(desired);
-    } catch (_) {
-      // Silently ignore – icon may already be set or unsupported on simulator
-    }
-  }
-
-  // ── Switch Bundled Icon ──────────────────────────────────────────────────
-
-  Future<void> _switchBundledIcon(String? iconName) async {
-    if (_isSwitching) return;
-    if (_selectedIconName == iconName) return; // Already selected, skip call
-
-    if (!Platform.isIOS) {
-      _showSnack('Icon switching is only supported on iOS.');
-      return;
-    }
-
-    setState(() => _isSwitching = true);
-
-    try {
-      final isSupported = await FlutterDynamicIconPlus.supportsAlternateIcons;
-      if (!isSupported) {
-        _showSnack('Alternate icons are not supported on this device.');
-        return;
-      }
-
-      await FlutterDynamicIconPlus.setAlternateIconName(iconName);
-      await _settingsBox.put(_hiveSelectedIconKey, iconName);
-
-      if (mounted) {
-        setState(() => _selectedIconName = iconName);
-        _showSnack(iconName == null
-            ? 'Restored default app icon.'
-            : 'App icon switched to ${_bundledIcons.firstWhere((b) => b.iconName == iconName).label}.');
-      }
-    } catch (e) {
-      _showSnack('Failed to change app icon. Error: $e');
-    } finally {
-      if (mounted) setState(() => _isSwitching = false);
-    }
-  }
-
-  // ── Import Flow ──────────────────────────────────────────────────────────
-
-  Future<void> _importNewIcon() async {
-    try {
-      final picker = ImagePicker();
-      final XFile? picked =
-          await picker.pickImage(source: ImageSource.gallery, imageQuality: 100);
-      if (picked == null) return; // Cancelled
-
-      // Validate resolution
-      final bytes = await picked.readAsBytes();
-      final image = await decodeImageFromList(bytes);
-      if (image.width < 512 || image.height < 512) {
-        _showSnack(
-            'Image resolution too small. Choose a higher quality image (recommended: 1024×1024).');
-        return;
-      }
-
-      // Crop 1:1
-      final cropped = await ImageCropper().cropImage(
-        sourcePath: picked.path,
-        aspectRatio: const CropAspectRatio(ratioX: 1, ratioY: 1),
-        aspectRatioPresets: [CropAspectRatioPreset.square],
-        uiSettings: [
-          IOSUiSettings(
-            title: 'Crop Icon',
-            aspectRatioLockEnabled: true,
-            resetAspectRatioEnabled: false,
-            aspectRatioPickerButtonHidden: true,
-            rotateButtonsHidden: false,
-            doneButtonTitle: 'Save',
-            cancelButtonTitle: 'Cancel',
-          ),
-          AndroidUiSettings(
-            toolbarTitle: 'Crop Icon',
-            lockAspectRatio: true,
-            hideBottomControls: true,
-            initAspectRatio: CropAspectRatioPreset.square,
-          ),
-        ],
-      );
-
-      if (cropped == null) return; // User cancelled crop
-
-      await _saveCroppedIcon(cropped.path);
-    } on Exception catch (e) {
-      _showSnack('Import failed: $e');
-    }
-  }
-
-  Future<void> _saveCroppedIcon(String croppedPath) async {
-    try {
-      final dir = await getApplicationDocumentsDirectory();
-      final iconsDir = Directory('${dir.path}/app_icons');
-      if (!iconsDir.existsSync()) iconsDir.createSync(recursive: true);
-
-      // Generate sequential filename
-      final count = _customIcons.length + 1;
-      final filename =
-          'icon_${count.toString().padLeft(3, '0')}.png';
-      final destPath = '${iconsDir.path}/$filename';
-
-      // Read cropped file, re-encode as PNG 1024×1024
-      final rawBytes = await File(croppedPath).readAsBytes();
-      final src = await decodeImageFromList(rawBytes);
-
-      // Resize to 1024×1024 using Flutter's codec
-      final recorder = PictureRecorder();
-      final canvas = Canvas(recorder,
-          Rect.fromLTWH(0, 0, 1024, 1024));
-      final paint = Paint()..filterQuality = FilterQuality.high;
-      canvas.drawImageRect(
-        src,
-        Rect.fromLTWH(0, 0, src.width.toDouble(), src.height.toDouble()),
-        const Rect.fromLTWH(0, 0, 1024, 1024),
-        paint,
-      );
-      final picture = recorder.endRecording();
-      final img = await picture.toImage(1024, 1024);
-      final pngBytes = await img.toByteData(format: ImageByteFormat.png);
-      if (pngBytes == null) throw Exception('Failed to encode PNG');
-
-      await File(destPath).writeAsBytes(pngBytes.buffer.asUint8List());
-
-      final meta = CustomIconMeta(
-        id: const Uuid().v4(),
-        name: 'My Icon $count',
-        path: destPath,
-        createdAt: DateTime.now().toIso8601String(),
-        favorite: false,
-      );
-
-      setState(() => _customIcons.add(meta));
-      await _saveCustomIcons();
-      _showSnack('Icon saved successfully.');
-    } catch (e) {
-      _showSnack('Failed to save icon: $e');
-    }
-  }
-
-  // ── Delete ───────────────────────────────────────────────────────────────
-
-  Future<void> _deleteIcon(CustomIconMeta meta) async {
-    try {
-      final file = File(meta.path);
-      if (file.existsSync()) file.deleteSync();
-    } catch (_) {}
-    setState(() => _customIcons.removeWhere((e) => e.id == meta.id));
-    await _saveCustomIcons();
-    _showSnack('Icon deleted.');
-  }
-
-  // ── Rename ───────────────────────────────────────────────────────────────
-
-  Future<void> _renameIcon(CustomIconMeta meta) async {
-    final controller = TextEditingController(text: meta.name);
-    final newName = await showDialog<String>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: const Color(0xFF1C1C1E),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text('Rename Icon',
-            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-        content: TextField(
-          controller: controller,
-          autofocus: true,
-          style: const TextStyle(color: Colors.white),
-          decoration: InputDecoration(
-            hintText: 'Icon name',
-            hintStyle: const TextStyle(color: Colors.white38),
-            enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: const BorderSide(color: AppColors.border)),
-            focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: const BorderSide(color: AppColors.accent)),
-          ),
-        ),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('Cancel',
-                  style: TextStyle(color: AppColors.textSecondary))),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.accent,
-              foregroundColor: Colors.black,
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10)),
-            ),
-            onPressed: () => Navigator.pop(ctx, controller.text.trim()),
-            child: const Text('Save',
-                style: TextStyle(fontWeight: FontWeight.bold)),
-          ),
-        ],
-      ),
+    _warningAnimCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 400),
     );
+    _warningAnim = CurvedAnimation(parent: _warningAnimCtrl, curve: Curves.easeOut);
 
-    if (newName != null && newName.isNotEmpty) {
-      setState(() => meta.name = newName);
-      await _saveCustomIcons();
-    }
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      final service = context.read<AppIconService>();
+      if (!service.isInitialized) {
+        await service.initialize();
+      }
+      if (service.showWarningFlag && mounted) {
+        _warningAnimCtrl.forward();
+        service.clearWarningFlag();
+      }
+    });
+
+    _searchController.addListener(() {
+      setState(() => _searchQuery = _searchController.text.trim().toLowerCase());
+    });
   }
 
-  // ── Preview Dialog ────────────────────────────────────────────────────────
+  @override
+  void dispose() {
+    _searchController.dispose();
+    _scrollController.dispose();
+    _warningAnimCtrl.dispose();
+    super.dispose();
+  }
 
-  void _showPreviewDialog(CustomIconMeta meta) {
-    showModalBottomSheet(
+  // ── Filtering & Sorting ──────────────────────────────────────────────────
+
+  List<AppIconModel> _applyFilters(AppIconService service) {
+    List<AppIconModel> icons = List.from(service.icons);
+
+    // Search filter
+    if (_searchQuery.isNotEmpty) {
+      icons = icons.where((icon) {
+        final q = _searchQuery;
+        return icon.name.toLowerCase().contains(q) ||
+            (icon.category?.toLowerCase().contains(q) ?? false) ||
+            (icon.author?.toLowerCase().contains(q) ?? false) ||
+            icon.tags.any((t) => t.toLowerCase().contains(q)) ||
+            icon.id.toLowerCase().contains(q);
+      }).toList();
+    }
+
+    // Category filter
+    if (_selectedCategory != null) {
+      icons = icons.where((icon) => icon.category == _selectedCategory).toList();
+    }
+
+    // Sort
+    switch (_sortOption) {
+      case IconSortOption.alphabetical:
+        icons.sort((a, b) => a.name.compareTo(b.name));
+        break;
+      case IconSortOption.newest:
+        icons.sort((a, b) => b.addedAt.compareTo(a.addedAt));
+        break;
+      case IconSortOption.favorites:
+        icons.sort((a, b) {
+          if (a.favorite == b.favorite) return a.name.compareTo(b.name);
+          return a.favorite ? -1 : 1;
+        });
+        break;
+      case IconSortOption.recentlyUsed:
+        final recentOrder = service.recentlyUsed;
+        icons.sort((a, b) {
+          final ai = recentOrder.indexOf(a.id);
+          final bi = recentOrder.indexOf(b.id);
+          if (ai == -1 && bi == -1) return a.name.compareTo(b.name);
+          if (ai == -1) return 1;
+          if (bi == -1) return -1;
+          return ai.compareTo(bi);
+        });
+        break;
+    }
+
+    return icons;
+  }
+
+  List<String> _getCategories(AppIconService service) {
+    final cats = service.icons
+        .map((e) => e.category ?? 'General')
+        .toSet()
+        .toList()
+      ..sort();
+    return cats;
+  }
+
+  // ── Icon Apply ────────────────────────────────────────────────────────────
+
+  Future<void> _showPreview(AppIconModel icon, AppIconService service) async {
+    if (_isChangingIcon) return;
+
+    final isActive = service.selectedIconId == icon.id;
+
+    await showModalBottomSheet<bool>(
       context: context,
-      backgroundColor: const Color(0xFF1C1C1E),
       isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
-      builder: (ctx) => Padding(
-        padding: const EdgeInsets.fromLTRB(24, 16, 24, 40),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // Drag handle
-            Container(
-              width: 40,
-              height: 4,
-              margin: const EdgeInsets.only(bottom: 20),
-              decoration: BoxDecoration(
-                  color: Colors.white24,
-                  borderRadius: BorderRadius.circular(2)),
-            ),
-            // Preview image
-            ClipRRect(
-              borderRadius: BorderRadius.circular(24),
-              child: Image.file(
-                File(meta.path),
-                width: 180,
-                height: 180,
-                fit: BoxFit.cover,
-                errorBuilder: (_, __, ___) => Container(
-                  width: 180,
-                  height: 180,
-                  color: AppColors.surface,
-                  child: const Icon(Icons.broken_image_rounded,
-                      color: AppColors.textMuted, size: 48),
-                ),
-              ),
-            ),
-            const SizedBox(height: 16),
-            Text(
-              meta.name,
-              style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 20),
-            const Divider(color: Colors.white12),
-            const SizedBox(height: 12),
-            // Actions row
-            Row(
-              children: [
-                Expanded(
-                  child: _actionButton(
-                    icon: Icons.edit_rounded,
-                    label: 'Rename',
-                    color: Colors.blueAccent,
-                    onTap: () {
-                      Navigator.pop(ctx);
-                      _renameIcon(meta);
-                    },
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: _actionButton(
-                    icon: Icons.delete_rounded,
-                    label: 'Delete',
-                    color: AppColors.error,
-                    onTap: () {
-                      Navigator.pop(ctx);
-                      _deleteIcon(meta);
-                    },
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 20),
-            const Divider(color: Colors.white12),
-            const SizedBox(height: 16),
-            // iOS limitation section
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.04),
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: Colors.white12),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: const [
-                      Icon(Icons.home_rounded,
-                          color: AppColors.textSecondary, size: 18),
-                      SizedBox(width: 8),
-                      Text(
-                        'Home Screen Icon',
-                        style: TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 14),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 6),
-                  Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: AppColors.error.withOpacity(0.15),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: const Text(
-                      'Unavailable',
-                      style: TextStyle(
-                          color: AppColors.error,
-                          fontSize: 11,
-                          fontWeight: FontWeight.bold),
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  const Text(
-                    'Custom images are saved locally. Only bundled app icons can be applied to the iPhone Home Screen because of iOS restrictions.',
-                    style: TextStyle(
-                        color: AppColors.textSecondary,
-                        fontSize: 12,
-                        height: 1.5),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => IconPreviewDialog(
+        icon: icon,
+        isActive: isActive,
+        onApply: () async {
+          setState(() => _isChangingIcon = true);
+          try {
+            await service.applyIcon(icon.id);
+          } finally {
+            if (mounted) setState(() => _isChangingIcon = false);
+          }
+        },
       ),
     );
   }
 
-  Widget _actionButton({
-    required IconData icon,
-    required String label,
-    required Color color,
-    required VoidCallback onTap,
-  }) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(14),
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 14),
-        decoration: BoxDecoration(
-          color: color.withOpacity(0.12),
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: color.withOpacity(0.25)),
-        ),
-        child: Column(
-          children: [
-            Icon(icon, color: color, size: 22),
-            const SizedBox(height: 6),
-            Text(label,
-                style: TextStyle(
-                    color: color, fontSize: 12, fontWeight: FontWeight.bold)),
-          ],
-        ),
-      ),
-    );
+  // ── UI Helpers ────────────────────────────────────────────────────────────
+
+  String _sortLabel(IconSortOption opt) {
+    switch (opt) {
+      case IconSortOption.alphabetical: return 'A → Z';
+      case IconSortOption.newest: return 'Newest';
+      case IconSortOption.favorites: return 'Favorites';
+      case IconSortOption.recentlyUsed: return 'Recent';
+    }
   }
-
-  // ── Snack ─────────────────────────────────────────────────────────────────
-
-  void _showSnack(String msg) {
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Text(msg, style: const TextStyle(color: Colors.white)),
-      backgroundColor: const Color(0xFF2C2C2E),
-      behavior: SnackBarBehavior.floating,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-      duration: const Duration(seconds: 3),
-    ));
-  }
-
-  // ── Build ─────────────────────────────────────────────────────────────────
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded,
-              color: AppColors.textPrimary),
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: const Text(
-          'App Icon',
-          style: TextStyle(
-              color: AppColors.textPrimary, fontWeight: FontWeight.bold),
-        ),
-      ),
-      body: ListView(
-        padding:
-            const EdgeInsets.only(left: 20, right: 20, top: 8, bottom: 48),
-        children: [
-          // ── Import Button ─────────────────────────────────────────────────
-          _buildImportButton(),
-          const SizedBox(height: 28),
-
-          // ── Current Icon ──────────────────────────────────────────────────
-          _sectionLabel('Current Icon'),
-          const SizedBox(height: 12),
-          _buildCurrentIconCard(),
-          const SizedBox(height: 28),
-
-          // ── Bundled Icons ─────────────────────────────────────────────────
-          _sectionLabel('Bundled Icons'),
-          const SizedBox(height: 12),
-          _buildBundledIconsGrid(),
-          const SizedBox(height: 28),
-
-          // ── My Icons ──────────────────────────────────────────────────────
-          _sectionLabel('My Icons'),
-          const SizedBox(height: 4),
-          const Text(
-            'Saved locally for reference only.',
-            style: TextStyle(
-                color: AppColors.textMuted, fontSize: 12, height: 1.4),
-          ),
-          const SizedBox(height: 12),
-          _buildCustomIconsGrid(),
-        ],
-      ),
-    );
-  }
-
-  // ── Section Label ─────────────────────────────────────────────────────────
-
-  Widget _sectionLabel(String text) => Text(
-        text.toUpperCase(),
-        style: const TextStyle(
-          color: AppColors.textSecondary,
-          fontSize: 12,
-          fontWeight: FontWeight.bold,
-          letterSpacing: 0.8,
-        ),
-      );
-
-  // ── Import Button ─────────────────────────────────────────────────────────
-
-  Widget _buildImportButton() {
-    return InkWell(
-      onTap: _importNewIcon,
-      borderRadius: BorderRadius.circular(16),
-      child: Container(
-        padding:
-            const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            colors: [
-              AppColors.accent.withOpacity(0.15),
-              AppColors.primary.withOpacity(0.10),
-            ],
-          ),
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: AppColors.accent.withOpacity(0.35)),
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: const [
-            Icon(Icons.add_photo_alternate_rounded,
-                color: AppColors.accent, size: 22),
-            SizedBox(width: 10),
-            Text(
-              'Import New Icon',
-              style: TextStyle(
-                  color: AppColors.accent,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 15),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  // ── Current Icon Card ─────────────────────────────────────────────────────
-
-  Widget _buildCurrentIconCard() {
-    final current = _bundledIcons.firstWhere(
-      (b) => b.iconName == _selectedIconName,
-      orElse: () => _bundledIcons.first,
-    );
-
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: AppColors.accent.withOpacity(0.4), width: 1.5),
-      ),
-      child: Row(
-        children: [
-          ClipRRect(
-            borderRadius: BorderRadius.circular(16),
-            child: Image.asset(
-              current.assetPath,
-              width: 72,
-              height: 72,
-              fit: BoxFit.cover,
-            ),
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  current.label,
-                  style: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 16),
-                ),
-                const SizedBox(height: 4),
-                const Text('Active',
-                    style: TextStyle(
-                        color: AppColors.accent,
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold)),
-              ],
-            ),
-          ),
-          Container(
-            padding: const EdgeInsets.all(6),
-            decoration: BoxDecoration(
-              color: AppColors.accent.withOpacity(0.15),
-              shape: BoxShape.circle,
-            ),
-            child: const Icon(Icons.check_rounded,
-                color: AppColors.accent, size: 18),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // ── Bundled Icons Grid ────────────────────────────────────────────────────
-
-  Widget _buildBundledIconsGrid() {
-    return GridView.builder(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      itemCount: _bundledIcons.length,
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 3,
-        crossAxisSpacing: 12,
-        mainAxisSpacing: 12,
-        childAspectRatio: 0.82,
-      ),
-      itemBuilder: (_, i) {
-        final icon = _bundledIcons[i];
-        final isSelected = _selectedIconName == icon.iconName;
-        return GestureDetector(
-          onTap: () => _switchBundledIcon(icon.iconName),
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 200),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(18),
-              border: Border.all(
-                color:
-                    isSelected ? AppColors.accent : AppColors.border,
-                width: isSelected ? 2.5 : 1,
-              ),
-              color: isSelected
-                  ? AppColors.accent.withOpacity(0.08)
-                  : AppColors.surface,
-            ),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Stack(
-                  alignment: Alignment.topRight,
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: SystemUiOverlayStyle.light,
+      child: Scaffold(
+        backgroundColor: _bgColor,
+        body: Consumer<AppIconService>(
+          builder: (context, service, _) {
+            if (!service.isInitialized) {
+              return const Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(14),
-                      child: Image.asset(
-                        icon.assetPath,
-                        width: 64,
-                        height: 64,
-                        fit: BoxFit.cover,
-                      ),
+                    CircularProgressIndicator(
+                      color: _accentColor,
+                      strokeWidth: 2.5,
                     ),
-                    if (isSelected)
-                      Container(
-                        padding: const EdgeInsets.all(3),
-                        decoration: const BoxDecoration(
-                            color: AppColors.accent,
-                            shape: BoxShape.circle),
-                        child: const Icon(Icons.check_rounded,
-                            color: Colors.black, size: 10),
-                      ),
+                    SizedBox(height: 16),
+                    Text(
+                      'Loading icons...',
+                      style: TextStyle(color: Colors.white54, fontSize: 14),
+                    ),
                   ],
                 ),
-                const SizedBox(height: 8),
-                Text(
-                  icon.label,
-                  style: TextStyle(
-                    color: isSelected
-                        ? AppColors.accent
-                        : AppColors.textSecondary,
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
+              );
+            }
+
+            final allFiltered = _applyFilters(service);
+            final categories = _getCategories(service);
+            final selectedIcon = service.icons.isEmpty
+                ? null
+                : service.icons.firstWhere(
+                    (i) => i.id == service.selectedIconId,
+                    orElse: () => service.icons.first,
+                  );
+
+            // Build recently-used and favorites subsets for section headers
+            final recentIds = service.recentlyUsed;
+            final recentIcons = recentIds
+                .map((id) => service.icons.where((i) => i.id == id).firstOrNull)
+                .whereType<AppIconModel>()
+                .toList();
+
+            final favoriteIcons = service.icons.where((i) => i.favorite).toList();
+
+            return CustomScrollView(
+              controller: _scrollController,
+              physics: const BouncingScrollPhysics(),
+              slivers: [
+                // ── App Bar ────────────────────────────────────────────────
+                SliverAppBar(
+                  backgroundColor: Colors.transparent,
+                  surfaceTintColor: Colors.transparent,
+                  expandedHeight: 0,
+                  floating: true,
+                  pinned: true,
+                  flexibleSpace: ClipRect(
+                    child: BackdropFilter(
+                      filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+                      child: Container(
+                        color: _bgColor.withOpacity(0.7),
+                      ),
+                    ),
                   ),
+                  leading: IconButton(
+                    icon: const Icon(Icons.arrow_back_ios_rounded, color: Colors.white, size: 20),
+                    onPressed: () => Navigator.pop(context),
+                  ),
+                  title: const Text(
+                    'App Icon',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 18,
+                    ),
+                  ),
+                  centerTitle: true,
+                  actions: [
+                    // Sort menu
+                    PopupMenuButton<IconSortOption>(
+                      color: _surfaceColor,
+                      icon: const Icon(Icons.sort_rounded, color: Colors.white),
+                      onSelected: (opt) => setState(() => _sortOption = opt),
+                      itemBuilder: (_) => IconSortOption.values.map((opt) {
+                        return PopupMenuItem<IconSortOption>(
+                          value: opt,
+                          child: Row(
+                            children: [
+                              if (_sortOption == opt)
+                                const Icon(Icons.check_rounded, color: _accentColor, size: 16)
+                              else
+                                const SizedBox(width: 16),
+                              const SizedBox(width: 10),
+                              Text(
+                                _sortLabel(opt),
+                                style: TextStyle(
+                                  color: _sortOption == opt ? _accentColor : Colors.white,
+                                  fontWeight: _sortOption == opt ? FontWeight.bold : FontWeight.normal,
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      }).toList(),
+                    ),
+                  ],
                 ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
 
-  // ── Custom Icons Grid ─────────────────────────────────────────────────────
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // ── Removed Icon Warning Banner ───────────────────
+                        SizeTransition(
+                          sizeFactor: _warningAnim,
+                          child: Container(
+                            margin: const EdgeInsets.only(bottom: 16),
+                            padding: const EdgeInsets.all(14),
+                            decoration: BoxDecoration(
+                              color: Colors.orange.withOpacity(0.12),
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(color: Colors.orange.withOpacity(0.3)),
+                            ),
+                            child: const Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Icon(Icons.info_outline_rounded, color: Colors.orange, size: 20),
+                                SizedBox(width: 10),
+                                Expanded(
+                                  child: Text(
+                                    'Your previously selected app icon is no longer available, so the default icon has been restored.',
+                                    style: TextStyle(
+                                      color: Colors.orange,
+                                      fontSize: 13,
+                                      height: 1.4,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
 
-  Widget _buildCustomIconsGrid() {
-    if (_customIcons.isEmpty) {
-      return Container(
-        padding: const EdgeInsets.symmetric(vertical: 32),
-        decoration: BoxDecoration(
-          color: AppColors.surface,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: AppColors.border),
-        ),
-        child: const Column(
-          children: [
-            Icon(Icons.image_outlined,
-                color: AppColors.textMuted, size: 40),
-            SizedBox(height: 12),
-            Text(
-              'No custom icons yet.',
-              style: TextStyle(
-                  color: AppColors.textMuted, fontSize: 13),
-            ),
-            SizedBox(height: 4),
-            Text(
-              'Tap "Import New Icon" above to add one.',
-              style: TextStyle(
-                  color: AppColors.textMuted, fontSize: 12),
-            ),
-          ],
-        ),
-      );
-    }
+                        // ── iOS-only notice ───────────────────────────────
+                        if (!_isIOS)
+                          Container(
+                            margin: const EdgeInsets.only(bottom: 16),
+                            padding: const EdgeInsets.all(14),
+                            decoration: BoxDecoration(
+                              color: _surfaceColor,
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(color: _borderColor),
+                            ),
+                            child: const Row(
+                              children: [
+                                Icon(Icons.phone_iphone_rounded, color: Colors.white54, size: 20),
+                                SizedBox(width: 10),
+                                Expanded(
+                                  child: Text(
+                                    'App icon switching is only available on iOS. You can browse and preview icons here.',
+                                    style: TextStyle(color: Colors.white54, fontSize: 13, height: 1.4),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
 
-    return GridView.builder(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      itemCount: _customIcons.length,
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 3,
-        crossAxisSpacing: 12,
-        mainAxisSpacing: 12,
-        childAspectRatio: 0.82,
-      ),
-      itemBuilder: (_, i) {
-        final meta = _customIcons[i];
-        return GestureDetector(
-          onTap: () => _showPreviewDialog(meta),
-          child: Container(
-            decoration: BoxDecoration(
-              color: AppColors.surface,
-              borderRadius: BorderRadius.circular(18),
-              border: Border.all(color: AppColors.border),
-            ),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(14),
-                  child: Image.file(
-                    File(meta.path),
-                    width: 64,
-                    height: 64,
-                    fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) => Container(
-                      width: 64,
-                      height: 64,
-                      color: AppColors.background,
-                      child: const Icon(Icons.broken_image_rounded,
-                          color: AppColors.textMuted, size: 28),
+                        // ── Current Icon Card ─────────────────────────────
+                        if (selectedIcon != null)
+                          CurrentIconCard(currentIcon: selectedIcon),
+
+                        const SizedBox(height: 20),
+
+                        // ── Search Box ────────────────────────────────────
+                        Container(
+                          decoration: BoxDecoration(
+                            color: _surfaceColor,
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(color: _borderColor),
+                          ),
+                          child: TextField(
+                            controller: _searchController,
+                            style: const TextStyle(color: Colors.white, fontSize: 15),
+                            cursorColor: _accentColor,
+                            decoration: InputDecoration(
+                              hintText: 'Search icons...',
+                              hintStyle: const TextStyle(color: Colors.white38),
+                              prefixIcon: const Icon(Icons.search_rounded, color: Colors.white38, size: 20),
+                              suffixIcon: _searchQuery.isNotEmpty
+                                  ? IconButton(
+                                      icon: const Icon(Icons.close_rounded, color: Colors.white38, size: 18),
+                                      onPressed: () {
+                                        _searchController.clear();
+                                        setState(() => _searchQuery = '');
+                                      },
+                                    )
+                                  : null,
+                              border: InputBorder.none,
+                              contentPadding: const EdgeInsets.symmetric(horizontal: 0, vertical: 14),
+                            ),
+                          ),
+                        ),
+
+                        const SizedBox(height: 14),
+
+                        // ── Category Pills ────────────────────────────────
+                        if (categories.length > 1)
+                          SizedBox(
+                            height: 36,
+                            child: ListView.separated(
+                              scrollDirection: Axis.horizontal,
+                              itemCount: categories.length + 1, // +1 for "All"
+                              separatorBuilder: (_, __) => const SizedBox(width: 8),
+                              itemBuilder: (context, index) {
+                                final isAll = index == 0;
+                                final category = isAll ? null : categories[index - 1];
+                                final label = isAll ? 'All' : category!;
+                                final isSelected = _selectedCategory == category;
+
+                                return GestureDetector(
+                                  onTap: () => setState(() => _selectedCategory = category),
+                                  child: AnimatedContainer(
+                                    duration: const Duration(milliseconds: 180),
+                                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+                                    decoration: BoxDecoration(
+                                      color: isSelected ? _accentColor : _surfaceColor,
+                                      borderRadius: BorderRadius.circular(20),
+                                      border: Border.all(
+                                        color: isSelected ? _accentColor : _borderColor,
+                                      ),
+                                    ),
+                                    child: Text(
+                                      label,
+                                      style: TextStyle(
+                                        color: isSelected ? Colors.black : Colors.white70,
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 12,
+                                      ),
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
+                          ),
+
+                        const SizedBox(height: 8),
+                      ],
                     ),
                   ),
                 ),
-                const SizedBox(height: 8),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 6),
-                  child: Text(
-                    meta.name,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(
-                        color: AppColors.textSecondary,
-                        fontSize: 11,
-                        fontWeight: FontWeight.bold),
+
+                // ── Recently Used Section ─────────────────────────────────
+                if (recentIcons.isNotEmpty && _searchQuery.isEmpty && _selectedCategory == null)
+                  _buildSectionHeader('Recently Used', Icons.history_rounded),
+
+                if (recentIcons.isNotEmpty && _searchQuery.isEmpty && _selectedCategory == null)
+                  SliverToBoxAdapter(
+                    child: SizedBox(
+                      height: 180,
+                      child: ListView.separated(
+                        scrollDirection: Axis.horizontal,
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                        itemCount: recentIcons.length,
+                        separatorBuilder: (_, __) => const SizedBox(width: 10),
+                        itemBuilder: (context, index) {
+                          final icon = recentIcons[index];
+                          final isSelected = service.selectedIconId == icon.id;
+                          return SizedBox(
+                            width: 140,
+                            child: AppIconTile(
+                              icon: icon,
+                              isSelected: isSelected,
+                              onTap: () => _showPreview(icon, service),
+                              onFavoriteToggle: () => service.toggleFavorite(icon.id),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
                   ),
+
+                // ── Favorites Section ────────────────────────────────────
+                if (favoriteIcons.isNotEmpty && _searchQuery.isEmpty && _selectedCategory == null)
+                  _buildSectionHeader('Favorites', Icons.favorite_rounded),
+
+                if (favoriteIcons.isNotEmpty && _searchQuery.isEmpty && _selectedCategory == null)
+                  SliverPadding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    sliver: SliverGrid(
+                      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: 2,
+                        crossAxisSpacing: 10,
+                        mainAxisSpacing: 10,
+                        childAspectRatio: 0.85,
+                      ),
+                      delegate: SliverChildBuilderDelegate(
+                        (context, index) {
+                          final icon = favoriteIcons[index];
+                          final isSelected = service.selectedIconId == icon.id;
+                          return AppIconTile(
+                            icon: icon,
+                            isSelected: isSelected,
+                            onTap: () => _showPreview(icon, service),
+                            onFavoriteToggle: () => service.toggleFavorite(icon.id),
+                          );
+                        },
+                        childCount: favoriteIcons.length,
+                      ),
+                    ),
+                  ),
+
+                // ── All Icons Section ─────────────────────────────────────
+                _buildSectionHeader(
+                  _searchQuery.isNotEmpty
+                      ? 'Results (${allFiltered.length})'
+                      : _selectedCategory != null
+                          ? _selectedCategory!
+                          : 'All Icons',
+                  _searchQuery.isNotEmpty ? Icons.search_rounded : Icons.apps_rounded,
                 ),
+
+                if (allFiltered.isEmpty)
+                  SliverToBoxAdapter(
+                    child: _buildEmptyState(),
+                  )
+                else
+                  SliverPadding(
+                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 32),
+                    sliver: SliverGrid(
+                      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: 2,
+                        crossAxisSpacing: 10,
+                        mainAxisSpacing: 10,
+                        childAspectRatio: 0.85,
+                      ),
+                      delegate: SliverChildBuilderDelegate(
+                        (context, index) {
+                          final icon = allFiltered[index];
+                          final isSelected = service.selectedIconId == icon.id;
+                          return AppIconTile(
+                            icon: icon,
+                            isSelected: isSelected,
+                            onTap: () => _showPreview(icon, service),
+                            onFavoriteToggle: () => service.toggleFavorite(icon.id),
+                          );
+                        },
+                        childCount: allFiltered.length,
+                        // Only build what is visible, allowing Flutter to lazy-load
+                        addAutomaticKeepAlives: false,
+                        addRepaintBoundaries: true,
+                      ),
+                    ),
+                  ),
               ],
+            );
+          },
+        ),
+      ),
+    );
+  }
+
+  Widget _buildEmptyState() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 64, horizontal: 32),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(
+              Icons.image_search_rounded,
+              size: 64,
+              color: Colors.white24,
             ),
+            const SizedBox(height: 16),
+            Text(
+              _searchQuery.isNotEmpty
+                  ? 'No icons match "$_searchQuery"'
+                  : 'No alternate icons found.',
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                color: Colors.white54,
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'Add PNG icons (1024×1024) to the assets/alternate_icons/ folder and rebuild.',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: Colors.white38, fontSize: 13, height: 1.4),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSectionTitle(String label, IconData icon) {
+    return Row(
+      children: [
+        Icon(icon, size: 16, color: _textSecondary),
+        const SizedBox(width: 6),
+        Text(
+          label.toUpperCase(),
+          style: const TextStyle(
+            color: _textSecondary,
+            fontSize: 11,
+            fontWeight: FontWeight.bold,
+            letterSpacing: 0.8,
           ),
-        );
-      },
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSectionTitleWidget(String label, IconData icon) => _buildSectionTitle(label, icon);
+
+  SliverToBoxAdapter _buildSectionHeader(String label, IconData icon) {
+    return SliverToBoxAdapter(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 10),
+        child: _buildSectionTitleWidget(label, icon),
+      ),
     );
   }
 }
