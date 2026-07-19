@@ -1317,6 +1317,7 @@ User request/schedule to plan:
                             ],
                           )
                         : ReorderableListView(
+                            buildDefaultDragHandles: false,
                             padding: const EdgeInsets.only(left: 20.0, right: 20.0, top: 12.0, bottom: 120.0),
                             header: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
@@ -1371,7 +1372,11 @@ User request/schedule to plan:
                             onReorder: (oldIndex, newIndex) {
                               taskProvider.reorderTasks(oldIndex, newIndex, _selectedDate);
                             },
-                            children: active.map((task) => _buildTaskTile(task)).toList(),
+                            children: active.asMap().entries.map((entry) {
+                              final index = entry.key;
+                              final task = entry.value;
+                              return _buildTaskTile(task, index: index);
+                            }).toList(),
                           )),
                 ),
               ],
@@ -1441,7 +1446,7 @@ User request/schedule to plan:
     );
   }
 
-  Widget _buildTaskTile(Task task) {
+  Widget _buildTaskTile(Task task, {int? index}) {
     final taskProvider = context.read<TaskProvider>();
     final selectedDateStr = "${_selectedDate.year}-${_selectedDate.month.toString().padLeft(2, '0')}-${_selectedDate.day.toString().padLeft(2, '0')}";
     final isCompleted = taskProvider.completions.any((c) => c['task_id'] == task.id && c['completed_date'] == selectedDateStr);
@@ -1563,6 +1568,19 @@ User request/schedule to plan:
               ],
             ),
           ),
+          trailing: index != null
+              ? ReorderableDragStartListener(
+                  index: index,
+                  child: const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 12.0, vertical: 8.0),
+                    child: Icon(
+                      Icons.reorder_rounded,
+                      color: AppColors.textSecondary,
+                      size: 24,
+                    ),
+                  ),
+                )
+              : null,
         ),
       ),
     );
