@@ -89,6 +89,7 @@ void main() async {
           ChangeNotifierProvider(create: (_) => FinanceProvider()),
           ChangeNotifierProvider(create: (_) => LearningProvider()),
           ChangeNotifierProvider(create: (_) => SocialProvider()),
+          ChangeNotifierProvider(create: (_) => AppIconService()),
         ],
         child: MyApp(isSupabaseConfigured: isSupabaseConfigured),
       ),
