@@ -62,7 +62,7 @@ jobs:
        run: |
          git config --global user.name "github-actions[bot]"
          git config --global user.email "github-actions[bot]@users.noreply.github.com"
-         cp build_output.log build_error.txt
+         if [ -f build_output.log ]; then cp build_output.log build_error.txt; fi
          git add build_error.txt
          git commit -m "chore: add build log [skip ci]" || true
          git push || true
