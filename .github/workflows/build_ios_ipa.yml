@@ -63,6 +63,9 @@ jobs:
        run: |
          flutter build ios --release --no-codesign > build_output.log 2>&1 || (tail -n 100 build_output.log && exit 1)
 
+     - name: Verify iOS Alternate Icon Packaging
+       run: python3 verify_ios_bundle.py
+
      - name: Upload Build Log on Failure
        if: failure()
        uses: actions/upload-artifact@v4

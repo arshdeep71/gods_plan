@@ -17,6 +17,7 @@ import shutil
 import plistlib
 import sys
 import json
+from PIL import Image
 
 PLIST_PATH = os.path.join("ios", "Runner", "Info.plist")
 MANIFEST_PATH = os.path.join("assets", "alternate_icons_manifest.json")
@@ -80,9 +81,13 @@ def main():
 
         # Copy alternate icon PNG into ios/Runner/
         if os.path.exists(src_path):
-            shutil.copy2(src_path, dest_path)
+            with Image.open(src_path) as img:
+                # Remove alpha channel and resize to 1024x1024 (Apple's maximum specification)
+                img = img.convert("RGB")
+                img = img.resize((1024, 1024), Image.Resampling.LANCZOS)
+                img.save(dest_path, "PNG")
             copied_files.append(dest_path)
-            print(f"[patch_ios_plist] Copied {src_path} -> {dest_path}")
+            print(f"[patch_ios_plist] Packaged (1024x1024) {src_path} -> {dest_path}")
         else:
             print(f"[patch_ios_plist] ERROR: Source asset '{src_path}' for icon '{icon_id}' not found.")
             sys.exit(1)
