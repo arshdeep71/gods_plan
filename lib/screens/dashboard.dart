@@ -28,6 +28,9 @@ import '../services/analytics_service.dart';
 import 'dashboard/badges_view.dart';
 import 'dashboard/analytics_view.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../widgets/premium_bottom_nav.dart';
+import 'settings/master_settings_view.dart';
+import 'notifications_inbox.dart';
 import '../services/sync_service.dart';
 import '../services/profile_reset_service.dart';
 import 'package:flutter/foundation.dart';
@@ -798,7 +801,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       TasksView(isTab: true, initialDate: _tasksInitialDate),
       const SizedBox.shrink(), // Placeholder for central button
       user != null ? BadgesView(userId: user.id, username: username) : const SizedBox.shrink(),
-      _buildSettingsTab(context, username),
+      const MasterSettingsView(),
     ];
 
     return Scaffold(
@@ -808,7 +811,19 @@ class _DashboardScreenState extends State<DashboardScreen> {
         bottom: false,
         child: pages[_selectedIndex],
       ),
-      bottomNavigationBar: _buildBottomNavigationBar(),
+      bottomNavigationBar: PremiumBottomNav(
+        selectedIndex: _selectedIndex,
+        onItemSelected: (index) {
+          if (index == 2) {
+            _showQuickLogSheet();
+          } else {
+            setState(() {
+              if (index != 1) _tasksInitialDate = null;
+              _selectedIndex = index;
+            });
+          }
+        },
+      ),
     );
   }
 
@@ -885,30 +900,44 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   height: 1.2,
                 ),
               ),
-              GestureDetector(
-                onTap: () {
-                  if (user != null) {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (_) => BadgesView(userId: user.id, username: username)),
-                    );
-                  }
-                },
-                child: Container(
-                  width: 48,
-                  height: 48,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    border: Border.all(color: AppColors.primary, width: 2),
-                    gradient: AppColors.primaryGradient,
+              Row(
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.notifications_none_rounded, color: Colors.white, size: 28),
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => const NotificationsInboxScreen()),
+                      );
+                    },
                   ),
-                  child: Center(
-                    child: Text(
-                      username.isNotEmpty ? username[0].toUpperCase() : 'U',
-                      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 20),
+                  const SizedBox(width: 12),
+                  GestureDetector(
+                    onTap: () {
+                      if (user != null) {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (_) => BadgesView(userId: user.id, username: username)),
+                        );
+                      }
+                    },
+                    child: Container(
+                      width: 48,
+                      height: 48,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        border: Border.all(color: AppColors.primary, width: 2),
+                        gradient: AppColors.primaryGradient,
+                      ),
+                      child: Center(
+                        child: Text(
+                          username.isNotEmpty ? username[0].toUpperCase() : 'U',
+                          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 20),
+                        ),
+                      ),
                     ),
                   ),
-                ),
+                ],
               ),
             ],
           ),
@@ -1057,353 +1086,5 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-
-  Widget _buildSettingsTab(BuildContext context, String username) {
-    final user = Provider.of<AuthProvider>(context, listen: false).user;
-    return SingleChildScrollView(
-      padding: const EdgeInsets.only(left: 24.0, right: 24.0, top: 24.0, bottom: 120.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            "Settings",
-            style: TextStyle(color: AppColors.textPrimary, fontSize: 24, fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 24),
-          
-          // Profile Details
-          Container(
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: AppColors.surface,
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: AppColors.border),
-            ),
-            child: Row(
-              children: [
-                Container(
-                  width: 50,
-                  height: 50,
-                  decoration: const BoxDecoration(
-                    shape: BoxShape.circle,
-                    gradient: AppColors.primaryGradient,
-                  ),
-                  child: Center(
-                    child: Text(
-                      username.isNotEmpty ? username[0].toUpperCase() : 'U',
-                      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 20),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        username,
-                        style: const TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.bold, fontSize: 16),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        user?.email ?? "No Email connected",
-                        style: const TextStyle(color: AppColors.textSecondary, fontSize: 12),
-                      ),
-                    ],
-                  ),
-                ),
-                IconButton(
-                  icon: const Icon(Icons.edit_rounded, color: AppColors.primaryLight, size: 20),
-                  tooltip: "Edit Profile Name",
-                  onPressed: _showEditProfileDialog,
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 24),
-
-          // Settings Options
-          const Text("Account Details", style: TextStyle(color: AppColors.textSecondary, fontSize: 13, fontWeight: FontWeight.bold, letterSpacing: 0.5)),
-          const SizedBox(height: 12),
-          _buildSettingsTile(
-            Icons.person_rounded,
-            "Edit Profile Name",
-            "Change your profile display name",
-            _showEditProfileDialog,
-          ),
-          if (!kIsWeb) ...[
-            const SizedBox(height: 16),
-            const Text("Appearance", style: TextStyle(color: AppColors.textSecondary, fontSize: 13, fontWeight: FontWeight.bold, letterSpacing: 0.5)),
-            const SizedBox(height: 12),
-            _buildSettingsTile(
-              Icons.app_shortcut_rounded,
-              "App Icon",
-              "Switch bundled icons or manage your saved icon gallery",
-              () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AppIconView())),
-            ),
-          ],
-          const SizedBox(height: 16),
-          const Text("Security & Setup", style: TextStyle(color: AppColors.textSecondary, fontSize: 13, fontWeight: FontWeight.bold, letterSpacing: 0.5)),
-          const SizedBox(height: 12),
-          _buildSettingsTile(
-            Icons.lock_rounded,
-            "App Lock PIN Code",
-            "Configure or update your lock passcode",
-            () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AppLockView())),
-          ),
-          const SizedBox(height: 16),
-          _buildSettingsTile(
-            Icons.restart_alt_rounded,
-            "Clear Local Cache",
-            "Reset all stored databases on this device",
-            () async {
-              final confirm = await showDialog<bool>(
-                context: context,
-                builder: (context) => AlertDialog(
-                  backgroundColor: AppColors.background,
-                  title: const Text("Reset Cache", style: TextStyle(color: Colors.white)),
-                  content: const Text("Are you absolutely sure you want to clear all local cache data? This action cannot be undone.", style: TextStyle(color: AppColors.textSecondary)),
-                  actions: [
-                    TextButton(onPressed: () => Navigator.pop(context, false), child: const Text("Cancel")),
-                    TextButton(
-                      onPressed: () => Navigator.pop(context, true),
-                      child: const Text("Reset", style: TextStyle(color: Colors.red)),
-                    ),
-                  ],
-                ),
-              );
-
-              if (confirm == true) {
-                await _dbService.clearLocalCache();
-                if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text("Databases cleared successfully. Resetting application...")),
-                  );
-                  _handleLogout();
-                }
-              }
-            },
-          ),
-          const SizedBox(height: 16),
-          _buildSettingsTile(
-            Icons.logout_rounded,
-            "Log Out Account",
-            "Disconnect your current session",
-            _handleLogout,
-            textColor: AppColors.error,
-          ),
-          const SizedBox(height: 32),
-          const Text(
-            "Danger Zone",
-            style: TextStyle(
-              color: AppColors.error,
-              fontSize: 13,
-              fontWeight: FontWeight.bold,
-              letterSpacing: 0.5,
-            ),
-          ),
-          const SizedBox(height: 8),
-          const Divider(color: AppColors.error, thickness: 1),
-          const SizedBox(height: 12),
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: AppColors.error.withOpacity(0.05),
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: AppColors.error.withOpacity(0.2)),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Row(
-                  children: [
-                    Icon(Icons.warning_amber_rounded, color: AppColors.error, size: 20),
-                    SizedBox(width: 8),
-                    Text(
-                      "Reset Profile",
-                      style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                const Text(
-                  "This permanently removes all your personal data and starts your profile from scratch.",
-                  style: TextStyle(color: AppColors.textSecondary, fontSize: 12, height: 1.4),
-                ),
-                const SizedBox(height: 16),
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.error,
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    ),
-                    onPressed: _showResetProfileDialog,
-                    child: const Text(
-                      "Reset Profile",
-                      style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildSettingsTile(IconData icon, String title, String subtitle, VoidCallback onTap, {Color? textColor}) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(16),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-        decoration: BoxDecoration(
-          color: AppColors.surface,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: AppColors.border),
-        ),
-        child: Row(
-          children: [
-            Icon(icon, color: textColor ?? AppColors.textPrimary, size: 24),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: TextStyle(color: textColor ?? AppColors.textPrimary, fontWeight: FontWeight.bold, fontSize: 15),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    subtitle,
-                    style: const TextStyle(color: AppColors.textSecondary, fontSize: 12),
-                  ),
-                ],
-              ),
-            ),
-            Icon(Icons.arrow_forward_ios_rounded, color: AppColors.textMuted, size: 14),
-          ],
-        ),
-      ),
-    );
-  }
-
-  // Draw navigation bar matching the inspiration mockup style
-  Widget _buildBottomNavigationBar() {
-    return SafeArea(
-      top: false,
-      child: Container(
-        margin: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(36),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.35),
-              blurRadius: 15,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(36),
-          child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
-            child: Container(
-              padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
-              decoration: BoxDecoration(
-                color: const Color(0xFF101012).withOpacity(0.65),
-                borderRadius: BorderRadius.circular(36),
-                border: Border.all(
-                  color: Colors.white.withOpacity(0.08),
-                  width: 1.0,
-                ),
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceAround,
-                children: [
-                  _buildNavItem(0, Icons.grid_view_rounded, "Summary"),
-                  _buildNavItem(1, Icons.assignment_turned_in_rounded, "Tasks"),
-                  
-                  // Central plus log item
-                  GestureDetector(
-                    onTap: _showQuickLogSheet,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            Icons.add_rounded,
-                            color: Colors.white.withOpacity(0.8),
-                            size: 24,
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            "Log",
-                            style: TextStyle(
-                              color: Colors.white.withOpacity(0.8),
-                              fontSize: 10,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                  
-                  _buildNavItem(3, Icons.emoji_events_rounded, "Awards"),
-                  _buildNavItem(4, Icons.settings_rounded, "Settings"),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildNavItem(int index, IconData icon, String label) {
-    final isSelected = _selectedIndex == index;
-    return GestureDetector(
-      onTap: () {
-        setState(() {
-          if (index != 1) {
-            _tasksInitialDate = null;
-          }
-          _selectedIndex = index;
-        });
-      },
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-        decoration: BoxDecoration(
-          color: isSelected ? const Color(0xFF2C2C2E) : Colors.transparent,
-          borderRadius: BorderRadius.circular(24),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              icon,
-              color: isSelected ? AppColors.accent : Colors.white,
-              size: 24,
-            ),
-            const SizedBox(height: 4),
-            Text(
-              label,
-              style: TextStyle(
-                color: isSelected ? AppColors.accent : Colors.white,
-                fontSize: 10,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 
 }
