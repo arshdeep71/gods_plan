@@ -1,3 +1,5 @@
+import '../services/encryption_service.dart';
+
 class AddictionLog {
   final String id;
   final String userId;
@@ -49,7 +51,7 @@ class AddictionLog {
       'trigger_tag': trigger,
       'helper_strategy': helperStrategy,
       'is_relapse': isRelapse ? 1 : 0,
-      'notes': notes,
+      'notes': EncryptionService().encrypt(notes),
       'logged_at': loggedAt.toUtc().toIso8601String(),
       'updated_at': updatedAt.toUtc().toIso8601String(),
     };
@@ -81,7 +83,7 @@ class AddictionLog {
       trigger: map['trigger_tag'] as String,
       helperStrategy: map['helper_strategy'] as String,
       isRelapse: map['is_relapse'] == 1,
-      notes: map['notes'] ?? '',
+      notes: EncryptionService().decrypt(map['notes'] ?? ''),
       loggedAt: DateTime.parse(map['logged_at'] as String),
       updatedAt: DateTime.parse(map['updated_at'] as String),
     );

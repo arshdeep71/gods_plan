@@ -6,6 +6,8 @@ class SyncItem {
   final String tableName;
   final String recordId;
   final Map<String, dynamic>? payload;
+  final int retryCount;
+  final DateTime? nextRetryAt;
 
   SyncItem({
     this.id,
@@ -13,6 +15,8 @@ class SyncItem {
     required this.tableName,
     required this.recordId,
     this.payload,
+    this.retryCount = 0,
+    this.nextRetryAt,
   });
 
   // Convert to Map for Local SQLite DB
@@ -23,6 +27,8 @@ class SyncItem {
       'table_name': tableName,
       'record_id': recordId,
       'payload': payload != null ? jsonEncode(payload) : null,
+      'retry_count': retryCount,
+      'next_retry_at': nextRetryAt?.toUtc().toIso8601String(),
     };
   }
 
@@ -36,6 +42,30 @@ class SyncItem {
       payload: map['payload'] != null 
           ? jsonDecode(map['payload'] as String) as Map<String, dynamic>
           : null,
+      retryCount: (map['retry_count'] as int?) ?? 0,
+      nextRetryAt: map['next_retry_at'] != null 
+          ? DateTime.parse(map['next_retry_at'] as String) 
+          : null,
+    );
+  }
+
+  SyncItem copyWith({
+    int? id,
+    String? actionType,
+    String? tableName,
+    String? recordId,
+    Map<String, dynamic>? payload,
+    int? retryCount,
+    DateTime? nextRetryAt,
+  }) {
+    return SyncItem(
+      id: id ?? this.id,
+      actionType: actionType ?? this.actionType,
+      tableName: tableName ?? this.tableName,
+      recordId: recordId ?? this.recordId,
+      payload: payload ?? this.payload,
+      retryCount: retryCount ?? this.retryCount,
+      nextRetryAt: nextRetryAt ?? this.nextRetryAt,
     );
   }
 }

@@ -220,4 +220,147 @@ class AnalyticsService {
       default: return '';
     }
   }
+
+  // --- Phase 2: Notification Analytics ---
+  Future<void> logNotificationEvent(String userId, String eventType) async {
+    // eventType: 'scheduled', 'delivered', 'completed', 'snoozed'
+    final key = 'notification_stats_\${userId}_\$eventType';
+    final currentCount = _dbService.settingsBox.get(key, defaultValue: 0) as int;
+    await _dbService.settingsBox.put(key, currentCount + 1);
+  }
+
+  Future<Map<String, int>> getNotificationStats(String userId) async {
+    return {
+      'scheduled': _dbService.settingsBox.get('notification_stats_\${userId}_scheduled', defaultValue: 0) as int,
+      'delivered': _dbService.settingsBox.get('notification_stats_\${userId}_delivered', defaultValue: 0) as int,
+      'completed': _dbService.settingsBox.get('notification_stats_\${userId}_completed', defaultValue: 0) as int,
+      'snoozed': _dbService.settingsBox.get('notification_stats_\${userId}_snoozed', defaultValue: 0) as int,
+    };
+  }
+
+  // --- Phase 9: Gamification & Insights ---
+
+  /// Calculates the current and longest active streak for daily habits
+  Future<Map<String, int>> calculateStreaks(String userId) async {
+    int currentStreak = 0;
+    int longestStreak = 0;
+    
+    try {
+      final tasks = await _dbService.getLocalTasks(userId);
+      final completedTasks = tasks.where((t) => t.isCompleted).toList();
+      
+      if (completedTasks.isEmpty) return {'current': 0, 'longest': 0};
+
+      // Sort by completion date descending
+      completedTasks.sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
+      
+      DateTime? previousDate;
+      int tempStreak = 0;
+
+      for (var task in completedTasks) {
+        final date = DateTime(task.updatedAt.year, task.updatedAt.month, task.updatedAt.day);
+        
+        if (previousDate == null) {
+          tempStreak = 1;
+          currentStreak = 1;
+        } else {
+          final diff = previousDate.difference(date).inDays;
+          if (diff == 1) {
+            // Consecutive day
+            tempStreak++;
+            if (previousDate.difference(DateTime.now()).inDays <= 1) {
+               currentStreak = tempStreak;
+            }
+          } else if (diff > 1) {
+            // Streak broken
+            if (tempStreak > longestStreak) longestStreak = tempStreak;
+            tempStreak = 1; // reset for historical streak calculation
+          }
+        }
+        previousDate = date;
+      }
+      
+      if (tempStreak > longestStreak) longestStreak = tempStreak;
+
+    } catch (e) {
+      print("Error calculating streaks: \$e");
+    }
+
+    return {
+      'current': currentStreak,
+      'longest': longestStreak,
+    };
+  }
+
+  /// Generates data for a GitHub-style Contribution Heatmap
+  /// Returns a map of 'YYYY-MM-DD' strings to an integer intensity (0-4)
+  Future<Map<String, int>> generateHeatmapData(String userId) async {
+    final Map<String, int> heatmap = {};
+    
+    try {
+      final tasks = await _dbService.getLocalTasks(userId);
+      final completed = tasks.where((t) => t.isCompleted);
+      
+      for (var task in completed) {
+        final dateStr = "\${task.updatedAt.year}-\${task.updatedAt.month.toString().padLeft(2, '0')}-\${task.updatedAt.day.toString().padLeft(2, '0')}";
+        heatmap[dateStr] = (heatmap[dateStr] ?? 0) + 1;
+      }
+
+      // Normalize intensities to a 0-4 scale for the UI
+      if (heatmap.isNotEmpty) {
+        int maxCompletions = heatmap.values.reduce((a, b) => a > b ? a : b);
+        heatmap.updateAll((key, value) {
+          if (value == 0) return 0;
+          double ratio = value / maxCompletions;
+          if (ratio < 0.25) return 1;
+          if (ratio < 0.50) return 2;
+          if (ratio < 0.75) return 3;
+          return 4; // Max intensity
+        });
+      }
+    } catch (e) {
+      print("Heatmap generation error: \$e");
+    }
+    
+    return heatmap;
+  }
+
+  /// Generates Productivity Insights (Best day of week, total focus time)
+  Future<Map<String, dynamic>> generateProductivityInsights(String userId) async {
+    String bestDay = "Unknown";
+    int totalFocusMinutes = 0;
+
+    try {
+      // 1. Calculate Best Day (Day with most completions)
+      final tasks = await _dbService.getLocalTasks(userId);
+      final completed = tasks.where((t) => t.isCompleted);
+      
+      Map<int, int> weekdayCounts = {};
+      for (var task in completed) {
+        int w = task.updatedAt.weekday;
+        weekdayCounts[w] = (weekdayCounts[w] ?? 0) + 1;
+      }
+      
+      if (weekdayCounts.isNotEmpty) {
+        var sortedDays = weekdayCounts.entries.toList()
+          ..sort((a, b) => b.value.compareTo(a.value));
+        bestDay = _getDayOfWeekName(sortedDays.first.key);
+      }
+
+      // 2. Calculate Total Focus Time
+      final studyLogs = await _dbService.getLocalStudyLogs(userId);
+      for (var log in studyLogs) {
+        totalFocusMinutes += log.durationMinutes;
+      }
+
+    } catch (e) {
+      print("Insights generation error: \$e");
+    }
+
+    return {
+      'best_day': bestDay,
+      'total_focus_minutes': totalFocusMinutes,
+      'total_focus_hours': (totalFocusMinutes / 60).toStringAsFixed(1),
+    };
+  }
 }

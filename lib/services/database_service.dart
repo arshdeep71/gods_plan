@@ -118,6 +118,26 @@ class DatabaseService {
         await addColumnIfMissing('reminder_time', 'TEXT');
         await addColumnIfMissing('order_index', 'INTEGER DEFAULT 0');
         await addColumnIfMissing('start_date', 'TEXT');
+        await addColumnIfMissing('deleted_at', 'TEXT');
+
+        // Migrate other tables for Soft Deletes (Phase 1)
+        final otherTables = [
+            'local_task_completions', 'local_task_exceptions', 'local_workouts', 
+            'local_sleep_logs', 'local_food_logs', 'local_water_logs', 
+            'local_addiction_logs', 'local_finance_transactions', 
+            'local_social_contacts', 'local_learning_subjects', 'local_study_logs'
+        ];
+        
+        for (final t in otherTables) {
+            final tCheck = await db.rawQuery("SELECT name FROM sqlite_master WHERE type='table' AND name='$t'");
+            if (tCheck.isNotEmpty) {
+                final tCols = await db.rawQuery('PRAGMA table_info($t)');
+                final tColNames = tCols.map((c) => c['name']?.toString().toLowerCase()).toList();
+                if (!tColNames.contains('deleted_at')) {
+                    try { await db.execute("ALTER TABLE $t ADD COLUMN deleted_at TEXT"); } catch (_) {}
+                }
+            }
+        }
 
         // Migrate existing recurring tasks with NULL start_date to their creation date prefix (YYYY-MM-DD)
         try {
@@ -133,6 +153,77 @@ class DatabaseService {
 
   // Dynamically create all tables if they do not exist
   Future<void> _createTables(Database db) async {
+    // Phase 1 New Tables: Preferences, Devices, Categories, Goals, Reminders
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS user_preferences (
+        user_id TEXT PRIMARY KEY,
+        theme_mode TEXT DEFAULT 'system',
+        accent_color TEXT DEFAULT 'blue',
+        global_sound_enabled INTEGER DEFAULT 1,
+        global_haptic_intensity TEXT DEFAULT 'medium',
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        deleted_at TEXT
+      )
+    ''');
+
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS devices (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        fcm_token TEXT,
+        platform TEXT NOT NULL,
+        device_name TEXT,
+        last_active_at TEXT,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        deleted_at TEXT
+      )
+    ''');
+
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS categories (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        name TEXT NOT NULL,
+        color TEXT,
+        icon TEXT,
+        sort_order INTEGER DEFAULT 0,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        deleted_at TEXT
+      )
+    ''');
+
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS goals (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        title TEXT NOT NULL,
+        description TEXT,
+        target_date TEXT,
+        category_id TEXT,
+        progress INTEGER DEFAULT 0,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        deleted_at TEXT
+      )
+    ''');
+
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS reminders (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        task_id TEXT NOT NULL,
+        scheduled_time TEXT NOT NULL,
+        recurrence_rule TEXT,
+        status TEXT DEFAULT 'pending',
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        deleted_at TEXT
+      )
+    ''');
+
     // Create local tasks table
     await db.execute('''
       CREATE TABLE IF NOT EXISTS local_tasks (
@@ -151,7 +242,8 @@ class DatabaseService {
         due_time TEXT,
         scheduled_date TEXT,
         last_completed_date TEXT,
-        start_date TEXT
+        start_date TEXT,
+        deleted_at TEXT
       )
     ''');
 
@@ -162,7 +254,8 @@ class DatabaseService {
         task_id TEXT NOT NULL,
         user_id TEXT NOT NULL,
         completed_date TEXT NOT NULL,
-        created_at TEXT NOT NULL
+        created_at TEXT NOT NULL,
+        deleted_at TEXT
       )
     ''');
 
@@ -174,7 +267,8 @@ class DatabaseService {
         user_id TEXT NOT NULL,
         exception_date TEXT NOT NULL,
         is_deleted INTEGER NOT NULL,
-        created_at TEXT NOT NULL
+        created_at TEXT NOT NULL,
+        deleted_at TEXT
       )
     ''');
 
@@ -188,7 +282,8 @@ class DatabaseService {
         weight_kg REAL NOT NULL,
         calories_burned REAL NOT NULL,
         logged_at TEXT NOT NULL,
-        updated_at TEXT NOT NULL
+        updated_at TEXT NOT NULL,
+        deleted_at TEXT
       )
     ''');
 
@@ -205,7 +300,8 @@ class DatabaseService {
         late_dinner INTEGER NOT NULL,
         calculated_quality REAL NOT NULL,
         logged_at TEXT NOT NULL,
-        updated_at TEXT NOT NULL
+        updated_at TEXT NOT NULL,
+        deleted_at TEXT
       )
     ''');
 
@@ -220,7 +316,8 @@ class DatabaseService {
         carbs REAL NOT NULL,
         fats REAL NOT NULL,
         logged_at TEXT NOT NULL,
-        updated_at TEXT NOT NULL
+        updated_at TEXT NOT NULL,
+        deleted_at TEXT
       )
     ''');
 
@@ -231,7 +328,8 @@ class DatabaseService {
         user_id TEXT NOT NULL,
         glasses INTEGER NOT NULL,
         logged_at TEXT NOT NULL,
-        updated_at TEXT NOT NULL
+        updated_at TEXT NOT NULL,
+        deleted_at TEXT
       )
     ''');
 
@@ -247,7 +345,8 @@ class DatabaseService {
         is_relapse INTEGER NOT NULL,
         notes TEXT,
         logged_at TEXT NOT NULL,
-        updated_at TEXT NOT NULL
+        updated_at TEXT NOT NULL,
+        deleted_at TEXT
       )
     ''');
 
@@ -261,7 +360,8 @@ class DatabaseService {
         amount REAL NOT NULL,
         notes TEXT,
         logged_at TEXT NOT NULL,
-        updated_at TEXT NOT NULL
+        updated_at TEXT NOT NULL,
+        deleted_at TEXT
       )
     ''');
 
@@ -274,7 +374,8 @@ class DatabaseService {
         last_contacted TEXT NOT NULL,
         notes TEXT,
         logged_at TEXT NOT NULL,
-        updated_at TEXT NOT NULL
+        updated_at TEXT NOT NULL,
+        deleted_at TEXT
       )
     ''');
 
@@ -287,7 +388,8 @@ class DatabaseService {
         daily_target_minutes INTEGER NOT NULL,
         total_target_hours INTEGER NOT NULL,
         logged_at TEXT NOT NULL,
-        updated_at TEXT NOT NULL
+        updated_at TEXT NOT NULL,
+        deleted_at TEXT
       )
     ''');
 
@@ -299,7 +401,8 @@ class DatabaseService {
         subject_id TEXT NOT NULL,
         duration_minutes INTEGER NOT NULL,
         logged_at TEXT NOT NULL,
-        updated_at TEXT NOT NULL
+        updated_at TEXT NOT NULL,
+        deleted_at TEXT
       )
     ''');
 
@@ -310,7 +413,9 @@ class DatabaseService {
         action_type TEXT NOT NULL,
         table_name TEXT NOT NULL,
         record_id TEXT NOT NULL,
-        payload TEXT
+        payload TEXT,
+        retry_count INTEGER DEFAULT 0,
+        next_retry_at TEXT
       )
     ''');
   }
@@ -552,6 +657,16 @@ class DatabaseService {
       'offline_sync_queue',
       item.toSqliteMap(),
       conflictAlgorithm: ConflictAlgorithm.replace,
+    );
+  }
+
+  Future<void> updateSyncItem(SyncItem item) async {
+    final db = await database;
+    await db.update(
+      'offline_sync_queue',
+      item.toSqliteMap(),
+      where: 'id = ?',
+      whereArgs: [item.id],
     );
   }
 

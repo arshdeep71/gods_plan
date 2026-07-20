@@ -10,6 +10,7 @@ import 'providers/finance_provider.dart';
 import 'providers/learning_provider.dart';
 import 'providers/social_provider.dart';
 import 'services/database_service.dart';
+import 'services/encryption_service.dart';
 import 'services/notification_service.dart';
 import 'services/app_icon_service.dart';
 import 'utils/constants.dart';
@@ -54,6 +55,9 @@ void main() async {
   };
 
   try {
+    // 0. Initialize Encryption Service for secure local storage
+    await EncryptionService().initialize();
+
     // 1. Initialize local cache Hive and SQLite databases
     final dbService = DatabaseService();
     await dbService.initDatabase();

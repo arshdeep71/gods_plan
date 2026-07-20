@@ -11,6 +11,7 @@ import '../models/finance_transaction.dart';
 import '../models/social.dart';
 import '../models/learning.dart';
 import 'package:sqflite_common/sqlite_api.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
 import '../utils/network_helper.dart';
 import 'dart:convert';
 
@@ -20,6 +21,15 @@ class SyncService {
 
   bool _syncInProgress = false;
   bool _syncNeededAfterCurrent = false;
+
+  SyncService() {
+    Connectivity().onConnectivityChanged.listen((List<ConnectivityResult> results) {
+      if (results.contains(ConnectivityResult.none)) return;
+      // Network restored, attempt sync if logged in
+      final userId = _dbService._currentUserId;
+      if (userId != null) sync(userId);
+    });
+  }
 
   // Check if network is available
   Future<bool> isConnected() async {
@@ -115,59 +125,68 @@ class SyncService {
   // Push local changes to Supabase
   Future<void> _uploadLocalMutations() async {
     final queue = await _dbService.getSyncQueue();
-    print("[SYNC QUEUE] Upload started. Items pending: ${queue.length}");
+    final now = DateTime.now().toUtc();
+    print("[SYNC QUEUE] Upload started. Items pending: \${queue.length}");
     if (queue.isEmpty) return;
 
     for (final item in queue) {
+      // Exponential Backoff Check
+      if (item.nextRetryAt != null && item.nextRetryAt!.isAfter(now)) {
+        print("[SYNC QUEUE] Skipping item \${item.id} due to exponential backoff. Next retry: \${item.nextRetryAt}");
+        continue;
+      }
+
       try {
-        print("[SYNC QUEUE] Uploading item ID: ${item.id}, Table: ${item.tableName}, Action: ${item.actionType}");
+        print("[SYNC QUEUE] Uploading item ID: \${item.id}, Table: \${item.tableName}, Action: \${item.actionType}");
         if (item.actionType == 'INSERT' || item.actionType == 'UPDATE') {
           if (item.payload != null) {
-            print("AUTH UID = ${_supabase.auth.currentUser?.id}");
-            print("PAYLOAD USER_ID = ${item.payload?['user_id']}");
-            print(item.payload);
             await _supabase.from(item.tableName).upsert(item.payload!);
-            print("[SYNC QUEUE] Upsert remote success for table: ${item.tableName}, ID: ${item.recordId}");
+            print("[SYNC QUEUE] Upsert remote success for table: \${item.tableName}, ID: \${item.recordId}");
           }
         } else if (item.actionType == 'DELETE') {
           if (item.tableName == 'task_completions') {
             final parts = item.recordId.split('_');
             if (parts.length >= 2) {
-              final taskId = parts[0];
-              final completedDate = parts[1];
               await _supabase
                   .from('task_completions')
                   .delete()
-                  .eq('task_id', taskId)
-                  .eq('completed_date', completedDate);
-              print("[SYNC QUEUE] Delete remote completion success for task: $taskId, date: $completedDate");
+                  .eq('task_id', parts[0])
+                  .eq('completed_date', parts[1]);
             }
           } else if (item.tableName == 'task_exceptions') {
             final parts = item.recordId.split('_');
             if (parts.length >= 2) {
-              final taskId = parts[0];
-              final exceptionDate = parts[1];
               await _supabase
                   .from('task_exceptions')
                   .delete()
-                  .eq('task_id', taskId)
-                  .eq('exception_date', exceptionDate);
-              print("[SYNC QUEUE] Delete remote exception success for task: $taskId, date: $exceptionDate");
+                  .eq('task_id', parts[0])
+                  .eq('exception_date', parts[1]);
             }
           } else {
             await _supabase.from(item.tableName).delete().eq('id', item.recordId);
-            print("[SYNC QUEUE] Delete remote success for table: ${item.tableName}, ID: ${item.recordId}");
           }
+          print("[SYNC QUEUE] Delete remote success for table: \${item.tableName}, ID: \${item.recordId}");
         }
         
         // Remove item from queue upon success
         if (item.id != null) {
           await _dbService.removeSyncItem(item.id!);
-          print("[SYNC QUEUE] Removed item ID ${item.id} from local queue");
+          print("[SYNC QUEUE] Removed item ID \${item.id} from local queue");
         }
       } catch (e) {
         // If it's a validation error or database conflict, log and skip to prevent blocking the queue
-        print("[SYNC QUEUE] Failed to sync queue item ${item.id}: $e");
+        print("[SYNC QUEUE] Failed to sync queue item \${item.id}: \$e");
+        
+        // Calculate exponential backoff (2^retryCount minutes)
+        if (item.id != null) {
+          final nextRetry = now.add(Duration(minutes: 1 << item.retryCount));
+          final updatedItem = item.copyWith(
+            retryCount: item.retryCount + 1,
+            nextRetryAt: nextRetry,
+          );
+          await _dbService.updateSyncItem(updatedItem);
+          print("[SYNC QUEUE] Scheduled retry for item \${item.id} at \$nextRetry (Retry #\${item.retryCount + 1})");
+        }
       }
     }
   }

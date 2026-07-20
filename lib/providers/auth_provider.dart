@@ -1,6 +1,8 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'dart:io' show Platform;
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:uuid/uuid.dart';
 import '../services/supabase_service.dart';
 import '../services/database_service.dart';
 import '../models/sync_item.dart';
@@ -135,6 +137,9 @@ class AuthProvider extends ChangeNotifier {
       print('Error loading user profile: $e');
     }
 
+    // 1.5 Register this device for multi-device sync and push notifications
+    await _registerDevice();
+
     // 2. Fetch goals to skip onboarding on existing accounts
     try {
       final goalData = await Supabase.instance.client
@@ -180,6 +185,46 @@ class AuthProvider extends ChangeNotifier {
           },
         );
     _profileChannel!.subscribe();
+  }
+
+  // Register current device for sync and push notifications
+  Future<void> _registerDevice() async {
+    if (_user == null) return;
+    try {
+      final String platformStr = kIsWeb ? 'web' : (Platform.isIOS ? 'ios' : (Platform.isAndroid ? 'android' : 'desktop'));
+      final deviceId = const Uuid().v4();
+      
+      // Attempt to retrieve existing device ID for this user on this physical device
+      final cachedId = _dbService.settingsBox.get('device_id_\${_user!.id}') as String?;
+      final activeDeviceId = cachedId ?? deviceId;
+      
+      if (cachedId == null) {
+        await _dbService.settingsBox.put('device_id_\${_user!.id}', activeDeviceId);
+      }
+
+      final payload = {
+        'id': activeDeviceId,
+        'user_id': _user!.id,
+        'platform': platformStr,
+        'last_active_at': DateTime.now().toUtc().toIso8601String(),
+        'updated_at': DateTime.now().toUtc().toIso8601String(),
+      };
+      
+      // Save to local SQLite database
+      final db = await _dbService.database;
+      await db.insert('devices', payload, conflictAlgorithm: ConflictAlgorithm.replace);
+
+      // Queue the device registration to Supabase via SyncEngine
+      final syncItem = SyncItem(
+        actionType: 'UPDATE', // Handled as an upsert by SyncService
+        tableName: 'devices',
+        recordId: activeDeviceId,
+        payload: payload,
+      );
+      await _dbService.queueMutation(syncItem);
+    } catch (e) {
+      print("Device registration error: \$e");
+    }
   }
 
   // Edit user profile name
