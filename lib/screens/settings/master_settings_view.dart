@@ -78,7 +78,7 @@ class MasterSettingsView extends StatelessWidget {
               decoration: BoxDecoration(color: Colors.white12, borderRadius: BorderRadius.circular(8)),
               child: const Icon(Icons.info_outline_rounded, color: Colors.white70),
             ),
-            title: const Text('God\\'s Plan Version', style: TextStyle(color: Colors.white)),
+            title: const Text("God's Plan Version", style: TextStyle(color: Colors.white)),
             trailing: const Text('v1.0.0 (Build 42)', style: TextStyle(color: Colors.white54)),
           ),
         ],

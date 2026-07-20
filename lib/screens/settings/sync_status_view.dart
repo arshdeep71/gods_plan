@@ -119,7 +119,7 @@ class _SyncStatusViewState extends State<SyncStatusView> {
             ),
             const SizedBox(height: 8),
             const Text(
-              'God\\'s Plan is offline-first. You can export a fully encrypted AES copy of your SQLite database for manual restoration.',
+              "God's Plan is offline-first. You can export a fully encrypted AES copy of your SQLite database for manual restoration.",
               style: TextStyle(color: Colors.white70, fontSize: 13),
             ),
             const SizedBox(height: 16),
