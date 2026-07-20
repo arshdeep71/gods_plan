@@ -1,12 +1,18 @@
 Warning: Building for device with codesigning disabled. You will have to manually codesign before deploying to device.
 Building com.godsplan.godsPlan for device (ios-release)...
 The following plugins do not support Swift Package Manager for ios:
+  - app_group_directory
+  - audioplayers_darwin
   - flutter_dynamic_icon_plus
   - flutter_local_notifications
+  - flutter_native_image
+  - flutter_secure_storage
+  - flutter_timezone
+  - live_activities
 This will become an error in a future version of Flutter. Please contact the plugin maintainers to request Swift Package Manager adoption.
-Running pod install...                                             588ms
+Running pod install...                                             906ms
 Running Xcode build...                                          
-Xcode build done.                                           61.3s
+Xcode build done.                                           51.9s
 Failed to build iOS app
 Error output from Xcode build:
 ↳
@@ -16,8 +22,62 @@ Error output from Xcode build:
 Xcode's output:
 ↳
     Writing result bundle at path:
-    	/var/folders/g3/pffjr_y96bq06blnkf72x_hw0000gn/T/flutter_tools.md5Nll/flutter_ios_build_temp_diroqFybY/temporary_xcresult_bundle
+    	/var/folders/g3/pffjr_y96bq06blnkf72x_hw0000gn/T/flutter_tools.Yc2oc8/flutter_ios_build_temp_dirHJme7R/temporary_xcresult_bundle
 
+    /Users/runner/.pub-cache/hosted/pub.dev/live_activities-1.9.5/ios/Classes/SwiftLiveActivitiesPlugin.swift:270:13: warning: variable 'state' was never mutated; consider changing to 'let' constant
+            var state = activityStateToString(activityState: matchingActivity.activityState)
+            ~~~ ^
+            let
+    /Users/runner/.pub-cache/hosted/pub.dev/audioplayers_darwin-5.0.2/ios/Classes/AudioContext.swift:72:15: warning: 'audioProcessing' was deprecated in iOS 10.0: No longer supported
+          return .audioProcessing
+                  ^
+    /Users/runner/.pub-cache/hosted/pub.dev/flutter_native_image-0.0.6+1/ios/Classes/UIImage+RoundedCorner.m:60:1: warning: category is implementing a method which will also be implemented by its primary class [-Wobjc-protocol-method-implementation]
+    - (void)addRoundedRectToPath:(CGRect)rect context:(CGContextRef)context ovalWidth:(CGFloat)ovalWidth ovalHeight:(CGFloat)ovalHeight {
+    ^
+    /Users/runner/.pub-cache/hosted/pub.dev/flutter_native_image-0.0.6+1/ios/Classes/UIImage+RoundedCorner.m:11:1: note: method 'addRoundedRectToPath:context:ovalWidth:ovalHeight:' declared here
+    - (void)addRoundedRectToPath:(CGRect)rect context:(CGContextRef)context ovalWidth:(CGFloat)ovalWidth ovalHeight:(CGFloat)ovalHeight;
+    ^
+    1 warning generated.
+    /Users/runner/.pub-cache/hosted/pub.dev/flutter_native_image-0.0.6+1/ios/Classes/UIImage+Resize.m:96:99: warning: enum values with underlying type 'NSInteger' should not be used as format arguments; add an explicit cast to 'long' instead [-Wformat]
+                [NSException raise:NSInvalidArgumentException format:@"Unsupported content mode: %d", contentMode];
+                                                                                          ~~   ^~~~~~~~~~~
+                                                                                          %ld  (long)
+    /Users/runner/.pub-cache/hosted/pub.dev/flutter_native_image-0.0.6+1/ios/Classes/UIImage+Resize.m:155:13: warning: enumeration values 'UIImageOrientationUp' and 'UIImageOrientationUpMirrored' not handled in switch [-Wswitch]
+        switch (self.imageOrientation) {
+                ^~~~~~~~~~~~~~~~~~~~~
+    /Users/runner/.pub-cache/hosted/pub.dev/flutter_native_image-0.0.6+1/ios/Classes/UIImage+Resize.m:155:13: note: add missing switch cases
+        switch (self.imageOrientation) {
+                ^
+    /Users/runner/.pub-cache/hosted/pub.dev/flutter_native_image-0.0.6+1/ios/Classes/UIImage+Resize.m:175:13: warning: 4 enumeration values not handled in switch: 'UIImageOrientationUp', 'UIImageOrientationDown', 'UIImageOrientationLeft'... [-Wswitch]
+        switch (self.imageOrientation) {
+                ^~~~~~~~~~~~~~~~~~~~~
+    /Users/runner/.pub-cache/hosted/pub.dev/flutter_native_image-0.0.6+1/ios/Classes/UIImage+Resize.m:175:13: note: add missing switch cases
+        switch (self.imageOrientation) {
+                ^
+    /Users/runner/.pub-cache/hosted/pub.dev/flutter_native_image-0.0.6+1/ios/Classes/UIImage+Resize.m:110:1: warning: category is implementing a method which will also be implemented by its primary class [-Wobjc-protocol-method-implementation]
+    - (UIImage *)resizedImage:(CGSize)newSize
+    ^
+    /Users/runner/.pub-cache/hosted/pub.dev/flutter_native_image-0.0.6+1/ios/Classes/UIImage+Resize.m:12:1: note: method 'resizedImage:transform:drawTransposed:interpolationQuality:' declared here
+    - (UIImage *)resizedImage:(CGSize)newSize
+    ^
+    /Users/runner/.pub-cache/hosted/pub.dev/flutter_native_image-0.0.6+1/ios/Classes/UIImage+Resize.m:152:1: warning: category is implementing a method which will also be implemented by its primary class [-Wobjc-protocol-method-implementation]
+    - (CGAffineTransform)transformForOrientation:(CGSize)newSize {
+    ^
+    /Users/runner/.pub-cache/hosted/pub.dev/flutter_native_image-0.0.6+1/ios/Classes/UIImage+Resize.m:16:1: note: method 'transformForOrientation:' declared here
+    - (CGAffineTransform)transformForOrientation:(CGSize)newSize;
+    ^
+    5 warnings generated.
+    /Users/runner/.pub-cache/hosted/pub.dev/flutter_native_image-0.0.6+1/ios/Classes/UIImage+Alpha.m:97:1: warning: category is implementing a method which will also be implemented by its primary class [-Wobjc-protocol-method-implementation]
+    - (CGImageRef)newBorderMask:(NSUInteger)borderSize size:(CGSize)size {
+    ^
+    /Users/runner/.pub-cache/hosted/pub.dev/flutter_native_image-0.0.6+1/ios/Classes/UIImage+Alpha.m:10:1: note: method 'newBorderMask:size:' declared here
+    - (CGImageRef)newBorderMask:(NSUInteger)borderSize size:(CGSize)size;
+    ^
+    1 warning generated.
+    /Users/runner/.pub-cache/hosted/pub.dev/flutter_native_image-0.0.6+1/ios/Classes/FlutterNativeImagePlugin.m:77:19: warning: unused variable 'fileName' [-Wunused-variable]
+            NSString *fileName = [[fileArgument lastPathComponent] stringByDeletingPathExtension];
+                      ^
+    1 warning generated.
     /Users/runner/.pub-cache/hosted/pub.dev/flutter_local_notifications-17.2.4/ios/Classes/FlutterLocalNotificationsPlugin.m:6:17: warning: method definition for 'setRegisterPlugins:' not found [-Wincomplete-implementation]
     @implementation FlutterLocalNotificationsPlugin {
                     ^
@@ -26,11 +86,20 @@ Xcode's output:
     + (void)setRegisterPlugins:(FlutterPluginRegistrantCallback *)callback;
     ^
     1 warning generated.
-    No file or variants found for asset: assets/app_logo_1.jpg.
-
-    Target release_ios_bundle_flutter_assets failed: Exception: Failed to bundle asset files.
+    lib/providers/auth_provider.dart:215:62: Error: The getter 'ConflictAlgorithm' isn't defined for the type 'AuthProvider'.
+     - 'AuthProvider' is from 'package:gods_plan/providers/auth_provider.dart' ('lib/providers/auth_provider.dart').
+    Try correcting the name to the name of an existing getter, or defining a getter or field named 'ConflictAlgorithm'.
+          await db.insert('devices', payload, conflictAlgorithm: ConflictAlgorithm.replace);
+                                                                 ^^^^^^^^^^^^^^^^^
+    lib/services/sync_service.dart:29:33: Error: The getter '_currentUserId' isn't defined for the type 'DatabaseService'.
+     - 'DatabaseService' is from 'package:gods_plan/services/database_service.dart' ('lib/services/database_service.dart').
+    Try correcting the name to the name of an existing getter, or defining a getter or field named '_currentUserId'.
+          final userId = _dbService._currentUserId;
+                                    ^^^^^^^^^^^^^^
+    Target kernel_snapshot_program failed: Exception
     Failed to package /Users/runner/work/gods_plan/gods_plan.
     Command PhaseScriptExecution failed with a nonzero exit code
+    /Users/runner/work/gods_plan/gods_plan/ios/Pods/Pods.xcodeproj: warning: The iOS deployment target 'IPHONEOS_DEPLOYMENT_TARGET' is set to 9.0, but the range of supported deployment target versions is 12.0 to 17.5.99. (in target 'flutter_secure_storage-flutter_secure_storage' from project 'Pods')
     /Users/runner/work/gods_plan/gods_plan/ios/Pods/Pods.xcodeproj: warning: The iOS deployment target 'IPHONEOS_DEPLOYMENT_TARGET' is set to 9.0, but the range of supported deployment target versions is 12.0 to 17.5.99. (in target 'flutter_local_notifications-flutter_local_notifications_privacy' from project 'Pods')
     note: Run script build phase 'Run Script' will be run during every build because the option to run the script phase "Based on dependency analysis" is unchecked. (in target 'Runner' from project 'Runner')
     note: Run script build phase 'Thin Binary' will be run during every build because the option to run the script phase "Based on dependency analysis" is unchecked. (in target 'Runner' from project 'Runner')
