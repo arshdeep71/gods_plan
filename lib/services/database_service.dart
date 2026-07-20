@@ -28,6 +28,8 @@ class DatabaseService {
   // Get settings box instance
   Box get settingsBox => Hive.box(settingsBoxName);
 
+  String? get currentUserId => _currentUserId;
+
   String? get _currentUserId {
     try {
       return Supabase.instance.client.auth.currentUser?.id;

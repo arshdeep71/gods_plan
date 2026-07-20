@@ -6,7 +6,7 @@ import 'package:uuid/uuid.dart';
 import '../services/supabase_service.dart';
 import '../services/database_service.dart';
 import '../models/sync_item.dart';
-
+import 'package:sqflite_common/sqlite_api.dart';
 class AuthProvider extends ChangeNotifier {
   final SupabaseService _supabaseService = SupabaseService();
   final DatabaseService _dbService = DatabaseService();

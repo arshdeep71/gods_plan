@@ -26,7 +26,7 @@ class SyncService {
     Connectivity().onConnectivityChanged.listen((List<ConnectivityResult> results) {
       if (results.contains(ConnectivityResult.none)) return;
       // Network restored, attempt sync if logged in
-      final userId = _dbService._currentUserId;
+      final userId = _dbService.currentUserId;
       if (userId != null) sync(userId);
     });
   }
