@@ -10,9 +10,9 @@ The following plugins do not support Swift Package Manager for ios:
   - flutter_timezone
   - live_activities
 This will become an error in a future version of Flutter. Please contact the plugin maintainers to request Swift Package Manager adoption.
-Running pod install...                                           1,072ms
+Running pod install...                                             805ms
 Running Xcode build...                                          
-Xcode build done.                                           80.8s
+Xcode build done.                                           53.8s
 Failed to build iOS app
 Error output from Xcode build:
 ↳
@@ -22,7 +22,7 @@ Error output from Xcode build:
 Xcode's output:
 ↳
     Writing result bundle at path:
-    	/var/folders/g3/pffjr_y96bq06blnkf72x_hw0000gn/T/flutter_tools.aTSwSv/flutter_ios_build_temp_dirswa2j3/temporary_xcresult_bundle
+    	/var/folders/g3/pffjr_y96bq06blnkf72x_hw0000gn/T/flutter_tools.yJc2pq/flutter_ios_build_temp_dirBi9b1p/temporary_xcresult_bundle
 
     /Users/runner/.pub-cache/hosted/pub.dev/live_activities-1.9.5/ios/Classes/SwiftLiveActivitiesPlugin.swift:270:13: warning: variable 'state' was never mutated; consider changing to 'let' constant
             var state = activityStateToString(activityState: matchingActivity.activityState)
@@ -95,54 +95,6 @@ Xcode's output:
     lib/screens/settings/sync_status_view.dart:122:136: Error: String starting with ' must end with '.
                   'God\\'s Plan is offline-first. You can export a fully encrypted AES copy of your SQLite database for manual restoration.',
                                                                                           ^^
-    lib/screens/settings/theme_picker_view.dart:14:36: Error: String starting with ' must end with '.
-        {'name': 'God\\'s Blue', 'color': Colors.blueAccent},
-                                       ^^^^^^^^^^^^^^^^^^^^^^
-    lib/screens/settings/theme_picker_view.dart:14:5: Error: Can't find '}' to match '{'.
-        {'name': 'God\\'s Blue', 'color': Colors.blueAccent},
-        ^
-    lib/screens/settings/theme_picker_view.dart:22:39: Error: String starting with ' must end with '.
-      String _currentTheme = 'God\\'s Blue';
-                                          ^^
-    lib/screens/settings/theme_picker_view.dart:33:71: Error: String starting with ' must end with '.
-          _currentTheme = prefs.getString('accent_theme') ?? 'God\\'s Blue';
-                                                                          ^^
-    lib/screens/settings/theme_picker_view.dart:14:21: Error: Expected ',' before this.
-        {'name': 'God\\'s Blue', 'color': Colors.blueAccent},
-                        ^
-    lib/screens/settings/theme_picker_view.dart:14:23: Error: Expected ',' before this.
-        {'name': 'God\\'s Blue', 'color': Colors.blueAccent},
-                          ^^^^
-    lib/screens/settings/theme_picker_view.dart:14:27: Error: Expected ',' before this.
-        {'name': 'God\\'s Blue', 'color': Colors.blueAccent},
-                              ^^^^
-    lib/screens/settings/theme_picker_view.dart:14:31: Error: Expected ',' before this.
-        {'name': 'God\\'s Blue', 'color': Colors.blueAccent},
-                                  ^^^^^
-    lib/screens/settings/theme_picker_view.dart:14:36: Error: Expected ',' before this.
-        {'name': 'God\\'s Blue', 'color': Colors.blueAccent},
-                                       ^^^^^^^^^^^^^^^^^^^^^^
-    lib/screens/settings/theme_picker_view.dart:15:5: Error: Expected ',' before this.
-        {'name': 'Neon Purple', 'color': Colors.purpleAccent},
-        ^
-    lib/screens/settings/theme_picker_view.dart:22:26: Error: Expected ';' after this.
-      String _currentTheme = 'God\\'s Blue';
-                             ^^^^^^^
-    lib/screens/settings/theme_picker_view.dart:22:35: Error: Expected ';' after this.
-      String _currentTheme = 'God\\'s Blue';
-                                      ^^^^
-    lib/screens/settings/theme_picker_view.dart:22:39: Error: Expected a class member, but got '';''.
-      String _currentTheme = 'God\\'s Blue';
-                                          ^^
-    lib/screens/settings/privacy_export_view.dart:119:100: Error: String starting with ' must end with '.
-                      subtitle: const Text('Help us improve God\\'s Plan without sending personal data.', style: TextStyle(color: Colors.white54, fontSize: 12)),
-                                                                                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-    lib/screens/settings/privacy_export_view.dart:116:31: Error: Can't find ')' to match '('.
-                    SwitchListTile(
-                                  ^
-    lib/screens/settings/theme_picker_view.dart:22:33: Error: Type 's' not found.
-      String _currentTheme = 'God\\'s Blue';
-                                    ^
     lib/screens/settings/master_settings_view.dart:81:38: Error: Expected ',' before this.
                 title: const Text('God\\'s Plan Version', style: TextStyle(color: Colors.white)),
                                          ^
@@ -271,103 +223,6 @@ Xcode's output:
     ../../../hostedtoolcache/flutter/stable-3.44.7-arm64/flutter/packages/flutter/lib/src/widgets/text.dart:507:9: Context: Found this candidate, but the arguments don't match.
       const Text(
             ^^^^
-    lib/screens/settings/theme_picker_view.dart:14:31: Error: Undefined name 'color'.
-        {'name': 'God\\'s Blue', 'color': Colors.blueAccent},
-                                  ^^^^^
-    lib/screens/settings/theme_picker_view.dart:14:23: Error: Can't access 'this' in a field initializer to read 'Blue'.
-        {'name': 'God\\'s Blue', 'color': Colors.blueAccent},
-                          ^^^^
-    lib/screens/settings/theme_picker_view.dart:14:21: Error: Undefined name 's'.
-        {'name': 'God\\'s Blue', 'color': Colors.blueAccent},
-                        ^
-    lib/screens/settings/theme_picker_view.dart:14:12: Error: Expected ',' before this.
-        {'name': 'God\\'s Blue', 'color': Colors.blueAccent},
-               ^
-    lib/screens/settings/theme_picker_view.dart:14:5: Error: A value of type 'Set<Object>' can't be assigned to a variable of type 'Map<String, dynamic>'.
-     - 'Set' is from 'dart:core'.
-     - 'Object' is from 'dart:core'.
-     - 'Map' is from 'dart:core'.
-        {'name': 'God\\'s Blue', 'color': Colors.blueAccent},
-        ^
-    lib/screens/settings/theme_picker_view.dart:22:33: Error: 's' isn't a type.
-      String _currentTheme = 'God\\'s Blue';
-                                    ^
-    lib/screens/settings/theme_picker_view.dart:33:58: Error: Expected ';' after this.
-          _currentTheme = prefs.getString('accent_theme') ?? 'God\\'s Blue';
-                                                             ^^^^^^^
-    lib/screens/settings/theme_picker_view.dart:33:65: Error: 's' isn't a type.
-          _currentTheme = prefs.getString('accent_theme') ?? 'God\\'s Blue';
-                                                                    ^
-    lib/screens/settings/theme_picker_view.dart:33:67: Error: Expected ';' after this.
-          _currentTheme = prefs.getString('accent_theme') ?? 'God\\'s Blue';
-                                                                      ^^^^
-    lib/screens/settings/theme_picker_view.dart:33:71: Error: Expected ';' after this.
-          _currentTheme = prefs.getString('accent_theme') ?? 'God\\'s Blue';
-                                                                          ^^
-    lib/screens/settings/privacy_export_view.dart:68:39: Error: The method 'wipeDatabase' isn't defined for the type 'DatabaseService'.
-     - 'DatabaseService' is from 'package:gods_plan/services/database_service.dart' ('lib/services/database_service.dart').
-    Try correcting the name to the name of an existing method, or defining a method named 'wipeDatabase'.
-                  await DatabaseService().wipeDatabase();
-                                          ^^^^^^^^^^^^
-    lib/screens/settings/privacy_export_view.dart:119:63: Error: Expected ',' before this.
-                      subtitle: const Text('Help us improve God\\'s Plan without sending personal data.', style: TextStyle(color: Colors.white54, fontSize: 12)),
-                                                                  ^
-    lib/screens/settings/privacy_export_view.dart:119:63: Error: Not a constant expression.
-                      subtitle: const Text('Help us improve God\\'s Plan without sending personal data.', style: TextStyle(color: Colors.white54, fontSize: 12)),
-                                                                  ^
-    lib/screens/settings/privacy_export_view.dart:119:65: Error: Expected ',' before this.
-                      subtitle: const Text('Help us improve God\\'s Plan without sending personal data.', style: TextStyle(color: Colors.white54, fontSize: 12)),
-                                                                    ^^^^
-    lib/screens/settings/privacy_export_view.dart:119:65: Error: Not a constant expression.
-                      subtitle: const Text('Help us improve God\\'s Plan without sending personal data.', style: TextStyle(color: Colors.white54, fontSize: 12)),
-                                                                    ^^^^
-    lib/screens/settings/privacy_export_view.dart:119:70: Error: Expected ',' before this.
-                      subtitle: const Text('Help us improve God\\'s Plan without sending personal data.', style: TextStyle(color: Colors.white54, fontSize: 12)),
-                                                                         ^^^^^^^
-    lib/screens/settings/privacy_export_view.dart:119:70: Error: Not a constant expression.
-                      subtitle: const Text('Help us improve God\\'s Plan without sending personal data.', style: TextStyle(color: Colors.white54, fontSize: 12)),
-                                                                         ^^^^^^^
-    lib/screens/settings/privacy_export_view.dart:119:78: Error: Expected ',' before this.
-                      subtitle: const Text('Help us improve God\\'s Plan without sending personal data.', style: TextStyle(color: Colors.white54, fontSize: 12)),
-                                                                                 ^^^^^^^
-    lib/screens/settings/privacy_export_view.dart:119:78: Error: Not a constant expression.
-                      subtitle: const Text('Help us improve God\\'s Plan without sending personal data.', style: TextStyle(color: Colors.white54, fontSize: 12)),
-                                                                                 ^^^^^^^
-    lib/screens/settings/privacy_export_view.dart:119:86: Error: Expected ',' before this.
-                      subtitle: const Text('Help us improve God\\'s Plan without sending personal data.', style: TextStyle(color: Colors.white54, fontSize: 12)),
-                                                                                         ^^^^^^^^
-    lib/screens/settings/privacy_export_view.dart:119:86: Error: Not a constant expression.
-                      subtitle: const Text('Help us improve God\\'s Plan without sending personal data.', style: TextStyle(color: Colors.white54, fontSize: 12)),
-                                                                                         ^^^^^^^^
-    lib/screens/settings/privacy_export_view.dart:119:95: Error: Expected ',' before this.
-                      subtitle: const Text('Help us improve God\\'s Plan without sending personal data.', style: TextStyle(color: Colors.white54, fontSize: 12)),
-                                                                                          ^^^^
-    lib/screens/settings/privacy_export_view.dart:119:100: Error: Expected an identifier, but got '', style: TextStyle(color: Colors.white54, fontSize: 12)),''.
-    Try inserting an identifier before '', style: TextStyle(color: Colors.white54, fontSize: 12)),''.
-                      subtitle: const Text('Help us improve God\\'s Plan without sending personal data.', style: TextStyle(color: Colors.white54, fontSize: 12)),
-                                                                                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-    lib/screens/settings/privacy_export_view.dart:120:19: Error: Expected ',' before this.
-                      value: _analyticsEnabled,
-                      ^^^^^
-    lib/screens/settings/privacy_export_view.dart:120:26: Error: Not a constant expression.
-                      value: _analyticsEnabled,
-                             ^^^^^^^^^^^^^^^^^
-    lib/screens/settings/privacy_export_view.dart:122:30: Error: Not a constant expression.
-                      onChanged: _toggleAnalytics,
-                                 ^^^^^^^^^^^^^^^^
-    lib/screens/settings/privacy_export_view.dart:119:39: Error: Too many positional arguments: 1 allowed, but 7 found.
-    Try removing the extra positional arguments.
-                      subtitle: const Text('Help us improve God\\'s Plan without sending personal data.', style: TextStyle(color: Colors.white54, fontSize: 12)),
-                                          ^
-    ../../../hostedtoolcache/flutter/stable-3.44.7-arm64/flutter/packages/flutter/lib/src/widgets/text.dart:507:9: Context: Found this candidate, but the arguments don't match.
-      const Text(
-            ^^^^
-    lib/screens/settings/privacy_export_view.dart:116:31: Error: Required named parameter 'value' must be provided.
-                    SwitchListTile(
-                                  ^
-    ../../../hostedtoolcache/flutter/stable-3.44.7-arm64/flutter/packages/flutter/lib/src/material/switch_list_tile.dart:173:9: Context: Found this candidate, but the arguments don't match.
-      const SwitchListTile({
-            ^^^^^^^^^^^^^^
     Target kernel_snapshot_program failed: Exception
     Failed to package /Users/runner/work/gods_plan/gods_plan.
     Command PhaseScriptExecution failed with a nonzero exit code
