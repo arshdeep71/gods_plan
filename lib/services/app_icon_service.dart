@@ -60,13 +60,11 @@ class AppIconService extends ChangeNotifier {
 
       final hasDefault = _icons.any((icon) => icon.id == 'default');
       if (!hasDefault) {
-        final firstIconAssetPath = _icons.isNotEmpty ? _icons.first.assetPath : 'assets/alternate_icons/img1.png';
-        final firstIconThumbnailPath = _icons.isNotEmpty ? _icons.first.thumbnailPath : 'assets/alternate_icons/thumbnails/img1.png';
         final virtualDefault = AppIconModel(
           id: 'default',
           name: 'System Default',
-          assetPath: firstIconAssetPath,
-          thumbnailPath: firstIconThumbnailPath,
+          assetPath: 'assets/app_logo_1.jpg',
+          thumbnailPath: 'assets/app_logo_1.jpg',
           category: 'Default',
           author: 'System',
           addedAt: DateTime.fromMillisecondsSinceEpoch(0),

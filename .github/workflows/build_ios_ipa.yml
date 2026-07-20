@@ -51,6 +51,11 @@ jobs:
      - name: Patch iOS Info.plist for alternate icons
        run: python3 patch_ios_plist.py
 
+     - name: Add alternate icons to Xcode project
+       run: |
+         gem install xcodeproj
+         ruby add_icons_to_xcode.rb
+
      - name: Disable iOS Code Signing
        run: python3 disable_ios_signing.py
 
