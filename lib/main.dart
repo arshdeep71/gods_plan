@@ -201,13 +201,38 @@ class AppLockWrapper extends StatefulWidget {
   State<AppLockWrapper> createState() => _AppLockWrapperState();
 }
 
-class _AppLockWrapperState extends State<AppLockWrapper> {
+class _AppLockWrapperState extends State<AppLockWrapper> with WidgetsBindingObserver {
   final DatabaseService _dbService = DatabaseService();
   bool _isUnlocked = false;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _checkLockStatus();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // Lock the app immediately when it goes to the background
+    if (state == AppLifecycleState.paused) {
+      final userId = Supabase.instance.client.auth.currentUser?.id;
+      final pin = userId != null ? _dbService.settingsBox.get('app_lock_pin_$userId') as String? : null;
+      if (pin != null && pin.isNotEmpty) {
+        setState(() {
+          _isUnlocked = false;
+        });
+      }
+    }
+  }
+
+  void _checkLockStatus() {
     final userId = Supabase.instance.client.auth.currentUser?.id;
     final pin = userId != null ? _dbService.settingsBox.get('app_lock_pin_$userId') as String? : null;
     if (pin == null || pin.isEmpty) {
