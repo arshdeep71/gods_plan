@@ -116,7 +116,7 @@ class _PrivacyExportViewState extends State<PrivacyExportView> {
                 SwitchListTile(
                   secondary: const Icon(Icons.analytics_rounded, color: Colors.purpleAccent),
                   title: const Text('Anonymous Analytics', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                  subtitle: const Text('Help us improve God\\'s Plan without sending personal data.', style: TextStyle(color: Colors.white54, fontSize: 12)),
+                  subtitle: const Text("Help us improve God's Plan without sending personal data.", style: TextStyle(color: Colors.white54, fontSize: 12)),
                   value: _analyticsEnabled,
                   activeColor: Colors.purpleAccent,
                   onChanged: _toggleAnalytics,

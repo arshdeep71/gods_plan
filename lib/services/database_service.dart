@@ -892,4 +892,7 @@ class DatabaseService {
     await db.delete('local_study_logs');
     await db.delete('offline_sync_queue');
   }
+
+  /// Wipes all local SQLite tables and Hive settings. Equivalent to clearLocalCache().
+  Future<void> wipeDatabase() => clearLocalCache();
 }

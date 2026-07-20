@@ -11,7 +11,7 @@ class ThemePickerView extends StatefulWidget {
 
 class _ThemePickerViewState extends State<ThemePickerView> {
   final List<Map<String, dynamic>> _accentColors = [
-    {'name': 'God\\'s Blue', 'color': Colors.blueAccent},
+    {'name': "God's Blue", 'color': Colors.blueAccent},
     {'name': 'Neon Purple', 'color': Colors.purpleAccent},
     {'name': 'Cyber Green', 'color': Colors.greenAccent},
     {'name': 'Sunset Orange', 'color': Colors.orangeAccent},
@@ -19,7 +19,7 @@ class _ThemePickerViewState extends State<ThemePickerView> {
     {'name': 'Cherry Red', 'color': Colors.redAccent},
   ];
 
-  String _currentTheme = 'God\\'s Blue';
+  String _currentTheme = "God's Blue";
 
   @override
   void initState() {
@@ -30,7 +30,7 @@ class _ThemePickerViewState extends State<ThemePickerView> {
   Future<void> _loadTheme() async {
     final prefs = await SharedPreferences.getInstance();
     setState(() {
-      _currentTheme = prefs.getString('accent_theme') ?? 'God\\'s Blue';
+      _currentTheme = prefs.getString('accent_theme') ?? "God's Blue";
     });
   }
 
