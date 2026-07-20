@@ -10,9 +10,9 @@ The following plugins do not support Swift Package Manager for ios:
   - flutter_timezone
   - live_activities
 This will become an error in a future version of Flutter. Please contact the plugin maintainers to request Swift Package Manager adoption.
-Running pod install...                                             748ms
+Running pod install...                                           1,072ms
 Running Xcode build...                                          
-Xcode build done.                                           52.6s
+Xcode build done.                                           80.8s
 Failed to build iOS app
 Error output from Xcode build:
 ↳
@@ -22,12 +22,15 @@ Error output from Xcode build:
 Xcode's output:
 ↳
     Writing result bundle at path:
-    	/var/folders/g3/pffjr_y96bq06blnkf72x_hw0000gn/T/flutter_tools.skJ5B0/flutter_ios_build_temp_dirtaguhc/temporary_xcresult_bundle
+    	/var/folders/g3/pffjr_y96bq06blnkf72x_hw0000gn/T/flutter_tools.aTSwSv/flutter_ios_build_temp_dirswa2j3/temporary_xcresult_bundle
 
     /Users/runner/.pub-cache/hosted/pub.dev/live_activities-1.9.5/ios/Classes/SwiftLiveActivitiesPlugin.swift:270:13: warning: variable 'state' was never mutated; consider changing to 'let' constant
             var state = activityStateToString(activityState: matchingActivity.activityState)
             ~~~ ^
             let
+    /Users/runner/.pub-cache/hosted/pub.dev/audioplayers_darwin-5.0.2/ios/Classes/AudioContext.swift:72:15: warning: 'audioProcessing' was deprecated in iOS 10.0: No longer supported
+          return .audioProcessing
+                  ^
     /Users/runner/.pub-cache/hosted/pub.dev/flutter_native_image-0.0.6+1/ios/Classes/UIImage+RoundedCorner.m:60:1: warning: category is implementing a method which will also be implemented by its primary class [-Wobjc-protocol-method-implementation]
     - (void)addRoundedRectToPath:(CGRect)rect context:(CGContextRef)context ovalWidth:(CGFloat)ovalWidth ovalHeight:(CGFloat)ovalHeight {
     ^
@@ -83,9 +86,6 @@ Xcode's output:
     + (void)setRegisterPlugins:(FlutterPluginRegistrantCallback *)callback;
     ^
     1 warning generated.
-    /Users/runner/.pub-cache/hosted/pub.dev/audioplayers_darwin-5.0.2/ios/Classes/AudioContext.swift:72:15: warning: 'audioProcessing' was deprecated in iOS 10.0: No longer supported
-          return .audioProcessing
-                  ^
     lib/screens/settings/master_settings_view.dart:81:52: Error: String starting with ' must end with '.
                 title: const Text('God\\'s Plan Version', style: TextStyle(color: Colors.white)),
                                                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
