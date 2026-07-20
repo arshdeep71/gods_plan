@@ -58,6 +58,25 @@ class AppIconService extends ChangeNotifier {
         return AppIconModel.fromJson(Map<String, dynamic>.from(e), favorite: isFav);
       }).toList();
 
+      final hasDefault = _icons.any((icon) => icon.id == 'default');
+      if (!hasDefault) {
+        final firstIconAssetPath = _icons.isNotEmpty ? _icons.first.assetPath : 'assets/alternate_icons/img1.png';
+        final firstIconThumbnailPath = _icons.isNotEmpty ? _icons.first.thumbnailPath : 'assets/alternate_icons/thumbnails/img1.png';
+        final virtualDefault = AppIconModel(
+          id: 'default',
+          name: 'System Default',
+          assetPath: firstIconAssetPath,
+          thumbnailPath: firstIconThumbnailPath,
+          category: 'Default',
+          author: 'System',
+          addedAt: DateTime.fromMillisecondsSinceEpoch(0),
+          tags: const ['default', 'system'],
+          sortOrder: 0,
+          favorite: _favorites.contains('default'),
+        );
+        _icons.insert(0, virtualDefault);
+      }
+
       // 3. Load selected icon ID
       _selectedIconId = _box.get(_keySelectedIcon, defaultValue: 'default') as String;
 

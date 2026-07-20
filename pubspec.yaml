@@ -50,7 +50,7 @@ dev_dependencies:
 flutter_launcher_icons:
   android: false
   ios: true
-  image_path: "assets/alternate_icons/icon_default.png"
+  image_path: "assets/alternate_icons/img1.png"
   remove_alpha_ios: true
 
 flutter:

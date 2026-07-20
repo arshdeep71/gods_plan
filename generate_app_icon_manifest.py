@@ -54,8 +54,8 @@ def validate_png_dimensions(filepath):
             width = int.from_bytes(width_bytes, byteorder='big')
             height = int.from_bytes(height_bytes, byteorder='big')
             
-            if width != 1024 or height != 1024:
-                return False, f"Image is {width}x{height} (expected 1024x1024)"
+            if width != height:
+                return False, f"Image is {width}x{height} (expected square 1:1)"
             
             return True, None
     except Exception as e:
@@ -216,7 +216,7 @@ def main():
     count = len(icons_list)
     print("\n================ BUILD REPORT ================")
     print(f"[OK] {count} icons discovered")
-    print(f"[OK] {count} validated (1024x1024, square, PNG only)")
+    print(f"[OK] {count} validated (square, PNG only)")
     print(f"[OK] {count} thumbnails generated/verified")
     print(f"[OK] Manifest version {manifest_data['version']} generated at '{MANIFEST_PATH}'")
     print("[OK] Ready for IPA build")

@@ -82,7 +82,7 @@ def main():
         if os.path.exists(src_path):
             shutil.copy2(src_path, dest_path)
             copied_files.append(dest_path)
-            print(f"[patch_ios_plist] Copied {src_path} → {dest_path}")
+            print(f"[patch_ios_plist] Copied {src_path} -> {dest_path}")
         else:
             print(f"[patch_ios_plist] ERROR: Source asset '{src_path}' for icon '{icon_id}' not found.")
             sys.exit(1)

@@ -106,13 +106,23 @@ class _AppIconViewState extends State<AppIconView> with TickerProviderStateMixin
     // Sort
     switch (_sortOption) {
       case IconSortOption.alphabetical:
-        icons.sort((a, b) => a.name.compareTo(b.name));
+        icons.sort((a, b) {
+          if (a.id == 'default') return -1;
+          if (b.id == 'default') return 1;
+          return a.name.compareTo(b.name);
+        });
         break;
       case IconSortOption.newest:
-        icons.sort((a, b) => b.addedAt.compareTo(a.addedAt));
+        icons.sort((a, b) {
+          if (a.id == 'default') return -1;
+          if (b.id == 'default') return 1;
+          return b.addedAt.compareTo(a.addedAt);
+        });
         break;
       case IconSortOption.favorites:
         icons.sort((a, b) {
+          if (a.id == 'default') return -1;
+          if (b.id == 'default') return 1;
           if (a.favorite == b.favorite) return a.name.compareTo(b.name);
           return a.favorite ? -1 : 1;
         });
@@ -120,6 +130,8 @@ class _AppIconViewState extends State<AppIconView> with TickerProviderStateMixin
       case IconSortOption.recentlyUsed:
         final recentOrder = service.recentlyUsed;
         icons.sort((a, b) {
+          if (a.id == 'default') return -1;
+          if (b.id == 'default') return 1;
           final ai = recentOrder.indexOf(a.id);
           final bi = recentOrder.indexOf(b.id);
           if (ai == -1 && bi == -1) return a.name.compareTo(b.name);
