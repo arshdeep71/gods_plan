@@ -418,6 +418,14 @@ class TaskProvider extends ChangeNotifier {
     }
   }
 
+  int _getDaysInMonth(int year, int month) {
+    if (month == 2) {
+      return (year % 4 == 0 && (year % 100 != 0 || year % 400 == 0)) ? 29 : 28;
+    }
+    const days = [0, 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+    return days[month];
+  }
+
   Future<void> _syncRemindersForTask(Task task) async {
     // First, delete existing reminders for this task to recreate them cleanly
     final existingReminders = await _dbService.getLocalReminders(task.userId);
@@ -437,7 +445,7 @@ class TaskProvider extends ChangeNotifier {
     if (task.reminderTime == null && task.dueTime == null) return;
     if (task.isCompleted || task.isPaused) return; // Do not schedule reminders for completed/paused tasks
     
-    DateTime? scheduledTime;
+    // Parse time
     String timeString = task.reminderTime ?? task.dueTime!;
     final timeParts = timeString.split(' ');
     if (timeParts.isEmpty) return;
@@ -453,43 +461,100 @@ class TaskProvider extends ChangeNotifier {
       if (timeParts[1].toLowerCase() == 'am' && hour == 12) hour = 0;
     }
 
-    if (task.scheduledDate != null) {
-      final baseDate = DateTime.parse(task.scheduledDate!);
-      scheduledTime = DateTime(baseDate.year, baseDate.month, baseDate.day, hour, minute);
+    // Determine target occurrence dates
+    List<DateTime> occurrenceDates = [];
+    if (!task.isRecurring) {
+      DateTime? baseDate = task.scheduledDate != null 
+          ? DateTime.tryParse(task.scheduledDate!) 
+          : DateTime.now();
+      if (baseDate != null) {
+        occurrenceDates.add(baseDate);
+      }
     } else {
-       // Recurring task with just a time, schedule for today at that time
-       final now = DateTime.now();
-       scheduledTime = DateTime(now.year, now.month, now.day, hour, minute);
-       if (scheduledTime.isBefore(now)) {
-         scheduledTime = scheduledTime.add(const Duration(days: 1));
-       }
+      DateTime startDate = task.startDate != null 
+          ? DateTime.tryParse(task.startDate!) ?? DateTime.now()
+          : DateTime.now();
+      DateTime now = DateTime.now();
+      DateTime checkDate = DateTime(startDate.year, startDate.month, startDate.day);
+      DateTime today = DateTime(now.year, now.month, now.day);
+      if (checkDate.isBefore(today)) {
+        checkDate = today;
+      }
+      
+      int count = 0;
+      int maxOccurrences = task.repeatType == 'daily' ? 7 : (task.repeatType == 'weekly' ? 4 : 3);
+      
+      while (count < maxOccurrences) {
+        occurrenceDates.add(checkDate);
+        count++;
+        
+        if (task.repeatType == 'daily') {
+          checkDate = checkDate.add(const Duration(days: 1));
+        } else if (task.repeatType == 'weekly') {
+          checkDate = checkDate.add(const Duration(days: 7));
+        } else if (task.repeatType == 'monthly') {
+          int nextMonth = checkDate.month + 1;
+          int nextYear = checkDate.year;
+          if (nextMonth > 12) {
+            nextMonth = 1;
+            nextYear += 1;
+          }
+          int day = checkDate.day;
+          int maxDays = _getDaysInMonth(nextYear, nextMonth);
+          if (day > maxDays) day = maxDays;
+          checkDate = DateTime(nextYear, nextMonth, day);
+        } else {
+          checkDate = checkDate.add(const Duration(days: 1));
+        }
+      }
     }
 
-    if (scheduledTime != null) {
-      final reminder = ReminderModel(
-        id: _uuid.v4(),
-        taskId: task.id,
-        scheduledTime: scheduledTime,
-        type: 'REMINDER',
-        title: 'Task Reminder',
-        body: task.title,
-        repeatPattern: task.isRecurring ? task.repeatType.toUpperCase() : 'ONCE',
-        createdAt: DateTime.now(),
-        updatedAt: DateTime.now(),
-      );
+    final now = DateTime.now();
 
-      await _dbService.upsertLocalReminder(reminder);
+    // Schedule reminders for each occurrence
+    for (final date in occurrenceDates) {
+      final dateStr = "${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}";
       
-      // Queue insert mutation
-      await _dbService.queueMutation(SyncItem(
-        actionType: 'INSERT',
-        tableName: 'reminders',
-        recordId: reminder.id,
-        payload: reminder.toJson(),
-      ));
+      // Check if completed or exception deleted
+      bool isCompletedOccurrence = _completions.any((c) => c['task_id'] == task.id && c['completed_date'] == dateStr);
+      bool isDeletedOccurrence = _exceptions.any((e) => e['task_id'] == task.id && e['exception_date'] == dateStr && e['is_deleted'] == 1);
+      
+      if (isCompletedOccurrence || isDeletedOccurrence) {
+        continue;
+      }
 
-      // Schedule immediately
-      await NotificationService().scheduleReminder(reminder.id.hashCode & 0x7FFFFFFF, reminder);
+      // Schedule offsets: 15m before, 5m before, and exact time
+      final offsets = [15, 5, 0];
+      for (final offset in offsets) {
+        final scheduledTime = DateTime(date.year, date.month, date.day, hour, minute).subtract(Duration(minutes: offset));
+        
+        if (scheduledTime.isAfter(now)) {
+          final reminderId = "${task.id}_${offset}_$dateStr";
+          
+          final reminder = ReminderModel(
+            id: reminderId,
+            taskId: task.id,
+            scheduledTime: scheduledTime,
+            type: 'REMINDER',
+            title: offset == 0 ? 'Task Reminder' : '$offset min warning: ${task.title}',
+            body: offset == 0 ? task.title : 'Task starts in $offset minutes.',
+            repeatPattern: 'ONCE', // We pre-generate, so each scheduled item is a one-time reminder
+            createdAt: DateTime.now(),
+            updatedAt: DateTime.now(),
+          );
+
+          await _dbService.upsertLocalReminder(reminder);
+          
+          await _dbService.queueMutation(SyncItem(
+            actionType: 'INSERT',
+            tableName: 'reminders',
+            recordId: reminder.id,
+            payload: reminder.toJson(),
+          ));
+
+          await NotificationService().scheduleReminder(reminder.id.hashCode & 0x7FFFFFFF, reminder);
+        }
+      }
     }
   }
 

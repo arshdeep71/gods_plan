@@ -105,13 +105,20 @@ class NotificationService {
   }
 
   void _handleNotificationAction(NotificationResponse response) {
+    final payloadStr = response.payload;
+    if (payloadStr == null) return;
+    
+    final parts = payloadStr.split('|');
+    final taskId = parts[0];
+    final reminderId = parts.length > 1 ? parts[1] : null;
+
     if (response.actionId == 'snooze_10') {
-      _snoozeNotification(response.id, response.payload, 10);
+      _snoozeNotification(response.id, taskId, reminderId, 10);
     } else if (response.actionId == 'snooze_30') {
-      _snoozeNotification(response.id, response.payload, 30);
+      _snoozeNotification(response.id, taskId, reminderId, 30);
     } else if (response.actionId == 'mark_complete') {
       // Handled by providers later
-      print("Task ${response.payload} marked complete via notification.");
+      print("Task $taskId marked complete via notification.");
     }
   }
 
@@ -150,11 +157,35 @@ class NotificationService {
     return scheduledDate;
   }
 
-  Future<void> _snoozeNotification(int? id, String? payload, int minutes) async {
+  Future<void> _snoozeNotification(int? id, String? taskId, String? reminderId, int minutes) async {
     if (id == null) return;
     
+    // Cancel original escalations
+    await cancelReminder(id);
+
     final scheduledDate = tz.TZDateTime.now(tz.local).add(Duration(minutes: minutes));
-    
+    final scheduledDateUtc = scheduledDate.toUtc();
+
+    // Update reminder state in database if reminderId is provided
+    if (reminderId != null) {
+      try {
+        final db = DatabaseService();
+        final userId = db.currentUserId;
+        if (userId != null) {
+          final reminders = await db.getLocalReminders(userId);
+          final match = reminders.firstWhere((r) => r.id == reminderId);
+          final updatedReminder = match.copyWith(
+            isSnoozed: true,
+            snoozeUntil: scheduledDateUtc,
+            updatedAt: DateTime.now(),
+          );
+          await db.upsertLocalReminder(updatedReminder);
+        }
+      } catch (e) {
+        print("Failed to update reminder snooze state in DB: $e");
+      }
+    }
+
     await flutterLocalNotificationsPlugin.zonedSchedule(
       id,
       'Snoozed Reminder',
@@ -174,8 +205,44 @@ class NotificationService {
       ),
       androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
       uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime,
-      payload: payload,
+      payload: "$taskId|$reminderId",
     );
+
+    // Schedule snoozed escalation reminders
+    final prefs = await SharedPreferences.getInstance();
+    final bool enableEscalation = prefs.getBool('smart_escalation_enabled') ?? true;
+    if (enableEscalation) {
+      final List<String> intervalStrings = prefs.getStringList('smart_escalation_intervals') ?? ['10', '30'];
+      final List<int> intervals = intervalStrings.map((s) => int.tryParse(s) ?? 0).where((i) => i > 0).toList();
+
+      for (int i = 0; i < intervals.length; i++) {
+        final minutesEsc = intervals[i];
+        final tzEsc = scheduledDate.add(Duration(minutes: minutesEsc));
+        final escalationId = id + (i + 1) * 1000000;
+
+        await flutterLocalNotificationsPlugin.zonedSchedule(
+          escalationId,
+          i == 0 ? 'Snooze Friendly Reminder' : 'Snooze Final Reminder',
+          i == 0 ? 'Have you completed your snoozed task?' : 'Last call to complete your snoozed task!',
+          tzEsc,
+          NotificationDetails(
+            android: AndroidNotificationDetails(
+              'escalation_reminders',
+              'Escalation Reminders',
+              channelDescription: 'Follow-ups for missed tasks',
+              importance: i == 0 ? Importance.high : Importance.max,
+              priority: Priority.high,
+            ),
+            iOS: const DarwinNotificationDetails(
+              categoryIdentifier: 'task_reminder_category',
+            ),
+          ),
+          androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+          uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime,
+          payload: "$taskId|$reminderId",
+        );
+      }
+    }
   }
 
   Future<void> scheduleReminder(int id, ReminderModel reminder) async {
@@ -210,66 +277,46 @@ class NotificationService {
       ),
       androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
       uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime,
-      payload: reminder.deepLink ?? reminder.taskId,
+      payload: "${reminder.taskId}|${reminder.id}",
       matchDateTimeComponents: reminder.repeatPattern == 'DAILY' ? DateTimeComponents.time : 
                                reminder.repeatPattern == 'WEEKLY' ? DateTimeComponents.dayOfWeekAndTime : null,
     );
 
-    // Phase 3: Smart Reminder Escalation (Schedule follow-ups 10 min and 30 min later)
+    // Phase 3: Smart Reminder Escalation (Schedule dynamic follow-ups)
     final prefs = await SharedPreferences.getInstance();
     final bool enableEscalation = prefs.getBool('smart_escalation_enabled') ?? true;
     if (enableEscalation) {
-      // 10 minute escalation
-      tz.TZDateTime tzEscalated10 = tzScheduledTime.add(const Duration(minutes: 10));
-      tzEscalated10 = await _applyQuietHours(tzEscalated10);
-      
-      await flutterLocalNotificationsPlugin.zonedSchedule(
-        id + 1000000,
-        'Friendly Reminder',
-        'Have you completed "\${reminder.title}"?',
-        tzEscalated10,
-        const NotificationDetails(
-          android: AndroidNotificationDetails(
-            'escalation_reminders',
-            'Escalation Reminders',
-            channelDescription: 'Follow-ups for missed tasks',
-            importance: Importance.high,
-            priority: Priority.high,
-          ),
-          iOS: DarwinNotificationDetails(
-            categoryIdentifier: 'task_reminder_category',
-          ),
-        ),
-        androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
-        uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime,
-        payload: reminder.deepLink ?? reminder.taskId,
-      );
+      final List<String> intervalStrings = prefs.getStringList('smart_escalation_intervals') ?? ['10', '30'];
+      final List<int> intervals = intervalStrings.map((s) => int.tryParse(s) ?? 0).where((i) => i > 0).toList();
 
-      // 30 minute escalation
-      tz.TZDateTime tzEscalated30 = tzScheduledTime.add(const Duration(minutes: 30));
-      tzEscalated30 = await _applyQuietHours(tzEscalated30);
-      
-      await flutterLocalNotificationsPlugin.zonedSchedule(
-        id + 2000000,
-        'Final Reminder',
-        'Last call to complete "\${reminder.title}"!',
-        tzEscalated30,
-        const NotificationDetails(
-          android: AndroidNotificationDetails(
-            'escalation_reminders',
-            'Escalation Reminders',
-            channelDescription: 'Follow-ups for missed tasks',
-            importance: Importance.max,
-            priority: Priority.high,
+      for (int i = 0; i < intervals.length; i++) {
+        final minutesEsc = intervals[i];
+        tz.TZDateTime tzEsc = tzScheduledTime.add(Duration(minutes: minutesEsc));
+        tzEsc = await _applyQuietHours(tzEsc);
+        final escalationId = id + (i + 1) * 1000000;
+
+        await flutterLocalNotificationsPlugin.zonedSchedule(
+          escalationId,
+          i == 0 ? 'Friendly Reminder' : 'Final Reminder',
+          i == 0 ? 'Have you completed "${reminder.title}"?' : 'Last call to complete "${reminder.title}"!',
+          tzEsc,
+          NotificationDetails(
+            android: AndroidNotificationDetails(
+              'escalation_reminders',
+              'Escalation Reminders',
+              channelDescription: 'Follow-ups for missed tasks',
+              importance: i == 0 ? Importance.high : Importance.max,
+              priority: Priority.high,
+            ),
+            iOS: const DarwinNotificationDetails(
+              categoryIdentifier: 'task_reminder_category',
+            ),
           ),
-          iOS: DarwinNotificationDetails(
-            categoryIdentifier: 'task_reminder_category',
-          ),
-        ),
-        androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
-        uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime,
-        payload: reminder.deepLink ?? reminder.taskId,
-      );
+          androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+          uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime,
+          payload: "${reminder.taskId}|${reminder.id}",
+        );
+      }
     }
   }
 
@@ -324,8 +371,9 @@ class NotificationService {
 
   Future<void> cancelReminder(int id) async {
     await flutterLocalNotificationsPlugin.cancel(id);
-    // Cancel the smart escalations automatically too
-    await flutterLocalNotificationsPlugin.cancel(id + 1000000);
-    await flutterLocalNotificationsPlugin.cancel(id + 2000000);
+    // Cancel up to 5 levels of smart escalations
+    for (int i = 1; i <= 5; i++) {
+      await flutterLocalNotificationsPlugin.cancel(id + i * 1000000);
+    }
   }
 }

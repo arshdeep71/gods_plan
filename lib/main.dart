@@ -13,6 +13,7 @@ import 'services/database_service.dart';
 import 'services/encryption_service.dart';
 import 'services/notification_service.dart';
 import 'services/app_icon_service.dart';
+import 'services/live_activity_service.dart';
 import 'utils/constants.dart';
 import 'utils/colors.dart';
 import 'screens/auth/login_screen.dart';
@@ -64,6 +65,12 @@ void main() async {
     
     // Initialize Local Notifications
     await NotificationService().init();
+    await NotificationService().restoreScheduledNotifications();
+    
+    // Initialize Live Activities & end any stuck ones
+    final liveActivityService = LiveActivityService();
+    await liveActivityService.init();
+    await liveActivityService.endAllActivities();
 
     // 2. Safely check and initialize Supabase credentials
     bool isSupabaseConfigured = false;

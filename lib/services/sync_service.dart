@@ -14,6 +14,7 @@ import '../models/reminder_model.dart';
 import 'package:sqflite_common/sqlite_api.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import '../utils/network_helper.dart';
+import 'notification_service.dart';
 import 'dart:convert';
 
 class SyncService {
@@ -65,6 +66,10 @@ class SyncService {
 
       // 2. Download remote updates
       await _downloadRemoteUpdates(userId);
+      
+      // Reschedule alarms to match the downloaded mirror state
+      await NotificationService().restoreScheduledNotifications();
+      
       print("[SYNC] Synchronization cycle completed successfully.");
     } catch (e) {
       // Fail silently or log error locally, app runs offline-first
