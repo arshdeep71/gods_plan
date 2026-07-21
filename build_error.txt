@@ -10,9 +10,9 @@ The following plugins do not support Swift Package Manager for ios:
   - flutter_timezone
   - live_activities
 This will become an error in a future version of Flutter. Please contact the plugin maintainers to request Swift Package Manager adoption.
-Running pod install...                                             805ms
+Running pod install...                                             910ms
 Running Xcode build...                                          
-Xcode build done.                                           53.8s
+Xcode build done.                                           51.9s
 Failed to build iOS app
 Error output from Xcode build:
 ↳
@@ -22,7 +22,7 @@ Error output from Xcode build:
 Xcode's output:
 ↳
     Writing result bundle at path:
-    	/var/folders/g3/pffjr_y96bq06blnkf72x_hw0000gn/T/flutter_tools.yJc2pq/flutter_ios_build_temp_dirBi9b1p/temporary_xcresult_bundle
+    	/var/folders/g3/pffjr_y96bq06blnkf72x_hw0000gn/T/flutter_tools.x8LeoA/flutter_ios_build_temp_dirtrGCFV/temporary_xcresult_bundle
 
     /Users/runner/.pub-cache/hosted/pub.dev/live_activities-1.9.5/ios/Classes/SwiftLiveActivitiesPlugin.swift:270:13: warning: variable 'state' was never mutated; consider changing to 'let' constant
             var state = activityStateToString(activityState: matchingActivity.activityState)
@@ -86,143 +86,22 @@ Xcode's output:
     + (void)setRegisterPlugins:(FlutterPluginRegistrantCallback *)callback;
     ^
     1 warning generated.
-    lib/screens/settings/master_settings_view.dart:81:52: Error: String starting with ' must end with '.
-                title: const Text('God\\'s Plan Version', style: TextStyle(color: Colors.white)),
-                                                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-    lib/screens/settings/master_settings_view.dart:75:19: Error: Can't find ')' to match '('.
-              ListTile(
-                      ^
-    lib/screens/settings/sync_status_view.dart:122:136: Error: String starting with ' must end with '.
-                  'God\\'s Plan is offline-first. You can export a fully encrypted AES copy of your SQLite database for manual restoration.',
-                                                                                          ^^
-    lib/screens/settings/master_settings_view.dart:81:38: Error: Expected ',' before this.
-                title: const Text('God\\'s Plan Version', style: TextStyle(color: Colors.white)),
-                                         ^
-    lib/screens/settings/master_settings_view.dart:81:38: Error: Not a constant expression.
-                title: const Text('God\\'s Plan Version', style: TextStyle(color: Colors.white)),
-                                         ^
-    lib/screens/settings/master_settings_view.dart:81:40: Error: Expected ',' before this.
-                title: const Text('God\\'s Plan Version', style: TextStyle(color: Colors.white)),
-                                           ^^^^
-    lib/screens/settings/master_settings_view.dart:81:40: Error: Not a constant expression.
-                title: const Text('God\\'s Plan Version', style: TextStyle(color: Colors.white)),
-                                           ^^^^
-    lib/screens/settings/master_settings_view.dart:81:45: Error: Expected ',' before this.
-                title: const Text('God\\'s Plan Version', style: TextStyle(color: Colors.white)),
-                                                ^^^^^^^
-    lib/screens/settings/master_settings_view.dart:81:45: Error: Not a constant expression.
-                title: const Text('God\\'s Plan Version', style: TextStyle(color: Colors.white)),
-                                                ^^^^^^^
-    lib/screens/settings/master_settings_view.dart:81:52: Error: Expected ',' before this.
-                title: const Text('God\\'s Plan Version', style: TextStyle(color: Colors.white)),
-                                                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-    lib/screens/settings/master_settings_view.dart:82:13: Error: Expected ',' before this.
-                trailing: const Text('v1.0.0 (Build 42)', style: TextStyle(color: Colors.white54)),
-                ^^^^^^^^
-    lib/screens/settings/master_settings_view.dart:81:30: Error: Too many positional arguments: 1 allowed, but 5 found.
-    Try removing the extra positional arguments.
-                title: const Text('God\\'s Plan Version', style: TextStyle(color: Colors.white)),
-                                 ^
-    ../../../hostedtoolcache/flutter/stable-3.44.7-arm64/flutter/packages/flutter/lib/src/widgets/text.dart:507:9: Context: Found this candidate, but the arguments don't match.
-      const Text(
-            ^^^^
-    lib/screens/settings/sync_status_view.dart:122:22: Error: Expected ',' before this.
-                  'God\\'s Plan is offline-first. You can export a fully encrypted AES copy of your SQLite database for manual restoration.',
-                         ^
-    lib/screens/settings/sync_status_view.dart:122:22: Error: Not a constant expression.
-                  'God\\'s Plan is offline-first. You can export a fully encrypted AES copy of your SQLite database for manual restoration.',
-                         ^
-    lib/screens/settings/sync_status_view.dart:122:24: Error: Expected ',' before this.
-                  'God\\'s Plan is offline-first. You can export a fully encrypted AES copy of your SQLite database for manual restoration.',
-                           ^^^^
-    lib/screens/settings/sync_status_view.dart:122:32: Error: 'offline' isn't a type.
-                  'God\\'s Plan is offline-first. You can export a fully encrypted AES copy of your SQLite database for manual restoration.',
-                                   ^^^^^^^
-    lib/screens/settings/sync_status_view.dart:122:24: Error: Not a constant expression.
-                  'God\\'s Plan is offline-first. You can export a fully encrypted AES copy of your SQLite database for manual restoration.',
-                           ^^^^
-    lib/screens/settings/sync_status_view.dart:122:39: Error: Expected ',' before this.
-                  'God\\'s Plan is offline-first. You can export a fully encrypted AES copy of your SQLite database for manual restoration.',
-                                          ^
-    lib/screens/settings/sync_status_view.dart:122:40: Error: Not a constant expression.
-                  'God\\'s Plan is offline-first. You can export a fully encrypted AES copy of your SQLite database for manual restoration.',
-                                           ^^^^^
-    lib/screens/settings/sync_status_view.dart:122:51: Error: Expected ',' before this.
-                  'God\\'s Plan is offline-first. You can export a fully encrypted AES copy of your SQLite database for manual restoration.',
-                                                      ^^^
-    lib/screens/settings/sync_status_view.dart:122:51: Error: Not a constant expression.
-                  'God\\'s Plan is offline-first. You can export a fully encrypted AES copy of your SQLite database for manual restoration.',
-                                                      ^^^
-    lib/screens/settings/sync_status_view.dart:122:55: Error: Expected ',' before this.
-                  'God\\'s Plan is offline-first. You can export a fully encrypted AES copy of your SQLite database for manual restoration.',
-                                                          ^^^^^^
-    lib/screens/settings/sync_status_view.dart:122:55: Error: Not a constant expression.
-                  'God\\'s Plan is offline-first. You can export a fully encrypted AES copy of your SQLite database for manual restoration.',
-                                                          ^^^^^^
-    lib/screens/settings/sync_status_view.dart:122:62: Error: Expected ',' before this.
-                  'God\\'s Plan is offline-first. You can export a fully encrypted AES copy of your SQLite database for manual restoration.',
-                                                                 ^
-    lib/screens/settings/sync_status_view.dart:122:62: Error: Not a constant expression.
-                  'God\\'s Plan is offline-first. You can export a fully encrypted AES copy of your SQLite database for manual restoration.',
-                                                                 ^
-    lib/screens/settings/sync_status_view.dart:122:64: Error: Expected ',' before this.
-                  'God\\'s Plan is offline-first. You can export a fully encrypted AES copy of your SQLite database for manual restoration.',
-                                                                   ^^^^^
-    lib/screens/settings/sync_status_view.dart:122:64: Error: Not a constant expression.
-                  'God\\'s Plan is offline-first. You can export a fully encrypted AES copy of your SQLite database for manual restoration.',
-                                                                   ^^^^^
-    lib/screens/settings/sync_status_view.dart:122:70: Error: Expected ',' before this.
-                  'God\\'s Plan is offline-first. You can export a fully encrypted AES copy of your SQLite database for manual restoration.',
-                                                                         ^^^^^^^^^
-    lib/screens/settings/sync_status_view.dart:122:70: Error: Not a constant expression.
-                  'God\\'s Plan is offline-first. You can export a fully encrypted AES copy of your SQLite database for manual restoration.',
-                                                                         ^^^^^^^^^
-    lib/screens/settings/sync_status_view.dart:122:80: Error: Expected ',' before this.
-                  'God\\'s Plan is offline-first. You can export a fully encrypted AES copy of your SQLite database for manual restoration.',
-                                                                                   ^^^
-    lib/screens/settings/sync_status_view.dart:122:80: Error: Not a constant expression.
-                  'God\\'s Plan is offline-first. You can export a fully encrypted AES copy of your SQLite database for manual restoration.',
-                                                                                   ^^^
-    lib/screens/settings/sync_status_view.dart:122:84: Error: Expected ',' before this.
-                  'God\\'s Plan is offline-first. You can export a fully encrypted AES copy of your SQLite database for manual restoration.',
-                                                                                       ^^^^
-    lib/screens/settings/sync_status_view.dart:122:84: Error: Not a constant expression.
-                  'God\\'s Plan is offline-first. You can export a fully encrypted AES copy of your SQLite database for manual restoration.',
-                                                                                       ^^^^
-    lib/screens/settings/sync_status_view.dart:122:89: Error: Expected ',' before this.
-                  'God\\'s Plan is offline-first. You can export a fully encrypted AES copy of your SQLite database for manual restoration.',
-                                                                                          ^^
-    lib/screens/settings/sync_status_view.dart:122:89: Error: Not a constant expression.
-                  'God\\'s Plan is offline-first. You can export a fully encrypted AES copy of your SQLite database for manual restoration.',
-                                                                                          ^^
-    lib/screens/settings/sync_status_view.dart:122:92: Error: Expected ',' before this.
-                  'God\\'s Plan is offline-first. You can export a fully encrypted AES copy of your SQLite database for manual restoration.',
-                                                                                          ^^^^
-    lib/screens/settings/sync_status_view.dart:122:92: Error: Not a constant expression.
-                  'God\\'s Plan is offline-first. You can export a fully encrypted AES copy of your SQLite database for manual restoration.',
-                                                                                          ^^^^
-    lib/screens/settings/sync_status_view.dart:122:97: Error: Expected ',' before this.
-                  'God\\'s Plan is offline-first. You can export a fully encrypted AES copy of your SQLite database for manual restoration.',
-                                                                                          ^^^^^^
-    lib/screens/settings/sync_status_view.dart:122:97: Error: Not a constant expression.
-                  'God\\'s Plan is offline-first. You can export a fully encrypted AES copy of your SQLite database for manual restoration.',
-                                                                                          ^^^^^^
-    lib/screens/settings/sync_status_view.dart:122:104: Error: Expected ',' before this.
-                  'God\\'s Plan is offline-first. You can export a fully encrypted AES copy of your SQLite database for manual restoration.',
-                                                                                          ^^^^^^^^
-    lib/screens/settings/sync_status_view.dart:122:104: Error: Not a constant expression.
-                  'God\\'s Plan is offline-first. You can export a fully encrypted AES copy of your SQLite database for manual restoration.',
-                                                                                          ^^^^^^^^
-    lib/screens/settings/sync_status_view.dart:122:113: Error: Expected ')' before this.
-                  'God\\'s Plan is offline-first. You can export a fully encrypted AES copy of your SQLite database for manual restoration.',
-                                                                                          ^^^
-    lib/screens/settings/sync_status_view.dart:121:23: Error: Too many positional arguments: 1 allowed, but 15 found.
-    Try removing the extra positional arguments.
-                const Text(
-                          ^
-    ../../../hostedtoolcache/flutter/stable-3.44.7-arm64/flutter/packages/flutter/lib/src/widgets/text.dart:507:9: Context: Found this candidate, but the arguments don't match.
-      const Text(
-            ^^^^
+    lib/services/database_service.dart:1016:19: Error: The getter 'user_id' isn't defined for the type 'NotificationHistoryModel'.
+     - 'NotificationHistoryModel' is from 'package:gods_plan/models/notification_history_model.dart' ('lib/models/notification_history_model.dart').
+    Try correcting the name to the name of an existing getter, or defining a getter or field named 'user_id'.
+        ''', [history.user_id, history.user_id]);
+                      ^^^^^^^
+    lib/services/database_service.dart:1016:36: Error: The getter 'user_id' isn't defined for the type 'NotificationHistoryModel'.
+     - 'NotificationHistoryModel' is from 'package:gods_plan/models/notification_history_model.dart' ('lib/models/notification_history_model.dart').
+    Try correcting the name to the name of an existing getter, or defining a getter or field named 'user_id'.
+        ''', [history.user_id, history.user_id]);
+                                       ^^^^^^^
+    lib/services/audio_service.dart:23:7: Error: No named parameter with the name 'forceSpeaker'.
+          forceSpeaker: false,
+          ^^^^^^^^^^^^
+    ../../../.pub-cache/hosted/pub.dev/audioplayers_platform_interface-6.1.0/lib/src/api/audio_context_config.dart:67:3: Context: Found this candidate, but the arguments don't match.
+      AudioContextConfig({
+      ^^^^^^^^^^^^^^^^^^
     Target kernel_snapshot_program failed: Exception
     Failed to package /Users/runner/work/gods_plan/gods_plan.
     Command PhaseScriptExecution failed with a nonzero exit code
