@@ -20,9 +20,8 @@ class AudioService {
     
     // Set AudioContext to handle iOS silent mode behavior gracefully
     await AudioPlayer.global.setAudioContext(AudioContextConfig(
-      forceSpeaker: false,
       duckAudio: true,
-      respectSilence: true, // This is crucial for respecting iOS silent switch
+      respectSilence: true,
       stayAwake: false,
     ).build());
     

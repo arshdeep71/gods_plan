@@ -114,7 +114,7 @@ class NotificationService {
         restoreCount++;
       } else if (reminder.isSnoozed && reminder.snoozeUntil != null && reminder.snoozeUntil!.isAfter(now)) {
         final int stableId = reminder.id.hashCode & 0x7FFFFFFF;
-        await _snoozeNotification(stableId, reminder.taskId, reminder.snoozeUntil!.difference(now).inMinutes);
+        await _snoozeNotification(stableId, reminder.taskId, reminder.id, reminder.snoozeUntil!.difference(now).inMinutes);
         restoreCount++;
       }
     }
