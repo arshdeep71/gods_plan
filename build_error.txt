@@ -11,9 +11,9 @@ The following plugins do not support Swift Package Manager for ios:
   - flutter_timezone
   - live_activities
 This will become an error in a future version of Flutter. Please contact the plugin maintainers to request Swift Package Manager adoption.
-Running pod install...                                           1,354ms
+Running pod install...                                             841ms
 Running Xcode build...                                          
-Xcode build done.                                           79.9s
+Xcode build done.                                           51.9s
 Failed to build iOS app
 Error output from Xcode build:
 ↳
@@ -23,12 +23,15 @@ Error output from Xcode build:
 Xcode's output:
 ↳
     Writing result bundle at path:
-    	/var/folders/g3/pffjr_y96bq06blnkf72x_hw0000gn/T/flutter_tools.IhBEHO/flutter_ios_build_temp_dirTtMUrQ/temporary_xcresult_bundle
+    	/var/folders/g3/pffjr_y96bq06blnkf72x_hw0000gn/T/flutter_tools.OwdXES/flutter_ios_build_temp_dirpzIjJC/temporary_xcresult_bundle
 
     /Users/runner/.pub-cache/hosted/pub.dev/live_activities-1.9.5/ios/Classes/SwiftLiveActivitiesPlugin.swift:270:13: warning: variable 'state' was never mutated; consider changing to 'let' constant
             var state = activityStateToString(activityState: matchingActivity.activityState)
             ~~~ ^
             let
+    /Users/runner/.pub-cache/hosted/pub.dev/audioplayers_darwin-5.0.2/ios/Classes/AudioContext.swift:72:15: warning: 'audioProcessing' was deprecated in iOS 10.0: No longer supported
+          return .audioProcessing
+                  ^
     /Users/runner/.pub-cache/hosted/pub.dev/flutter_native_image-0.0.6+1/ios/Classes/UIImage+RoundedCorner.m:60:1: warning: category is implementing a method which will also be implemented by its primary class [-Wobjc-protocol-method-implementation]
     - (void)addRoundedRectToPath:(CGRect)rect context:(CGContextRef)context ovalWidth:(CGFloat)ovalWidth ovalHeight:(CGFloat)ovalHeight {
     ^
@@ -135,18 +138,40 @@ Xcode's output:
     - (void)registerUserNotificationSettings:(UIUserNotificationSettings *)notificationSettings API_DEPRECATED("Use UserNotifications Framework's -[UNUserNotificationCenter requestAuthorizationWithOptions:completionHandler:] and -[UNUserNotificationCenter setNotificationCategories:]", ios(8.0, 10.0)) API_UNAVAILABLE(visionos) API_UNAVAILABLE(tvos);
     ^
     7 warnings generated.
-    /Users/runner/.pub-cache/hosted/pub.dev/audioplayers_darwin-5.0.2/ios/Classes/AudioContext.swift:72:15: warning: 'audioProcessing' was deprecated in iOS 10.0: No longer supported
-          return .audioProcessing
-                  ^
-    lib/services/notification_service.dart:117:34: Error: Too few positional arguments: 4 required, 3 given.
-            await _snoozeNotification(stableId, reminder.taskId, reminder.snoozeUntil!.difference(now).inMinutes);
-                                     ^
-    lib/services/audio_service.dart:23:7: Error: No named parameter with the name 'forceSpeaker'.
-          forceSpeaker: false,
-          ^^^^^^^^^^^^
-    ../../../.pub-cache/hosted/pub.dev/audioplayers_platform_interface-6.1.0/lib/src/api/audio_context_config.dart:67:3: Context: Found this candidate, but the arguments don't match.
-      AudioContextConfig({
-      ^^^^^^^^^^^^^^^^^^
+    lib/services/encryption_service.dart:3:1: Error: 'Key' is imported from both 'package:encrypt/encrypt.dart' and 'package:flutter/src/foundation/key.dart'.
+    import 'package:encrypt/encrypt.dart';
+    ^^^
+    lib/services/encryption_service.dart:24:28: Error: 'Key' is imported from both 'package:encrypt/encrypt.dart' and 'package:flutter/src/foundation/key.dart'.
+              final keyBytes = Key.fromSecureRandom(32);
+                               ^^^
+    lib/services/encryption_service.dart:28:16: Error: 'Key' is imported from both 'package:encrypt/encrypt.dart' and 'package:flutter/src/foundation/key.dart'.
+            _key = Key.fromBase64(keyBase64);
+                   ^^^
+    lib/services/encryption_service.dart:36:26: Error: 'Key' is imported from both 'package:encrypt/encrypt.dart' and 'package:flutter/src/foundation/key.dart'.
+            final keyBytes = Key.fromSecureRandom(32);
+                             ^^^
+    lib/services/encryption_service.dart:41:14: Error: 'Key' is imported from both 'package:encrypt/encrypt.dart' and 'package:flutter/src/foundation/key.dart'.
+          _key = Key.fromBase64(keyBase64);
+                 ^^^
+    lib/services/encryption_service.dart:48:28: Error: 'Key' is imported from both 'package:encrypt/encrypt.dart' and 'package:flutter/src/foundation/key.dart'.
+              final keyBytes = Key.fromSecureRandom(32);
+                               ^^^
+    lib/services/encryption_service.dart:52:16: Error: 'Key' is imported from both 'package:encrypt/encrypt.dart' and 'package:flutter/src/foundation/key.dart'.
+            _key = Key.fromBase64(keyBase64);
+                   ^^^
+    lib/services/encryption_service.dart:55:16: Error: 'Key' is imported from both 'package:encrypt/encrypt.dart' and 'package:flutter/src/foundation/key.dart'.
+            _key = Key.fromBase64(base64Encode(List.filled(32, 0)));
+                   ^^^
+    lib/services/notification_service.dart:23:9: Error: The getter 'kIsWeb' isn't defined for the type 'NotificationService'.
+     - 'NotificationService' is from 'package:gods_plan/services/notification_service.dart' ('lib/services/notification_service.dart').
+    Try correcting the name to the name of an existing getter, or defining a getter or field named 'kIsWeb'.
+        if (kIsWeb) return;
+            ^^^^^^
+    lib/services/notification_service.dart:103:9: Error: The getter 'kIsWeb' isn't defined for the type 'NotificationService'.
+     - 'NotificationService' is from 'package:gods_plan/services/notification_service.dart' ('lib/services/notification_service.dart').
+    Try correcting the name to the name of an existing getter, or defining a getter or field named 'kIsWeb'.
+        if (kIsWeb) return;
+            ^^^^^^
     Target kernel_snapshot_program failed: Exception
     Failed to package /Users/runner/work/gods_plan/gods_plan.
     Command PhaseScriptExecution failed with a nonzero exit code
