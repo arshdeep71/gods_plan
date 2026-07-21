@@ -6,6 +6,10 @@ import '../services/database_service.dart';
 import '../services/sync_service.dart';
 import '../services/notification_service.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../models/reminder_model.dart';
+import '../services/audio_service.dart';
+import '../services/haptic_service.dart';
+import '../services/live_activity_service.dart';
 
 enum DayStreakStatus {
   perfect,    // 100%
@@ -243,6 +247,14 @@ class TaskProvider extends ChangeNotifier {
       
       _syncProfileXp(userId, newXp);
       
+      if (xpToAdd == 50) {
+        AudioService().playAchievement();
+        HapticService().achievement();
+      } else {
+        AudioService().playXp();
+        HapticService().xpCoin();
+      }
+
       _lastAwardedXpAmount = xpToAdd;
       _shouldShowXpAnimation = true;
       notifyListeners();
@@ -406,6 +418,81 @@ class TaskProvider extends ChangeNotifier {
     }
   }
 
+  Future<void> _syncRemindersForTask(Task task) async {
+    // First, delete existing reminders for this task to recreate them cleanly
+    final existingReminders = await _dbService.getLocalReminders(task.userId);
+    for (final r in existingReminders) {
+      if (r.taskId == task.id) {
+        await _dbService.deleteLocalReminder(r.id);
+        await NotificationService().cancelReminder(r.id.hashCode & 0x7FFFFFFF);
+        // Queue delete for Supabase
+        await _dbService.queueMutation(SyncItem(
+          actionType: 'DELETE',
+          tableName: 'reminders',
+          recordId: r.id,
+        ));
+      }
+    }
+
+    if (task.reminderTime == null && task.dueTime == null) return;
+    if (task.isCompleted || task.isPaused) return; // Do not schedule reminders for completed/paused tasks
+    
+    DateTime? scheduledTime;
+    String timeString = task.reminderTime ?? task.dueTime!;
+    final timeParts = timeString.split(' ');
+    if (timeParts.isEmpty) return;
+    
+    final hm = timeParts[0].split(':');
+    if (hm.length < 2) return;
+    
+    int hour = int.tryParse(hm[0]) ?? 12;
+    int minute = int.tryParse(hm[1]) ?? 0;
+    
+    if (timeParts.length > 1) {
+      if (timeParts[1].toLowerCase() == 'pm' && hour < 12) hour += 12;
+      if (timeParts[1].toLowerCase() == 'am' && hour == 12) hour = 0;
+    }
+
+    if (task.scheduledDate != null) {
+      final baseDate = DateTime.parse(task.scheduledDate!);
+      scheduledTime = DateTime(baseDate.year, baseDate.month, baseDate.day, hour, minute);
+    } else {
+       // Recurring task with just a time, schedule for today at that time
+       final now = DateTime.now();
+       scheduledTime = DateTime(now.year, now.month, now.day, hour, minute);
+       if (scheduledTime.isBefore(now)) {
+         scheduledTime = scheduledTime.add(const Duration(days: 1));
+       }
+    }
+
+    if (scheduledTime != null) {
+      final reminder = ReminderModel(
+        id: _uuid.v4(),
+        taskId: task.id,
+        scheduledTime: scheduledTime,
+        type: 'REMINDER',
+        title: 'Task Reminder',
+        body: task.title,
+        repeatPattern: task.isRecurring ? task.repeatType.toUpperCase() : 'ONCE',
+        createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
+      );
+
+      await _dbService.upsertLocalReminder(reminder);
+      
+      // Queue insert mutation
+      await _dbService.queueMutation(SyncItem(
+        actionType: 'INSERT',
+        tableName: 'reminders',
+        recordId: reminder.id,
+        payload: reminder.toJson(),
+      ));
+
+      // Schedule immediately
+      await NotificationService().scheduleReminder(reminder.id.hashCode & 0x7FFFFFFF, reminder);
+    }
+  }
+
   Future<void> addTask({
     required String userId,
     required String title,
@@ -457,7 +544,7 @@ class TaskProvider extends ChangeNotifier {
 
     // Optimistic UI updates - Save locally and update memory
     _tasks.insert(0, newTask);
-    _scheduleNotification(newTask);
+    await _syncRemindersForTask(newTask);
     print("[STATE CHANGE] Function: addTask (Optimistic update), Previous count: ${_tasks.length - 1}, New count: ${_tasks.length}");
     notifyListeners();
 
@@ -488,6 +575,25 @@ class TaskProvider extends ChangeNotifier {
     }
   }
 
+  // =====================================
+  // Focus Session / Live Activity
+  // =====================================
+
+  Future<void> startFocusSession(Task task, {int durationMinutes = 25}) async {
+    final deadline = DateTime.now().add(Duration(minutes: durationMinutes));
+    await LiveActivityService().startTaskActivity(task.title, deadline);
+    HapticService().selectionClick();
+  }
+
+  Future<void> updateFocusProgress(double progress) async {
+    await LiveActivityService().updateTaskActivity(progress);
+  }
+
+  Future<void> cancelFocusSession() async {
+    await LiveActivityService().endTaskActivity();
+    HapticService().selectionClick();
+  }
+
   Future<void> toggleTaskCompletion(Task task, {DateTime? date}) async {
     try {
     final targetDate = date ?? DateTime.now();
@@ -504,6 +610,9 @@ class TaskProvider extends ChangeNotifier {
     final bool isCurrentlyCompleted = _completions.any((c) => c['task_id'] == task.id && c['completed_date'] == formattedDate);
 
     if (isCurrentlyCompleted) {
+      // User unchecked the task
+      HapticService().selectionClick();
+      
       final temp = List<Map<String, dynamic>>.from(_completions);
       temp.removeWhere((c) => c['task_id'] == task.id && c['completed_date'] == formattedDate);
       _completions = temp;
@@ -519,7 +628,13 @@ class TaskProvider extends ChangeNotifier {
       );
       await _dbService.queueMutation(syncItem);
     } else {
-      // Add completion
+      // User completed the task
+      AudioService().playSuccess();
+      HapticService().success();
+
+      // End Live Activity if this task was the active one
+      await LiveActivityService().endTaskActivity();
+
       final completionId = _uuid.v4();
       final completion = {
         'id': completionId,
@@ -623,7 +738,7 @@ class TaskProvider extends ChangeNotifier {
     );
 
     _tasks[index] = updatedTask;
-    _scheduleNotification(updatedTask);
+    await _syncRemindersForTask(updatedTask);
     notifyListeners();
 
     await _dbService.upsertLocalTask(updatedTask);
@@ -652,7 +767,7 @@ class TaskProvider extends ChangeNotifier {
     final index = _tasks.indexWhere((t) => t.id == task.id);
     if (index != -1) {
       _tasks[index] = updatedTask;
-      _scheduleNotification(updatedTask);
+      await _syncRemindersForTask(updatedTask);
       notifyListeners();
     }
 
@@ -683,7 +798,7 @@ class TaskProvider extends ChangeNotifier {
 
     // Optimistic UI update - delete from memory
     _tasks.removeWhere((t) => t.id == task.id);
-    NotificationService().cancelReminder(task.id.hashCode);
+    await _syncRemindersForTask(task.copyWith(reminderTime: null, dueTime: null));
     notifyListeners();
 
     try {
@@ -783,52 +898,7 @@ class TaskProvider extends ChangeNotifier {
     }
   }
 
-  void _scheduleNotification(Task task) {
-    if (task.isPaused || task.isCompleted) {
-      NotificationService().cancelReminder(task.id.hashCode);
-      return;
-    }
 
-    if (task.dueTime != null) {
-      final timeParts = task.dueTime!.split(' ');
-      if (timeParts.isEmpty) return;
-      
-      final hm = timeParts[0].split(':');
-      if (hm.length < 2) return;
-      
-      int hour = int.tryParse(hm[0]) ?? 12;
-      int minute = int.tryParse(hm[1]) ?? 0;
-      
-      if (timeParts.length > 1) {
-        if (timeParts[1].toLowerCase() == 'pm' && hour < 12) hour += 12;
-        if (timeParts[1].toLowerCase() == 'am' && hour == 12) hour = 0;
-      }
-
-      final timeOfDay = TimeOfDay(hour: hour, minute: minute);
-      
-      if (task.isRecurring) {
-        NotificationService().scheduleDailyReminder(
-          task.id.hashCode,
-          task.title,
-          timeOfDay,
-          task.id,
-        );
-      } else if (task.scheduledDate != null) {
-        try {
-          final date = DateTime.parse(task.scheduledDate!);
-          final scheduledTime = DateTime(date.year, date.month, date.day, hour, minute);
-          NotificationService().scheduleTaskReminder(
-            task.id.hashCode,
-            task.title,
-            scheduledTime,
-            task.id,
-          );
-        } catch (_) {}
-      }
-    } else {
-      NotificationService().cancelReminder(task.id.hashCode);
-    }
-  }
 
   void clear() {
     _tasks = [];
