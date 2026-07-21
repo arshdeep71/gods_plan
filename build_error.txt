@@ -3,6 +3,7 @@ Building com.godsplan.godsPlan for device (ios-release)...
 The following plugins do not support Swift Package Manager for ios:
   - app_group_directory
   - audioplayers_darwin
+  - flutter_app_badger
   - flutter_dynamic_icon_plus
   - flutter_local_notifications
   - flutter_native_image
@@ -10,9 +11,9 @@ The following plugins do not support Swift Package Manager for ios:
   - flutter_timezone
   - live_activities
 This will become an error in a future version of Flutter. Please contact the plugin maintainers to request Swift Package Manager adoption.
-Running pod install...                                             835ms
+Running pod install...                                           1,354ms
 Running Xcode build...                                          
-Xcode build done.                                           58.7s
+Xcode build done.                                           79.9s
 Failed to build iOS app
 Error output from Xcode build:
 ↳
@@ -22,15 +23,12 @@ Error output from Xcode build:
 Xcode's output:
 ↳
     Writing result bundle at path:
-    	/var/folders/g3/pffjr_y96bq06blnkf72x_hw0000gn/T/flutter_tools.Ij8Ddi/flutter_ios_build_temp_dir3Xt8bw/temporary_xcresult_bundle
+    	/var/folders/g3/pffjr_y96bq06blnkf72x_hw0000gn/T/flutter_tools.IhBEHO/flutter_ios_build_temp_dirTtMUrQ/temporary_xcresult_bundle
 
     /Users/runner/.pub-cache/hosted/pub.dev/live_activities-1.9.5/ios/Classes/SwiftLiveActivitiesPlugin.swift:270:13: warning: variable 'state' was never mutated; consider changing to 'let' constant
             var state = activityStateToString(activityState: matchingActivity.activityState)
             ~~~ ^
             let
-    /Users/runner/.pub-cache/hosted/pub.dev/audioplayers_darwin-5.0.2/ios/Classes/AudioContext.swift:72:15: warning: 'audioProcessing' was deprecated in iOS 10.0: No longer supported
-          return .audioProcessing
-                  ^
     /Users/runner/.pub-cache/hosted/pub.dev/flutter_native_image-0.0.6+1/ios/Classes/UIImage+RoundedCorner.m:60:1: warning: category is implementing a method which will also be implemented by its primary class [-Wobjc-protocol-method-implementation]
     - (void)addRoundedRectToPath:(CGRect)rect context:(CGContextRef)context ovalWidth:(CGFloat)ovalWidth ovalHeight:(CGFloat)ovalHeight {
     ^
@@ -86,16 +84,63 @@ Xcode's output:
     + (void)setRegisterPlugins:(FlutterPluginRegistrantCallback *)callback;
     ^
     1 warning generated.
-    lib/services/database_service.dart:1016:19: Error: The getter 'user_id' isn't defined for the type 'NotificationHistoryModel'.
-     - 'NotificationHistoryModel' is from 'package:gods_plan/models/notification_history_model.dart' ('lib/models/notification_history_model.dart').
-    Try correcting the name to the name of an existing getter, or defining a getter or field named 'user_id'.
-        ''', [history.user_id, history.user_id]);
-                      ^^^^^^^
-    lib/services/database_service.dart:1016:36: Error: The getter 'user_id' isn't defined for the type 'NotificationHistoryModel'.
-     - 'NotificationHistoryModel' is from 'package:gods_plan/models/notification_history_model.dart' ('lib/models/notification_history_model.dart').
-    Try correcting the name to the name of an existing getter, or defining a getter or field named 'user_id'.
-        ''', [history.user_id, history.user_id]);
-                                       ^^^^^^^
+    /Users/runner/.pub-cache/hosted/pub.dev/flutter_app_badger-1.5.0/ios/Classes/FlutterAppBadgerPlugin.m:17:9: warning: 'UIUserNotificationSettings' is deprecated: first deprecated in iOS 10.0 - Use UserNotifications Framework's UNNotificationSettings [-Wdeprecated-declarations]
+            UIUserNotificationSettings* notificationSettings = [UIUserNotificationSettings settingsForTypes:UIUserNotificationTypeAlert | UIUserNotificationTypeBadge | UIUserNotificationTypeSound categories:[[UIApplication sharedApplication] currentUserNotificationSettings].categories];
+            ^
+    In module 'UIKit' imported from /Users/runner/work/gods_plan/gods_plan/ios/Pods/Target Support Files/flutter_app_badger/flutter_app_badger-prefix.pch:2:
+    /Applications/Xcode_15.4.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS17.5.sdk/System/Library/Frameworks/UIKit.framework/Headers/UIUserNotificationSettings.h:44:12: note: 'UIUserNotificationSettings' has been explicitly marked deprecated here
+    @interface UIUserNotificationSettings : NSObject
+               ^
+    /Users/runner/.pub-cache/hosted/pub.dev/flutter_app_badger-1.5.0/ios/Classes/FlutterAppBadgerPlugin.m:17:105: warning: 'UIUserNotificationTypeAlert' is deprecated: first deprecated in iOS 10.0 - Use UserNotifications Framework's UNAuthorizationOptions [-Wdeprecated-declarations]
+            UIUserNotificationSettings* notificationSettings = [UIUserNotificationSettings settingsForTypes:UIUserNotificationTypeAlert | UIUserNotificationTypeBadge | UIUserNotificationTypeSound categories:[[UIApplication sharedApplication] currentUserNotificationSettings].categories];
+                                                                                          ^
+    In module 'UIKit' imported from /Users/runner/work/gods_plan/gods_plan/ios/Pods/Target Support Files/flutter_app_badger/flutter_app_badger-prefix.pch:2:
+    /Applications/Xcode_15.4.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS17.5.sdk/System/Library/Frameworks/UIKit.framework/Headers/UIUserNotificationSettings.h:17:32: note: 'UIUserNotificationType' has been explicitly marked deprecated here
+    typedef NS_OPTIONS(NSUInteger, UIUserNotificationType) {
+                                   ^
+    /Users/runner/.pub-cache/hosted/pub.dev/flutter_app_badger-1.5.0/ios/Classes/FlutterAppBadgerPlugin.m:17:135: warning: 'UIUserNotificationTypeBadge' is deprecated: first deprecated in iOS 10.0 - Use UserNotifications Framework's UNAuthorizationOptions [-Wdeprecated-declarations]
+            UIUserNotificationSettings* notificationSettings = [UIUserNotificationSettings settingsForTypes:UIUserNotificationTypeAlert | UIUserNotificationTypeBadge | UIUserNotificationTypeSound categories:[[UIApplication sharedApplication] currentUserNotificationSettings].categories];
+                                                                                          ^
+    In module 'UIKit' imported from /Users/runner/work/gods_plan/gods_plan/ios/Pods/Target Support Files/flutter_app_badger/flutter_app_badger-prefix.pch:2:
+    /Applications/Xcode_15.4.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS17.5.sdk/System/Library/Frameworks/UIKit.framework/Headers/UIUserNotificationSettings.h:17:32: note: 'UIUserNotificationType' has been explicitly marked deprecated here
+    typedef NS_OPTIONS(NSUInteger, UIUserNotificationType) {
+                                   ^
+    /Users/runner/.pub-cache/hosted/pub.dev/flutter_app_badger-1.5.0/ios/Classes/FlutterAppBadgerPlugin.m:17:165: warning: 'UIUserNotificationTypeSound' is deprecated: first deprecated in iOS 10.0 - Use UserNotifications Framework's UNAuthorizationOptions [-Wdeprecated-declarations]
+            UIUserNotificationSettings* notificationSettings = [UIUserNotificationSettings settingsForTypes:UIUserNotificationTypeAlert | UIUserNotificationTypeBadge | UIUserNotificationTypeSound categories:[[UIApplication sharedApplication] currentUserNotificationSettings].categories];
+                                                                                          ^
+    In module 'UIKit' imported from /Users/runner/work/gods_plan/gods_plan/ios/Pods/Target Support Files/flutter_app_badger/flutter_app_badger-prefix.pch:2:
+    /Applications/Xcode_15.4.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS17.5.sdk/System/Library/Frameworks/UIKit.framework/Headers/UIUserNotificationSettings.h:17:32: note: 'UIUserNotificationType' has been explicitly marked deprecated here
+    typedef NS_OPTIONS(NSUInteger, UIUserNotificationType) {
+                                   ^
+    /Users/runner/.pub-cache/hosted/pub.dev/flutter_app_badger-1.5.0/ios/Classes/FlutterAppBadgerPlugin.m:17:239: warning: 'currentUserNotificationSettings' is deprecated: first deprecated in iOS 10.0 - Use UserNotifications Framework's -[UNUserNotificationCenter getNotificationSettingsWithCompletionHandler:] and -[UNUserNotificationCenter getNotificationCategoriesWithCompletionHandler:] [-Wdeprecated-declarations]
+            UIUserNotificationSettings* notificationSettings = [UIUserNotificationSettings settingsForTypes:UIUserNotificationTypeAlert | UIUserNotificationTypeBadge | UIUserNotificationTypeSound categories:[[UIApplication sharedApplication] currentUserNotificationSettings].categories];
+                                                                                          ^
+    In module 'UIKit' imported from /Users/runner/work/gods_plan/gods_plan/ios/Pods/Target Support Files/flutter_app_badger/flutter_app_badger-prefix.pch:2:
+    /Applications/Xcode_15.4.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS17.5.sdk/System/Library/Frameworks/UIKit.framework/Headers/UIApplication.h:234:70: note: property 'currentUserNotificationSettings' is declared deprecated here
+    @property(nonatomic, readonly, nullable) UIUserNotificationSettings *currentUserNotificationSettings API_DEPRECATED("Use UserNotifications Framework's -[UNUserNotificationCenter getNotificationSettingsWithCompletionHandler:] and -[UNUserNotificationCenter getNotificationCategoriesWithCompletionHandler:]", ios(8.0, 10.0)) API_UNAVAILABLE(visionos) API_UNAVAILABLE(tvos);
+                                                                         ^
+    /Applications/Xcode_15.4.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS17.5.sdk/System/Library/Frameworks/UIKit.framework/Headers/UIApplication.h:234:70: note: 'currentUserNotificationSettings' has been explicitly marked deprecated here
+    /Users/runner/.pub-cache/hosted/pub.dev/flutter_app_badger-1.5.0/ios/Classes/FlutterAppBadgerPlugin.m:17:88: warning: 'UIUserNotificationSettings' is deprecated: first deprecated in iOS 10.0 - Use UserNotifications Framework's UNNotificationSettings [-Wdeprecated-declarations]
+            UIUserNotificationSettings* notificationSettings = [UIUserNotificationSettings settingsForTypes:UIUserNotificationTypeAlert | UIUserNotificationTypeBadge | UIUserNotificationTypeSound categories:[[UIApplication sharedApplication] currentUserNotificationSettings].categories];
+                                                                                          ^
+    In module 'UIKit' imported from /Users/runner/work/gods_plan/gods_plan/ios/Pods/Target Support Files/flutter_app_badger/flutter_app_badger-prefix.pch:2:
+    /Applications/Xcode_15.4.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS17.5.sdk/System/Library/Frameworks/UIKit.framework/Headers/UIUserNotificationSettings.h:44:12: note: 'UIUserNotificationSettings' has been explicitly marked deprecated here
+    @interface UIUserNotificationSettings : NSObject
+               ^
+    /Users/runner/.pub-cache/hosted/pub.dev/flutter_app_badger-1.5.0/ios/Classes/FlutterAppBadgerPlugin.m:18:44: warning: 'registerUserNotificationSettings:' is deprecated: first deprecated in iOS 10.0 - Use UserNotifications Framework's -[UNUserNotificationCenter requestAuthorizationWithOptions:completionHandler:] and -[UNUserNotificationCenter setNotificationCategories:] [-Wdeprecated-declarations]
+            [[UIApplication sharedApplication] registerUserNotificationSettings:notificationSettings];
+                                               ^
+    In module 'UIKit' imported from /Users/runner/work/gods_plan/gods_plan/ios/Pods/Target Support Files/flutter_app_badger/flutter_app_badger-prefix.pch:2:
+    /Applications/Xcode_15.4.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS17.5.sdk/System/Library/Frameworks/UIKit.framework/Headers/UIApplication.h:231:1: note: 'registerUserNotificationSettings:' has been explicitly marked deprecated here
+    - (void)registerUserNotificationSettings:(UIUserNotificationSettings *)notificationSettings API_DEPRECATED("Use UserNotifications Framework's -[UNUserNotificationCenter requestAuthorizationWithOptions:completionHandler:] and -[UNUserNotificationCenter setNotificationCategories:]", ios(8.0, 10.0)) API_UNAVAILABLE(visionos) API_UNAVAILABLE(tvos);
+    ^
+    7 warnings generated.
+    /Users/runner/.pub-cache/hosted/pub.dev/audioplayers_darwin-5.0.2/ios/Classes/AudioContext.swift:72:15: warning: 'audioProcessing' was deprecated in iOS 10.0: No longer supported
+          return .audioProcessing
+                  ^
+    lib/services/notification_service.dart:117:34: Error: Too few positional arguments: 4 required, 3 given.
+            await _snoozeNotification(stableId, reminder.taskId, reminder.snoozeUntil!.difference(now).inMinutes);
+                                     ^
     lib/services/audio_service.dart:23:7: Error: No named parameter with the name 'forceSpeaker'.
           forceSpeaker: false,
           ^^^^^^^^^^^^
