@@ -29,8 +29,10 @@ import 'dashboard/badges_view.dart';
 import 'dashboard/analytics_view.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../widgets/premium_bottom_nav.dart';
-import 'settings/master_settings_view.dart';
 import 'notifications_inbox.dart';
+import 'settings/sound_haptics_view.dart';
+import 'settings/sync_status_view.dart';
+import 'settings/privacy_export_view.dart';
 import '../services/sync_service.dart';
 import '../services/profile_reset_service.dart';
 import 'package:flutter/foundation.dart';
@@ -801,7 +803,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       TasksView(isTab: true, initialDate: _tasksInitialDate),
       const SizedBox.shrink(), // Placeholder for central button
       user != null ? BadgesView(userId: user.id, username: username) : const SizedBox.shrink(),
-      const MasterSettingsView(),
+      _buildSettingsTab(context, username),
     ];
 
     return Scaffold(
@@ -1086,5 +1088,264 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
+
+  Widget _buildSettingsTab(BuildContext context, String username) {
+    final user = Provider.of<AuthProvider>(context, listen: false).user;
+    return SingleChildScrollView(
+      padding: const EdgeInsets.only(left: 24.0, right: 24.0, top: 24.0, bottom: 120.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            "Settings",
+            style: TextStyle(color: AppColors.textPrimary, fontSize: 24, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 24),
+          
+          // Profile Details
+          Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: AppColors.surface,
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: AppColors.border),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  width: 50,
+                  height: 50,
+                  decoration: const BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: AppColors.primaryGradient,
+                  ),
+                  child: Center(
+                    child: Text(
+                      username.isNotEmpty ? username[0].toUpperCase() : 'U',
+                      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 20),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        username,
+                        style: const TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.bold, fontSize: 16),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        user?.email ?? "No Email connected",
+                        style: const TextStyle(color: AppColors.textSecondary, fontSize: 12),
+                      ),
+                    ],
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.edit_rounded, color: AppColors.primaryLight, size: 20),
+                  tooltip: "Edit Profile Name",
+                  onPressed: _showEditProfileDialog,
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 24),
+
+          // Account Details
+          const Text("Account Details", style: TextStyle(color: AppColors.textSecondary, fontSize: 13, fontWeight: FontWeight.bold, letterSpacing: 0.5)),
+          const SizedBox(height: 12),
+          _buildSettingsTile(
+            Icons.person_rounded,
+            "Edit Profile Name",
+            "Change your profile display name",
+            _showEditProfileDialog,
+          ),
+          if (!kIsWeb) ...[
+            const SizedBox(height: 16),
+            const Text("Appearance", style: TextStyle(color: AppColors.textSecondary, fontSize: 13, fontWeight: FontWeight.bold, letterSpacing: 0.5)),
+            const SizedBox(height: 12),
+            _buildSettingsTile(
+              Icons.app_shortcut_rounded,
+              "App Icon",
+              "Switch bundled icons or manage your saved icon gallery",
+              () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AppIconView())),
+            ),
+          ],
+          const SizedBox(height: 16),
+          const Text("Sounds & Feedback", style: TextStyle(color: AppColors.textSecondary, fontSize: 13, fontWeight: FontWeight.bold, letterSpacing: 0.5)),
+          const SizedBox(height: 12),
+          _buildSettingsTile(
+            Icons.vibration_rounded,
+            "Sounds & Haptics",
+            "Configure vibrations and audio feedback",
+            () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SoundHapticsView())),
+          ),
+          const SizedBox(height: 16),
+          const Text("Security & Setup", style: TextStyle(color: AppColors.textSecondary, fontSize: 13, fontWeight: FontWeight.bold, letterSpacing: 0.5)),
+          const SizedBox(height: 12),
+          _buildSettingsTile(
+            Icons.lock_rounded,
+            "App Lock PIN Code",
+            "Configure or update your lock passcode",
+            () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AppLockView())),
+          ),
+          const SizedBox(height: 16),
+          const Text("Data & Privacy", style: TextStyle(color: AppColors.textSecondary, fontSize: 13, fontWeight: FontWeight.bold, letterSpacing: 0.5)),
+          const SizedBox(height: 12),
+          _buildSettingsTile(
+            Icons.cloud_sync_rounded,
+            "Sync & Backup Status",
+            "View offline queue and manage cloud backup",
+            () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SyncStatusView())),
+          ),
+          const SizedBox(height: 8),
+          _buildSettingsTile(
+            Icons.security_rounded,
+            "Privacy & Data Export",
+            "Export data, manage analytics, or wipe local storage",
+            () => Navigator.push(context, MaterialPageRoute(builder: (_) => const PrivacyExportView())),
+          ),
+          const SizedBox(height: 16),
+          _buildSettingsTile(
+            Icons.restart_alt_rounded,
+            "Clear Local Cache",
+            "Reset all stored databases on this device",
+            () async {
+              final confirm = await showDialog<bool>(
+                context: context,
+                builder: (context) => AlertDialog(
+                  backgroundColor: AppColors.background,
+                  title: const Text("Reset Cache", style: TextStyle(color: Colors.white)),
+                  content: const Text("Are you absolutely sure you want to clear all local cache data? This action cannot be undone.", style: TextStyle(color: AppColors.textSecondary)),
+                  actions: [
+                    TextButton(onPressed: () => Navigator.pop(context, false), child: const Text("Cancel")),
+                    TextButton(
+                      onPressed: () => Navigator.pop(context, true),
+                      child: const Text("Reset", style: TextStyle(color: Colors.red)),
+                    ),
+                  ],
+                ),
+              );
+
+              if (confirm == true) {
+                await _dbService.clearLocalCache();
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text("Databases cleared successfully. Resetting application...")),
+                  );
+                  _handleLogout();
+                }
+              }
+            },
+          ),
+          const SizedBox(height: 16),
+          _buildSettingsTile(
+            Icons.logout_rounded,
+            "Log Out Account",
+            "Disconnect your current session",
+            _handleLogout,
+            textColor: AppColors.error,
+          ),
+          const SizedBox(height: 32),
+          const Text(
+            "Danger Zone",
+            style: TextStyle(
+              color: AppColors.error,
+              fontSize: 13,
+              fontWeight: FontWeight.bold,
+              letterSpacing: 0.5,
+            ),
+          ),
+          const SizedBox(height: 8),
+          const Divider(color: AppColors.error, thickness: 1),
+          const SizedBox(height: 12),
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: AppColors.error.withOpacity(0.05),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: AppColors.error.withOpacity(0.2)),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Row(
+                  children: [
+                    Icon(Icons.warning_amber_rounded, color: AppColors.error, size: 20),
+                    SizedBox(width: 8),
+                    Text(
+                      "Reset Profile",
+                      style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  "This permanently removes all your personal data and starts your profile from scratch.",
+                  style: TextStyle(color: AppColors.textSecondary, fontSize: 12, height: 1.4),
+                ),
+                const SizedBox(height: 16),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.error,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                    onPressed: _showResetProfileDialog,
+                    child: const Text(
+                      "Reset Profile",
+                      style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSettingsTile(IconData icon, String title, String subtitle, VoidCallback onTap, {Color? textColor}) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: AppColors.border),
+        ),
+        child: Row(
+          children: [
+            Icon(icon, color: textColor ?? AppColors.textPrimary, size: 24),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: TextStyle(color: textColor ?? AppColors.textPrimary, fontWeight: FontWeight.bold, fontSize: 15),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    subtitle,
+                    style: const TextStyle(color: AppColors.textSecondary, fontSize: 12),
+                  ),
+                ],
+              ),
+            ),
+            Icon(Icons.arrow_forward_ios_rounded, color: AppColors.textMuted, size: 14),
+          ],
+        ),
+      ),
+    );
+  }
 
 }
