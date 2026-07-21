@@ -10,9 +10,9 @@ The following plugins do not support Swift Package Manager for ios:
   - flutter_timezone
   - live_activities
 This will become an error in a future version of Flutter. Please contact the plugin maintainers to request Swift Package Manager adoption.
-Running pod install...                                             910ms
+Running pod install...                                             835ms
 Running Xcode build...                                          
-Xcode build done.                                           51.9s
+Xcode build done.                                           58.7s
 Failed to build iOS app
 Error output from Xcode build:
 ↳
@@ -22,7 +22,7 @@ Error output from Xcode build:
 Xcode's output:
 ↳
     Writing result bundle at path:
-    	/var/folders/g3/pffjr_y96bq06blnkf72x_hw0000gn/T/flutter_tools.x8LeoA/flutter_ios_build_temp_dirtrGCFV/temporary_xcresult_bundle
+    	/var/folders/g3/pffjr_y96bq06blnkf72x_hw0000gn/T/flutter_tools.Ij8Ddi/flutter_ios_build_temp_dir3Xt8bw/temporary_xcresult_bundle
 
     /Users/runner/.pub-cache/hosted/pub.dev/live_activities-1.9.5/ios/Classes/SwiftLiveActivitiesPlugin.swift:270:13: warning: variable 'state' was never mutated; consider changing to 'let' constant
             var state = activityStateToString(activityState: matchingActivity.activityState)
