@@ -16,7 +16,7 @@ class NutritionProvider extends ChangeNotifier {
 
   List<FoodLog> _foodLogs = [];
   List<WaterLog> _waterLogs = [];
-  late NutritionProfile _profile;
+  NutritionProfile _profile = NutritionProfile.defaultProfile();
   bool _isLoading = false;
   bool _isSyncing = false;
 
