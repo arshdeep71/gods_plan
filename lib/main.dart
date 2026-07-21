@@ -59,20 +59,36 @@ void main() async {
     debugPrint("STEP 1: Starting EncryptionService initialization");
     await EncryptionService().initialize();
     debugPrint("STEP 1: EncryptionService initialized");
+  } catch (e) {
+    debugPrint("STEP 1 Error (continuing startup): $e");
+  }
 
+  try {
     debugPrint("STEP 2: Starting DatabaseService initialization");
     final dbService = DatabaseService();
     await dbService.initDatabase();
     debugPrint("STEP 2: DatabaseService initialized");
-    
+  } catch (e) {
+    debugPrint("STEP 2 Error (continuing startup): $e");
+  }
+
+  try {
     debugPrint("STEP 3: Starting NotificationService init");
     await NotificationService().init();
     debugPrint("STEP 3: NotificationService initialized");
+  } catch (e) {
+    debugPrint("STEP 3 Error (continuing startup): $e");
+  }
 
+  try {
     debugPrint("STEP 4: Restoring Scheduled Notifications");
     await NotificationService().restoreScheduledNotifications();
     debugPrint("STEP 4: Scheduled Notifications restored");
-    
+  } catch (e) {
+    debugPrint("STEP 4 Error (continuing startup): $e");
+  }
+
+  try {
     debugPrint("STEP 5: Starting LiveActivityService initialization");
     final liveActivityService = LiveActivityService();
     await liveActivityService.init();
@@ -81,27 +97,31 @@ void main() async {
     debugPrint("STEP 6: LiveActivityService ending all activities");
     await liveActivityService.endAllActivities();
     debugPrint("STEP 6: LiveActivityService ended all activities");
+  } catch (e) {
+    debugPrint("STEP 5/6 Error (continuing startup): $e");
+  }
 
-    debugPrint("STEP 7: Checking Supabase Configuration");
-    bool isSupabaseConfigured = false;
-    if (SupabaseConstants.supabaseUrl != 'YOUR_SUPABASE_PROJECT_URL' &&
-        SupabaseConstants.supabaseAnonKey != 'YOUR_SUPABASE_ANON_KEY' &&
-        SupabaseConstants.supabaseUrl.isNotEmpty &&
-        SupabaseConstants.supabaseAnonKey.isNotEmpty) {
-      try {
-        debugPrint("STEP 8: Initializing Supabase");
-        await Supabase.initialize(
-          url: SupabaseConstants.supabaseUrl,
-          anonKey: SupabaseConstants.supabaseAnonKey,
-        );
-        isSupabaseConfigured = true;
-        debugPrint("STEP 8: Supabase Initialized");
-      } catch (e) {
-        debugPrint("STEP 8: Supabase initialization failed: \$e");
-        isSupabaseConfigured = false;
-      }
+  debugPrint("STEP 7: Checking Supabase Configuration");
+  bool isSupabaseConfigured = false;
+  if (SupabaseConstants.supabaseUrl != 'YOUR_SUPABASE_PROJECT_URL' &&
+      SupabaseConstants.supabaseAnonKey != 'YOUR_SUPABASE_ANON_KEY' &&
+      SupabaseConstants.supabaseUrl.isNotEmpty &&
+      SupabaseConstants.supabaseAnonKey.isNotEmpty) {
+    try {
+      debugPrint("STEP 8: Initializing Supabase");
+      await Supabase.initialize(
+        url: SupabaseConstants.supabaseUrl,
+        anonKey: SupabaseConstants.supabaseAnonKey,
+      );
+      isSupabaseConfigured = true;
+      debugPrint("STEP 8: Supabase Initialized");
+    } catch (e) {
+      debugPrint("STEP 8: Supabase initialization failed: $e");
+      isSupabaseConfigured = false;
     }
-    
+  }
+
+  try {
     debugPrint("STEP 9: Starting runApp");
 
     runApp(
@@ -115,12 +135,13 @@ void main() async {
           ChangeNotifierProvider(create: (_) => FinanceProvider()),
           ChangeNotifierProvider(create: (_) => LearningProvider()),
           ChangeNotifierProvider(create: (_) => SocialProvider()),
-          ChangeNotifierProvider(create: (_) => AppIconService()),
+          ChangeNotifierProvider(create: (_) => AppIconService()..initialize()),
         ],
         child: MyApp(isSupabaseConfigured: isSupabaseConfigured),
       ),
     );
   } catch (error, stackTrace) {
+    debugPrint("Error launching runApp: $error\n$stackTrace");
     runApp(
       MaterialApp(
         home: Scaffold(

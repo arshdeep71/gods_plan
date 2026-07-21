@@ -12,7 +12,7 @@ class AppIconService extends ChangeNotifier {
   static const String _keyRecentlyUsed = 'recently_used_app_icon_ids';
   static const String _keyWarningFlag = 'show_removed_icon_warning';
 
-  late Box _box;
+  Box? _box;
   List<AppIconModel> _icons = [];
   Set<String> _favorites = {};
   List<String> _recentlyUsed = [];
@@ -33,7 +33,11 @@ class AppIconService extends ChangeNotifier {
     if (_isInitialized) return;
 
     try {
-      _box = Hive.isBoxOpen(_boxName) ? Hive.box(_boxName) : await Hive.openBox(_boxName);
+      if (Hive.isBoxOpen(_boxName)) {
+        _box = Hive.box(_boxName);
+      } else {
+        _box = await Hive.openBox(_boxName);
+      }
 
       // 1. Load manifest
       final manifestJson = await rootBundle.loadString('assets/alternate_icons_manifest.json');
@@ -41,12 +45,12 @@ class AppIconService extends ChangeNotifier {
       final List<dynamic> iconsJson = manifestMap['icons'] ?? [];
 
       // 2. Load favorites & recently used from box
-      final List<dynamic>? favList = _box.get(_keyFavorites) as List<dynamic>?;
+      final List<dynamic>? favList = _box?.get(_keyFavorites) as List<dynamic>?;
       if (favList != null) {
         _favorites = Set<String>.from(favList.cast<String>());
       }
 
-      final List<dynamic>? recentList = _box.get(_keyRecentlyUsed) as List<dynamic>?;
+      final List<dynamic>? recentList = _box?.get(_keyRecentlyUsed) as List<dynamic>?;
       if (recentList != null) {
         _recentlyUsed = List<String>.from(recentList.cast<String>());
       }
@@ -76,14 +80,14 @@ class AppIconService extends ChangeNotifier {
       }
 
       // 3. Load selected icon ID
-      _selectedIconId = _box.get(_keySelectedIcon, defaultValue: 'default') as String;
+      _selectedIconId = (_box?.get(_keySelectedIcon, defaultValue: 'default') as String?) ?? 'default';
 
       // 4. Preserve selection check (if selected icon no longer exists, revert to default)
       final iconExists = _icons.any((icon) => icon.id == _selectedIconId);
       if (!iconExists && _selectedIconId != 'default') {
         final oldIconId = _selectedIconId;
         _selectedIconId = 'default';
-        await _box.put(_keySelectedIcon, 'default');
+        await _box?.put(_keySelectedIcon, 'default');
         
         // Revert iOS alternate icon name
         if (_isIOS) {
@@ -94,13 +98,13 @@ class AppIconService extends ChangeNotifier {
         
         // Enable warning flag
         _showWarningFlag = true;
-        await _box.put(_keyWarningFlag, true);
+        await _box?.put(_keyWarningFlag, true);
 
         if (kDebugMode) {
           print("App Icon Changed: Selection preserved. Old icon '$oldIconId' no longer exists. Reset to 'default'.");
         }
       } else {
-        _showWarningFlag = _box.get(_keyWarningFlag, defaultValue: false) as bool;
+        _showWarningFlag = (_box?.get(_keyWarningFlag, defaultValue: false) as bool?) ?? false;
       }
 
       // 5. Cleanup favorites & recently used from stale entries
@@ -109,13 +113,13 @@ class AppIconService extends ChangeNotifier {
       final prevFavCount = _favorites.length;
       _favorites.retainAll(validIds);
       if (_favorites.length != prevFavCount) {
-        await _box.put(_keyFavorites, _favorites.toList());
+        await _box?.put(_keyFavorites, _favorites.toList());
       }
 
       final prevRecentCount = _recentlyUsed.length;
       _recentlyUsed.removeWhere((id) => !validIds.contains(id));
       if (_recentlyUsed.length != prevRecentCount) {
-        await _box.put(_keyRecentlyUsed, _recentlyUsed);
+        await _box?.put(_keyRecentlyUsed, _recentlyUsed);
       }
 
       // 6. Restore active icon on startup for iOS
@@ -148,7 +152,7 @@ class AppIconService extends ChangeNotifier {
 
   Future<void> clearWarningFlag() async {
     _showWarningFlag = false;
-    await _box.put(_keyWarningFlag, false);
+    await _box?.put(_keyWarningFlag, false);
     notifyListeners();
   }
 
@@ -158,7 +162,7 @@ class AppIconService extends ChangeNotifier {
     } else {
       _favorites.add(iconId);
     }
-    await _box.put(_keyFavorites, _favorites.toList());
+    await _box?.put(_keyFavorites, _favorites.toList());
 
     // Update the favorite flag on model instances
     _icons = _icons.map((icon) {
@@ -177,7 +181,7 @@ class AppIconService extends ChangeNotifier {
     if (_recentlyUsed.length > 10) {
       _recentlyUsed = _recentlyUsed.sublist(0, 10);
     }
-    await _box.put(_keyRecentlyUsed, _recentlyUsed);
+    await _box?.put(_keyRecentlyUsed, _recentlyUsed);
     notifyListeners();
   }
 
@@ -196,7 +200,7 @@ class AppIconService extends ChangeNotifier {
     }
 
     _selectedIconId = iconId;
-    await _box.put(_keySelectedIcon, iconId);
+    await _box?.put(_keySelectedIcon, iconId);
 
     // Save to recently used queue
     await addToRecentlyUsed(iconId);

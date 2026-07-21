@@ -20,52 +20,57 @@ class NotificationService {
   final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin = FlutterLocalNotificationsPlugin();
 
   Future<void> init() async {
-    tz.initializeTimeZones();
+    if (kIsWeb) return;
+    try {
+      tz.initializeTimeZones();
 
-    const AndroidInitializationSettings initializationSettingsAndroid = AndroidInitializationSettings('@mipmap/ic_launcher');
-    
-    // Define iOS actions
-    final DarwinNotificationCategory category = DarwinNotificationCategory(
-      'task_reminder_category',
-      actions: <DarwinNotificationAction>[
-        DarwinNotificationAction.plain('snooze_10', 'Snooze 10 min'),
-        DarwinNotificationAction.plain('snooze_30', 'Snooze 30 min'),
-        DarwinNotificationAction.plain('mark_complete', 'Mark Complete', options: <DarwinNotificationActionOption>{
-          DarwinNotificationActionOption.destructive,
-        }),
-      ],
-      options: <DarwinNotificationCategoryOption>{
-        DarwinNotificationCategoryOption.hiddenPreviewShowTitle,
-      },
-    );
+      const AndroidInitializationSettings initializationSettingsAndroid = AndroidInitializationSettings('@mipmap/ic_launcher');
+      
+      // Define iOS actions
+      final DarwinNotificationCategory category = DarwinNotificationCategory(
+        'task_reminder_category',
+        actions: <DarwinNotificationAction>[
+          DarwinNotificationAction.plain('snooze_10', 'Snooze 10 min'),
+          DarwinNotificationAction.plain('snooze_30', 'Snooze 30 min'),
+          DarwinNotificationAction.plain('mark_complete', 'Mark Complete', options: <DarwinNotificationActionOption>{
+            DarwinNotificationActionOption.destructive,
+          }),
+        ],
+        options: <DarwinNotificationCategoryOption>{
+          DarwinNotificationCategoryOption.hiddenPreviewShowTitle,
+        },
+      );
 
-    final DarwinInitializationSettings initializationSettingsIOS = DarwinInitializationSettings(
-      requestAlertPermission: true,
-      requestBadgePermission: true,
-      requestSoundPermission: true,
-      notificationCategories: [category],
-    );
+      final DarwinInitializationSettings initializationSettingsIOS = DarwinInitializationSettings(
+        requestAlertPermission: true,
+        requestBadgePermission: true,
+        requestSoundPermission: true,
+        notificationCategories: [category],
+      );
 
-    final InitializationSettings initializationSettings = InitializationSettings(
-      android: initializationSettingsAndroid,
-      iOS: initializationSettingsIOS,
-    );
+      final InitializationSettings initializationSettings = InitializationSettings(
+        android: initializationSettingsAndroid,
+        iOS: initializationSettingsIOS,
+      );
 
-    await flutterLocalNotificationsPlugin.initialize(
-      initializationSettings,
-      onDidReceiveNotificationResponse: (NotificationResponse response) {
-        _handleNotificationAction(response);
-      },
-    );
+      await flutterLocalNotificationsPlugin.initialize(
+        initializationSettings,
+        onDidReceiveNotificationResponse: (NotificationResponse response) {
+          _handleNotificationAction(response);
+        },
+      );
 
-    // Phase 2: Time-zone detection and DST correction
-    _checkAndHandleTimezoneChange();
-    
-    // Phase 4: Process missed notifications for accurate history
-    _processMissedNotifications();
-    
-    // Clear badges on launch
-    await clearAppBadge();
+      // Phase 2: Time-zone detection and DST correction
+      _checkAndHandleTimezoneChange();
+      
+      // Phase 4: Process missed notifications for accurate history
+      _processMissedNotifications();
+      
+      // Clear badges on launch
+      await clearAppBadge();
+    } catch (e) {
+      debugPrint("NotificationService init error (continuing startup): $e");
+    }
   }
 
   Future<void> clearAppBadge() async {
@@ -95,82 +100,81 @@ class NotificationService {
 
   // Phase 2: Automatic Restorer (For fresh installs or timezone changes)
   Future<void> restoreScheduledNotifications() async {
+    if (kIsWeb) return;
     debugPrint("START: restoreScheduledNotifications()");
 
-    // STATEMENT A: flutterLocalNotificationsPlugin.cancelAll()
     try {
-      debugPrint("STATEMENT A: cancelAll()");
-      await flutterLocalNotificationsPlugin.cancelAll();
-      debugPrint("STATEMENT A OK");
-    } catch (e, st) {
-      debugPrint("STATEMENT A FAILED");
-      debugPrint(e.toString());
-      debugPrintStack(stackTrace: st);
-      rethrow;
-    }
-
-    // STATEMENT B: DatabaseService() & db.currentUserId
-    final db = DatabaseService();
-    String? userId;
-    try {
-      debugPrint("STATEMENT B: db.currentUserId");
-      userId = db.currentUserId;
-      debugPrint("STATEMENT B OK: userId=$userId");
-    } catch (e, st) {
-      debugPrint("STATEMENT B FAILED");
-      debugPrint(e.toString());
-      debugPrintStack(stackTrace: st);
-      rethrow;
-    }
-
-    if (userId == null || userId.isEmpty) {
-      debugPrint("STATEMENT B RETURN: userId is null or empty, returning early.");
-      return;
-    }
-
-    // STATEMENT C: db.getLocalReminders(userId)
-    List<ReminderModel> reminders = [];
-    try {
-      debugPrint("STATEMENT C: db.getLocalReminders(userId)");
-      reminders = await db.getLocalReminders(userId);
-      debugPrint("STATEMENT C OK: count=${reminders.length}");
-    } catch (e, st) {
-      debugPrint("STATEMENT C FAILED");
-      debugPrint(e.toString());
-      debugPrintStack(stackTrace: st);
-      rethrow;
-    }
-
-    int restoreCount = 0;
-    final now = DateTime.now();
-    debugPrint("STATEMENT D: Loop over ${reminders.length} reminders (now=$now)");
-
-    for (final reminder in reminders) {
+      // STATEMENT A: flutterLocalNotificationsPlugin.cancelAll()
       try {
-        debugPrint("STATEMENT D-ITEM: Processing reminder id=${reminder.id}");
-        if (!reminder.isCompleted && !reminder.isSnoozed && reminder.scheduledTime.isAfter(now)) {
-          final int stableId = reminder.id.hashCode & 0x7FFFFFFF;
-          debugPrint("STATEMENT D-SCHEDULE: Calling scheduleReminder for id=${reminder.id}");
-          await scheduleReminder(stableId, reminder);
-          restoreCount++;
-          debugPrint("STATEMENT D-SCHEDULE OK: Finished id=${reminder.id}");
-        } else if (reminder.isSnoozed && reminder.snoozeUntil != null && reminder.snoozeUntil!.isAfter(now)) {
-          final int stableId = reminder.id.hashCode & 0x7FFFFFFF;
-          debugPrint("STATEMENT D-SNOOZE: Calling _snoozeNotification for id=${reminder.id}");
-          await _snoozeNotification(stableId, reminder.taskId, reminder.id, reminder.snoozeUntil!.difference(now).inMinutes);
-          restoreCount++;
-          debugPrint("STATEMENT D-SNOOZE OK: Finished id=${reminder.id}");
-        } else {
-          debugPrint("STATEMENT D-SKIP: Skipping reminder id=${reminder.id}");
-        }
+        debugPrint("STATEMENT A: cancelAll()");
+        await flutterLocalNotificationsPlugin.cancelAll();
+        debugPrint("STATEMENT A OK");
       } catch (e, st) {
-        debugPrint("STATEMENT D-ITEM FAILED: reminder id=${reminder.id}");
-        debugPrint(e.toString());
+        debugPrint("STATEMENT A FAILED (handled): $e");
         debugPrintStack(stackTrace: st);
-        rethrow;
       }
+
+      // STATEMENT B: DatabaseService() & db.currentUserId
+      final db = DatabaseService();
+      String? userId;
+      try {
+        debugPrint("STATEMENT B: db.currentUserId");
+        userId = db.currentUserId;
+        debugPrint("STATEMENT B OK: userId=$userId");
+      } catch (e, st) {
+        debugPrint("STATEMENT B FAILED (handled): $e");
+        debugPrintStack(stackTrace: st);
+        return;
+      }
+
+      if (userId == null || userId.isEmpty) {
+        debugPrint("STATEMENT B RETURN: userId is null or empty, returning early.");
+        return;
+      }
+
+      // STATEMENT C: db.getLocalReminders(userId)
+      List<ReminderModel> reminders = [];
+      try {
+        debugPrint("STATEMENT C: db.getLocalReminders(userId)");
+        reminders = await db.getLocalReminders(userId);
+        debugPrint("STATEMENT C OK: count=${reminders.length}");
+      } catch (e, st) {
+        debugPrint("STATEMENT C FAILED (handled): $e");
+        debugPrintStack(stackTrace: st);
+        return;
+      }
+
+      int restoreCount = 0;
+      final now = DateTime.now();
+      debugPrint("STATEMENT D: Loop over ${reminders.length} reminders (now=$now)");
+
+      for (final reminder in reminders) {
+        try {
+          debugPrint("STATEMENT D-ITEM: Processing reminder id=${reminder.id}");
+          if (!reminder.isCompleted && !reminder.isSnoozed && reminder.scheduledTime.isAfter(now)) {
+            final int stableId = reminder.id.hashCode & 0x7FFFFFFF;
+            debugPrint("STATEMENT D-SCHEDULE: Calling scheduleReminder for id=${reminder.id}");
+            await scheduleReminder(stableId, reminder);
+            restoreCount++;
+            debugPrint("STATEMENT D-SCHEDULE OK: Finished id=${reminder.id}");
+          } else if (reminder.isSnoozed && reminder.snoozeUntil != null && reminder.snoozeUntil!.isAfter(now)) {
+            final int stableId = reminder.id.hashCode & 0x7FFFFFFF;
+            debugPrint("STATEMENT D-SNOOZE: Calling _snoozeNotification for id=${reminder.id}");
+            await _snoozeNotification(stableId, reminder.taskId, reminder.id, reminder.snoozeUntil!.difference(now).inMinutes);
+            restoreCount++;
+            debugPrint("STATEMENT D-SNOOZE OK: Finished id=${reminder.id}");
+          } else {
+            debugPrint("STATEMENT D-SKIP: Skipping reminder id=${reminder.id}");
+          }
+        } catch (e, st) {
+          debugPrint("STATEMENT D-ITEM FAILED (handled): reminder id=${reminder.id}: $e");
+          debugPrintStack(stackTrace: st);
+        }
+      }
+      debugPrint("END: restoreScheduledNotifications() OK - Total restored: $restoreCount");
+    } catch (e, st) {
+      debugPrint("restoreScheduledNotifications caught outer error (continuing startup): $e");
     }
-    debugPrint("END: restoreScheduledNotifications() OK - Total restored: $restoreCount");
   }
 
   Future<void> _processMissedNotifications() async {
