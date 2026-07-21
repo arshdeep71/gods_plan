@@ -10,6 +10,7 @@ import '../models/addiction_log.dart';
 import '../models/finance_transaction.dart';
 import '../models/social.dart';
 import '../models/learning.dart';
+import '../models/reminder_model.dart';
 import 'package:sqflite_common/sqlite_api.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import '../utils/network_helper.dart';
@@ -790,6 +791,71 @@ class SyncService {
       }
     } catch (e) {
       print("Sync goals error: $e");
+    }
+
+    // M. Sync Reminders (Full Mirroring)
+    try {
+      print("[LOAD] Method: _downloadRemoteUpdates -> reminders, Reason: Sync mirror");
+      final List<dynamic> remoteReminders = await _supabase
+          .from('reminders')
+          .select()
+          .eq('user_id', userId);
+
+      await db.transaction((txn) async {
+        final List<Map<String, dynamic>> localReminders = await txn.query(
+          'local_reminders',
+          where: 'user_id = ?',
+          whereArgs: [userId],
+        );
+
+        final remoteIds = remoteReminders.map((r) => r['id'] as String).toSet();
+
+        final List<Map<String, dynamic>> pendingQueue = await txn.query(
+          'offline_sync_queue',
+          where: 'table_name = ?',
+          whereArgs: ['reminders'],
+        );
+        final pendingIds = pendingQueue.map((item) => item['record_id'] as String).toSet();
+
+        // Delete local reminders not in remote
+        for (final local in localReminders) {
+          final localId = local['id'] as String;
+          if (!remoteIds.contains(localId)) {
+            final inQueue = pendingIds.contains(localId);
+            final hasInsert = pendingQueue.any((item) => item['record_id'] == localId && item['action_type'] == 'INSERT');
+            final hasUpdate = pendingQueue.any((item) => item['record_id'] == localId && item['action_type'] == 'UPDATE');
+            final hasDelete = pendingQueue.any((item) => item['record_id'] == localId && item['action_type'] == 'DELETE');
+            
+            final createdAtStr = local['created_at'] as String?;
+            bool createdThisCycle = false;
+            if (createdAtStr != null) {
+              final createdAt = DateTime.tryParse(createdAtStr);
+              if (createdAt != null) {
+                createdThisCycle = syncStart.difference(createdAt).inMinutes < 5;
+              }
+            }
+
+            if (inQueue || hasInsert || hasUpdate || hasDelete || createdThisCycle) continue;
+
+            await txn.delete(
+              'local_reminders',
+              where: 'id = ?',
+              whereArgs: [localId],
+            );
+          }
+        }
+
+        // Insert remote reminders
+        for (final row in remoteReminders) {
+          final remoteId = row['id'] as String;
+          if (pendingIds.contains(remoteId)) continue;
+          
+          final reminder = ReminderModel.fromJson(row as Map<String, dynamic>);
+          await txn.insert('local_reminders', reminder.toSqliteMap(), conflictAlgorithm: ConflictAlgorithm.replace);
+        }
+      });
+    } catch (e) {
+      print("Sync reminders error: $e");
     }
 
     // Save current sync timestamp

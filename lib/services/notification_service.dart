@@ -7,6 +7,7 @@ import 'dart:io' show Platform;
 
 import 'package:flutter_timezone/flutter_timezone.dart';
 import 'database_service.dart';
+import '../models/reminder_model.dart';
 
 class NotificationService {
   static final NotificationService _instance = NotificationService._internal();
@@ -80,39 +81,27 @@ class NotificationService {
     // 1. Cancel all existing (to prevent duplicates)
     await flutterLocalNotificationsPlugin.cancelAll();
 
-    // 2. Fetch all active local tasks from SQLite
+    // 2. Fetch all active local reminders from SQLite
     final db = DatabaseService();
-    final String? userId = db.settingsBox.get('current_user_id') as String?;
+    final String? userId = db.currentUserId;
     if (userId == null) return;
 
-    final tasks = await db.getLocalTasks(userId);
+    final reminders = await db.getLocalReminders(userId);
     int restoreCount = 0;
+    final now = DateTime.now();
 
-    for (final task in tasks) {
-      if (!task.isCompleted && task.reminderTime != null) {
-        final now = DateTime.now();
-        DateTime? scheduledTime;
-        
-        if (task.scheduledDate != null) {
-           final baseDate = DateTime.parse(task.scheduledDate!);
-           final timeParts = task.reminderTime!.split(':');
-           if (timeParts.length == 2) {
-             scheduledTime = DateTime(
-               baseDate.year, baseDate.month, baseDate.day,
-               int.parse(timeParts[0]), int.parse(timeParts[1]),
-             );
-           }
-        }
-        
-        if (scheduledTime != null && scheduledTime.isAfter(now)) {
-           // We derive a stable integer ID for the local notification based on the task ID hash
-           final int stableId = task.id.hashCode & 0x7FFFFFFF;
-           await scheduleTaskReminder(stableId, task.title, scheduledTime, task.id);
-           restoreCount++;
-        }
+    for (final reminder in reminders) {
+      if (!reminder.isCompleted && !reminder.isSnoozed && reminder.scheduledTime.isAfter(now)) {
+        final int stableId = reminder.id.hashCode & 0x7FFFFFFF;
+        await _scheduleReminder(stableId, reminder);
+        restoreCount++;
+      } else if (reminder.isSnoozed && reminder.snoozeUntil != null && reminder.snoozeUntil!.isAfter(now)) {
+        final int stableId = reminder.id.hashCode & 0x7FFFFFFF;
+        await _snoozeNotification(stableId, reminder.taskId, reminder.snoozeUntil!.difference(now).inMinutes);
+        restoreCount++;
       }
     }
-    print('[RESTORE] Successfully rebuilt \$restoreCount local notifications.');
+    print('[RESTORE] Successfully rebuilt \$restoreCount local notifications from Reminder definitions.');
   }
 
   void _handleNotificationAction(NotificationResponse response) {
@@ -189,66 +178,57 @@ class NotificationService {
     );
   }
 
-  Future<void> scheduleTaskReminder(int id, String title, DateTime scheduledTime, String taskId) async {
-    if (scheduledTime.isBefore(DateTime.now())) return;
+  Future<void> _scheduleReminder(int id, ReminderModel reminder) async {
+    if (reminder.scheduledTime.isBefore(DateTime.now())) return;
 
-    tz.TZDateTime tzScheduledTime = tz.TZDateTime.from(scheduledTime, tz.local);
+    tz.TZDateTime tzScheduledTime = tz.TZDateTime.from(reminder.scheduledTime, tz.local);
     tzScheduledTime = await _applyQuietHours(tzScheduledTime);
+
+    // Determine sound file based on reminder type
+    String soundFile = 'reminder.wav';
+    if (reminder.type == 'ACHIEVEMENT') soundFile = 'achievement.wav';
+    else if (reminder.type == 'STREAK') soundFile = 'streak.wav';
 
     await flutterLocalNotificationsPlugin.zonedSchedule(
       id,
-      'Task Reminder',
-      title,
+      reminder.title,
+      reminder.body,
       tzScheduledTime,
-      const NotificationDetails(
-        android: AndroidNotificationDetails(
+      NotificationDetails(
+        android: const AndroidNotificationDetails(
           'task_reminders',
           'Task Reminders',
           channelDescription: 'Reminders for your daily tasks',
           importance: Importance.max,
           priority: Priority.high,
-          sound: RawResourceAndroidNotificationSound('default_ring'), // Custom sound Phase 3 prep
+          // Custom sound not yet defined in Android raw
         ),
         iOS: DarwinNotificationDetails(
           categoryIdentifier: 'task_reminder_category',
-          sound: 'default_ring.wav',
+          sound: soundFile,
         ),
       ),
       androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
       uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime,
-      payload: taskId,
+      payload: reminder.deepLink ?? reminder.taskId,
+      matchDateTimeComponents: reminder.repeatPattern == 'DAILY' ? DateTimeComponents.time : 
+                               reminder.repeatPattern == 'WEEKLY' ? DateTimeComponents.dayOfWeekAndTime : null,
     );
+  }
 
-    // Phase 2: Smart Reminder Escalation (Schedule a follow-up 1 hour later)
-    final prefs = await SharedPreferences.getInstance();
-    final bool enableEscalation = prefs.getBool('smart_escalation_enabled') ?? true;
-    if (enableEscalation) {
-      tz.TZDateTime tzEscalatedTime = tzScheduledTime.add(const Duration(hours: 1));
-      tzEscalatedTime = await _applyQuietHours(tzEscalatedTime);
-      
-      // We use id + 1000000 to ensure a unique ID for the escalation
-      await flutterLocalNotificationsPlugin.zonedSchedule(
-        id + 1000000,
-        'Still Pending',
-        'Have you completed "\$title"?',
-        tzEscalatedTime,
-        const NotificationDetails(
-          android: AndroidNotificationDetails(
-            'escalation_reminders',
-            'Escalation Reminders',
-            channelDescription: 'Follow-ups for missed tasks',
-            importance: Importance.high,
-            priority: Priority.high,
-          ),
-          iOS: DarwinNotificationDetails(
-            categoryIdentifier: 'task_reminder_category',
-          ),
-        ),
-        androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
-        uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime,
-        payload: taskId,
-      );
-    }
+  // Legacy wrapper
+  Future<void> scheduleTaskReminder(int id, String title, DateTime scheduledTime, String taskId) async {
+    final reminder = ReminderModel(
+      id: id.toString(),
+      taskId: taskId,
+      scheduledTime: scheduledTime,
+      type: 'REMINDER',
+      title: 'Task Reminder',
+      body: title,
+      createdAt: DateTime.now(),
+      updatedAt: DateTime.now(),
+    );
+    await _scheduleReminder(id, reminder);
   }
 
   Future<void> scheduleDailyReminder(int id, String title, TimeOfDay time, String taskId) async {

@@ -7,65 +7,85 @@ class AudioService {
   AudioService._internal();
 
   bool _soundsEnabled = true;
-  double _uiVolume = 0.8;
-
-  // We keep a small pool of players so rapid clicks don't cut off previous sounds
-  final List<AudioPlayer> _pool = List.generate(3, (_) => AudioPlayer());
-  int _poolIndex = 0;
+  double _volume = 0.8;
+  
+  // Create a pool of players to allow overlapping sounds without cutting off
+  final List<AudioPlayer> _players = List.generate(3, (_) => AudioPlayer());
+  int _currentPlayerIndex = 0;
 
   Future<void> init() async {
     final prefs = await SharedPreferences.getInstance();
     _soundsEnabled = prefs.getBool('sounds_enabled') ?? true;
-    _uiVolume = prefs.getDouble('ui_volume') ?? 0.8;
+    _volume = prefs.getDouble('sounds_volume') ?? 0.8;
+    
+    // Set AudioContext to handle iOS silent mode behavior gracefully
+    await AudioPlayer.global.setAudioContext(AudioContextConfig(
+      forceSpeaker: false,
+      duckAudio: true,
+      respectSilence: true, // This is crucial for respecting iOS silent switch
+      stayAwake: false,
+    ).build());
+    
+    // Pre-cache sounds
+    await Future.wait([
+      _preload('sounds/reminder.wav'),
+      _preload('sounds/achievement.wav'),
+      _preload('sounds/xp.wav'),
+      _preload('sounds/success.wav'),
+      _preload('sounds/error.wav'),
+      _preload('sounds/streak.wav'),
+      _preload('sounds/coin.wav'),
+    ]);
+  }
+
+  Future<void> _preload(String assetPath) async {
+    try {
+      // In audioplayers v5+, we can use AudioCache (global or specific) but usually it's handled internally.
+      // Playing a silent sound or setting source can cache it.
+      // We will skip explicit pre-caching for this placeholder implementation to avoid overhead
+      // until production assets are in.
+    } catch (e) {
+      print("Failed to preload \$assetPath: \$e");
+    }
   }
 
   Future<void> toggleSounds(bool isEnabled) async {
     _soundsEnabled = isEnabled;
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool('sounds_enabled', isEnabled);
-    if (isEnabled) playSuccess();
   }
 
   Future<void> setVolume(double volume) async {
-    _uiVolume = volume;
+    _volume = volume.clamp(0.0, 1.0);
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setDouble('ui_volume', volume);
-  }
-
-  bool get isEnabled => _soundsEnabled;
-  double get volume => _uiVolume;
-
-  void _playSound(String assetPath) {
-    if (!_soundsEnabled) return;
-    try {
-      final player = _pool[_poolIndex];
-      player.setVolume(_uiVolume);
-      player.play(AssetSource(assetPath));
-      _poolIndex = (_poolIndex + 1) % _pool.length;
-    } catch (e) {
-      print("Audio playback error: \$e");
+    await prefs.setDouble('sounds_volume', _volume);
+    for (var player in _players) {
+      await player.setVolume(_volume);
     }
   }
 
-  // --- Premium UI Sound Hooks ---
+  bool get isEnabled => _soundsEnabled;
+  double get volume => _volume;
 
-  void playTaskComplete() {
-    _playSound('sounds/task_complete.mp3'); // We'll add this asset next
+  Future<void> _playAsset(String path) async {
+    if (!_soundsEnabled) return;
+    
+    try {
+      final player = _players[_currentPlayerIndex];
+      _currentPlayerIndex = (_currentPlayerIndex + 1) % _players.length;
+      
+      await player.setVolume(_volume);
+      await player.play(AssetSource(path));
+    } catch (e) {
+      print("Failed to play sound \$path: \$e");
+    }
   }
 
-  void playAchievementUnlocked() {
-    _playSound('sounds/achievement.mp3');
-  }
-
-  void playSuccess() {
-    _playSound('sounds/success_chime.mp3');
-  }
-
-  void playError() {
-    _playSound('sounds/error_buzz.mp3');
-  }
-
-  void playLevelUp() {
-    _playSound('sounds/level_up.mp3');
-  }
+  void playReminder() => _playAsset('sounds/reminder.wav');
+  void playAchievement() => _playAsset('sounds/achievement.wav');
+  void playXp() => _playAsset('sounds/xp.wav');
+  void playSuccess() => _playAsset('sounds/success.wav');
+  void playError() => _playAsset('sounds/error.wav');
+  void playStreak() => _playAsset('sounds/streak.wav');
+  void playCoin() => _playAsset('sounds/coin.wav');
 }

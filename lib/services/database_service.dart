@@ -13,6 +13,8 @@ import '../models/addiction_log.dart';
 import '../models/finance_transaction.dart';
 import '../models/social.dart';
 import '../models/learning.dart';
+import '../models/reminder_model.dart';
+import '../models/notification_history_model.dart';
 
 class DatabaseService {
   static const String settingsBoxName = 'settings_box';
@@ -168,6 +170,10 @@ class DatabaseService {
           } catch (_) {}
         }
       }
+      // Drop old reminders table since we renamed it to local_reminders
+      try {
+        await db.execute("DROP TABLE IF EXISTS reminders");
+      } catch (_) {}
     } catch (_) {}
 
     return db;
@@ -233,16 +239,38 @@ class DatabaseService {
     ''');
 
     await db.execute('''
-      CREATE TABLE IF NOT EXISTS reminders (
+      CREATE TABLE IF NOT EXISTS local_reminders (
         id TEXT PRIMARY KEY,
         user_id TEXT NOT NULL,
         task_id TEXT NOT NULL,
+        goal_id TEXT,
         scheduled_time TEXT NOT NULL,
-        recurrence_rule TEXT,
-        status TEXT DEFAULT 'pending',
+        type TEXT NOT NULL DEFAULT 'REMINDER',
+        title TEXT NOT NULL,
+        body TEXT NOT NULL,
+        category TEXT,
+        repeat_pattern TEXT NOT NULL DEFAULT 'ONCE',
+        is_completed INTEGER DEFAULT 0,
+        is_snoozed INTEGER DEFAULT 0,
+        snooze_until TEXT,
+        deep_link TEXT,
         created_at TEXT NOT NULL,
         updated_at TEXT NOT NULL,
         deleted_at TEXT
+      )
+    ''');
+
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS local_notification_history (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        title TEXT NOT NULL,
+        body TEXT NOT NULL,
+        timestamp TEXT NOT NULL,
+        type TEXT NOT NULL,
+        status TEXT NOT NULL,
+        related_id TEXT,
+        category TEXT
       )
     ''');
 
@@ -884,6 +912,8 @@ class DatabaseService {
     await db.delete('local_learning_subjects');
     await db.delete('local_study_logs');
     await db.delete('offline_sync_queue');
+    await db.delete('local_reminders');
+    await db.delete('local_notification_history');
   }
 
   Future<void> clearLocalCacheExceptPendingDeletion(String userId, bool isPendingDeletion) async {
@@ -911,8 +941,96 @@ class DatabaseService {
     await db.delete('local_learning_subjects');
     await db.delete('local_study_logs');
     await db.delete('offline_sync_queue');
+    await db.delete('local_reminders');
+    await db.delete('local_notification_history');
   }
 
   /// Wipes all local SQLite tables and Hive settings. Equivalent to clearLocalCache().
   Future<void> wipeDatabase() => clearLocalCache();
+
+  // ==========================================
+  // LOCAL REMINDERS CRUD
+  // ==========================================
+
+  Future<List<ReminderModel>> getLocalReminders(String userId) async {
+    final db = await database;
+    final List<Map<String, dynamic>> maps = await db.query(
+      'local_reminders',
+      where: 'user_id = ? AND deleted_at IS NULL',
+      whereArgs: [userId],
+    );
+    return maps.map((e) => ReminderModel.fromJson(e)).toList();
+  }
+
+  Future<void> upsertLocalReminder(ReminderModel reminder) async {
+    final db = await database;
+    await db.insert(
+      'local_reminders',
+      reminder.toSqliteMap(),
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
+  }
+
+  Future<void> deleteLocalReminder(String reminderId) async {
+    final db = await database;
+    await db.delete(
+      'local_reminders',
+      where: 'id = ?',
+      whereArgs: [reminderId],
+    );
+  }
+
+  // ==========================================
+  // LOCAL NOTIFICATION HISTORY CRUD
+  // ==========================================
+
+  Future<List<NotificationHistoryModel>> getLocalNotificationHistory(String userId) async {
+    final db = await database;
+    final List<Map<String, dynamic>> maps = await db.query(
+      'local_notification_history',
+      where: 'user_id = ?',
+      whereArgs: [userId],
+      orderBy: 'timestamp DESC',
+      limit: 500,
+    );
+    return maps.map((e) => NotificationHistoryModel.fromJson(e)).toList();
+  }
+
+  Future<void> insertLocalNotificationHistory(NotificationHistoryModel history) async {
+    final db = await database;
+    await db.insert(
+      'local_notification_history',
+      history.toSqliteMap(),
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
+    
+    // Prune history to keep only the latest 500 records per user
+    await db.execute('''
+      DELETE FROM local_notification_history 
+      WHERE id NOT IN (
+        SELECT id FROM local_notification_history 
+        WHERE user_id = ? 
+        ORDER BY timestamp DESC 
+        LIMIT 500
+      ) AND user_id = ?
+    ''', [history.user_id, history.user_id]);
+  }
+
+  Future<void> deleteLocalNotificationHistory(String historyId) async {
+    final db = await database;
+    await db.delete(
+      'local_notification_history',
+      where: 'id = ?',
+      whereArgs: [historyId],
+    );
+  }
+
+  Future<void> clearLocalNotificationHistory(String userId) async {
+    final db = await database;
+    await db.delete(
+      'local_notification_history',
+      where: 'user_id = ?',
+      whereArgs: [userId],
+    );
+  }
 }
