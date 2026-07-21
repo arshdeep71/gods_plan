@@ -36,23 +36,50 @@ class ReminderModel {
   });
 
   factory ReminderModel.fromJson(Map<String, dynamic> json) {
+    final String? id = json['id'] as String?;
+    final String? taskId = json['task_id'] as String?;
+    final String? scheduledTimeRaw = json['scheduled_time'] as String?;
+    final String? title = json['title'] as String?;
+    final String? body = json['body'] as String?;
+
+    if (id == null || id.isEmpty) {
+      throw FormatException('ReminderModel.fromJson failed: "id" field is missing or empty.');
+    }
+    if (taskId == null || taskId.isEmpty) {
+      throw FormatException('ReminderModel.fromJson failed for reminder $id: "task_id" is missing or empty.');
+    }
+    if (scheduledTimeRaw == null || scheduledTimeRaw.isEmpty) {
+      throw FormatException('ReminderModel.fromJson failed for reminder $id: "scheduled_time" is missing or empty.');
+    }
+    final scheduledTimeParsed = DateTime.tryParse(scheduledTimeRaw);
+    if (scheduledTimeParsed == null) {
+      throw FormatException('ReminderModel.fromJson failed for reminder $id: "scheduled_time" ("$scheduledTimeRaw") is not a valid ISO date.');
+    }
+    if (title == null || title.isEmpty) {
+      throw FormatException('ReminderModel.fromJson failed for reminder $id: "title" is missing or empty.');
+    }
+
     return ReminderModel(
-      id: json['id'] as String,
-      taskId: json['task_id'] as String,
+      id: id,
+      taskId: taskId,
       goalId: json['goal_id'] as String?,
-      scheduledTime: DateTime.parse(json['scheduled_time'] as String).toLocal(),
-      type: json['type'] as String? ?? 'REMINDER',
-      title: json['title'] as String,
-      body: json['body'] as String,
+      scheduledTime: scheduledTimeParsed.toLocal(),
+      type: (json['type'] as String?) ?? 'REMINDER',
+      title: title,
+      body: body ?? '',
       category: json['category'] as String?,
-      repeatPattern: json['repeat_pattern'] as String? ?? 'ONCE',
+      repeatPattern: (json['repeat_pattern'] as String?) ?? 'ONCE',
       isCompleted: (json['is_completed'] as int? ?? 0) == 1,
       isSnoozed: (json['is_snoozed'] as int? ?? 0) == 1,
-      snoozeUntil: json['snooze_until'] != null ? DateTime.parse(json['snooze_until'] as String).toLocal() : null,
+      snoozeUntil: json['snooze_until'] != null ? DateTime.tryParse(json['snooze_until'].toString())?.toLocal() : null,
       deepLink: json['deep_link'] as String?,
-      createdAt: DateTime.parse(json['created_at'] as String).toLocal(),
-      updatedAt: DateTime.parse(json['updated_at'] as String).toLocal(),
-      deletedAt: json['deleted_at'] != null ? DateTime.parse(json['deleted_at'] as String).toLocal() : null,
+      createdAt: json['created_at'] != null
+          ? (DateTime.tryParse(json['created_at'].toString())?.toLocal() ?? DateTime.now())
+          : DateTime.now(),
+      updatedAt: json['updated_at'] != null
+          ? (DateTime.tryParse(json['updated_at'].toString())?.toLocal() ?? DateTime.now())
+          : DateTime.now(),
+      deletedAt: json['deleted_at'] != null ? DateTime.tryParse(json['deleted_at'].toString())?.toLocal() : null,
     );
   }
 

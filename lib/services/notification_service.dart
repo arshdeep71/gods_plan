@@ -95,30 +95,82 @@ class NotificationService {
 
   // Phase 2: Automatic Restorer (For fresh installs or timezone changes)
   Future<void> restoreScheduledNotifications() async {
-    // 1. Cancel all existing (to prevent duplicates)
-    await flutterLocalNotificationsPlugin.cancelAll();
+    debugPrint("START: restoreScheduledNotifications()");
 
-    // 2. Fetch all active local reminders from SQLite
+    // STATEMENT A: flutterLocalNotificationsPlugin.cancelAll()
+    try {
+      debugPrint("STATEMENT A: cancelAll()");
+      await flutterLocalNotificationsPlugin.cancelAll();
+      debugPrint("STATEMENT A OK");
+    } catch (e, st) {
+      debugPrint("STATEMENT A FAILED");
+      debugPrint(e.toString());
+      debugPrintStack(stackTrace: st);
+      rethrow;
+    }
+
+    // STATEMENT B: DatabaseService() & db.currentUserId
     final db = DatabaseService();
-    final String? userId = db.currentUserId;
-    if (userId == null) return;
+    String? userId;
+    try {
+      debugPrint("STATEMENT B: db.currentUserId");
+      userId = db.currentUserId;
+      debugPrint("STATEMENT B OK: userId=$userId");
+    } catch (e, st) {
+      debugPrint("STATEMENT B FAILED");
+      debugPrint(e.toString());
+      debugPrintStack(stackTrace: st);
+      rethrow;
+    }
 
-    final reminders = await db.getLocalReminders(userId);
+    if (userId == null || userId.isEmpty) {
+      debugPrint("STATEMENT B RETURN: userId is null or empty, returning early.");
+      return;
+    }
+
+    // STATEMENT C: db.getLocalReminders(userId)
+    List<ReminderModel> reminders = [];
+    try {
+      debugPrint("STATEMENT C: db.getLocalReminders(userId)");
+      reminders = await db.getLocalReminders(userId);
+      debugPrint("STATEMENT C OK: count=${reminders.length}");
+    } catch (e, st) {
+      debugPrint("STATEMENT C FAILED");
+      debugPrint(e.toString());
+      debugPrintStack(stackTrace: st);
+      rethrow;
+    }
+
     int restoreCount = 0;
     final now = DateTime.now();
+    debugPrint("STATEMENT D: Loop over ${reminders.length} reminders (now=$now)");
 
     for (final reminder in reminders) {
-      if (!reminder.isCompleted && !reminder.isSnoozed && reminder.scheduledTime.isAfter(now)) {
-        final int stableId = reminder.id.hashCode & 0x7FFFFFFF;
-        await scheduleReminder(stableId, reminder);
-        restoreCount++;
-      } else if (reminder.isSnoozed && reminder.snoozeUntil != null && reminder.snoozeUntil!.isAfter(now)) {
-        final int stableId = reminder.id.hashCode & 0x7FFFFFFF;
-        await _snoozeNotification(stableId, reminder.taskId, reminder.id, reminder.snoozeUntil!.difference(now).inMinutes);
-        restoreCount++;
+      try {
+        debugPrint("STATEMENT D-ITEM: Processing reminder id=${reminder.id}");
+        if (!reminder.isCompleted && !reminder.isSnoozed && reminder.scheduledTime.isAfter(now)) {
+          final int stableId = reminder.id.hashCode & 0x7FFFFFFF;
+          debugPrint("STATEMENT D-SCHEDULE: Calling scheduleReminder for id=${reminder.id}");
+          await scheduleReminder(stableId, reminder);
+          restoreCount++;
+          debugPrint("STATEMENT D-SCHEDULE OK: Finished id=${reminder.id}");
+        } else if (reminder.isSnoozed && reminder.snoozeUntil != null && reminder.snoozeUntil!.isAfter(now)) {
+          final int stableId = reminder.id.hashCode & 0x7FFFFFFF;
+          debugPrint("STATEMENT D-SNOOZE: Calling _snoozeNotification for id=${reminder.id}");
+          await _snoozeNotification(stableId, reminder.taskId, reminder.id, reminder.snoozeUntil!.difference(now).inMinutes);
+          restoreCount++;
+          debugPrint("STATEMENT D-SNOOZE OK: Finished id=${reminder.id}");
+        } else {
+          debugPrint("STATEMENT D-SKIP: Skipping reminder id=${reminder.id}");
+        }
+      } catch (e, st) {
+        debugPrint("STATEMENT D-ITEM FAILED: reminder id=${reminder.id}");
+        debugPrint(e.toString());
+        debugPrintStack(stackTrace: st);
+        rethrow;
       }
     }
-    print('[RESTORE] Successfully rebuilt \$restoreCount local notifications from Reminder definitions.');
+    debugPrint("END: restoreScheduledNotifications() OK - Total restored: $restoreCount");
   }
 
   Future<void> _processMissedNotifications() async {
@@ -156,10 +208,10 @@ class NotificationService {
       }
       
       if (missedCount > 0) {
-        print('[HISTORY] Processed \$missedCount missed notifications into history.');
+        print('[HISTORY] Processed $missedCount missed notifications into history.');
       }
     } catch (e) {
-      print('Failed to process missed notifications: \$e');
+      print('Failed to process missed notifications: $e');
     }
   }
 
@@ -211,44 +263,59 @@ class NotificationService {
 
   // --- Phase 2: Quiet Hours Logic ---
   Future<tz.TZDateTime> _applyQuietHours(tz.TZDateTime scheduledDate) async {
-    final prefs = await SharedPreferences.getInstance();
-    final bool quietHoursEnabled = prefs.getBool('quiet_hours_enabled') ?? false;
-    if (!quietHoursEnabled) return scheduledDate;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final bool quietHoursEnabled = prefs.getBool('quiet_hours_enabled') ?? false;
+      if (!quietHoursEnabled) return scheduledDate;
 
-    // Default quiet hours: 10 PM (22:00) to 7 AM (07:00)
-    final int quietStart = prefs.getInt('quiet_hours_start_hour') ?? 22;
-    final int quietEnd = prefs.getInt('quiet_hours_end_hour') ?? 7;
-    
-    final int hour = scheduledDate.hour;
+      // Default quiet hours: 10 PM (22:00) to 7 AM (07:00)
+      final int quietStart = prefs.getInt('quiet_hours_start_hour') ?? 22;
+      final int quietEnd = prefs.getInt('quiet_hours_end_hour') ?? 7;
+      
+      final int hour = scheduledDate.hour;
 
-    // Check if time falls within quiet hours (cross-midnight check)
-    bool isInQuietHours = false;
-    if (quietStart > quietEnd) {
-      isInQuietHours = hour >= quietStart || hour < quietEnd;
-    } else {
-      isInQuietHours = hour >= quietStart && hour < quietEnd;
-    }
+      // Check if time falls within quiet hours (cross-midnight check)
+      bool isInQuietHours = false;
+      if (quietStart > quietEnd) {
+        isInQuietHours = hour >= quietStart || hour < quietEnd;
+      } else {
+        isInQuietHours = hour >= quietStart && hour < quietEnd;
+      }
 
-    if (isInQuietHours) {
-      // Delay to quietEnd time
-      int daysToAdd = (hour >= quietStart && quietStart > quietEnd) ? 1 : 0;
-      return tz.TZDateTime(
-        tz.local,
-        scheduledDate.year,
-        scheduledDate.month,
-        scheduledDate.day + daysToAdd,
-        quietEnd,
-        0,
-      );
+      if (isInQuietHours) {
+        // Delay to quietEnd time
+        int daysToAdd = (hour >= quietStart && quietStart > quietEnd) ? 1 : 0;
+        return tz.TZDateTime(
+          tz.local,
+          scheduledDate.year,
+          scheduledDate.month,
+          scheduledDate.day + daysToAdd,
+          quietEnd,
+          0,
+        );
+      }
+    } catch (e, st) {
+      debugPrint('[QUIET_HOURS] ERROR: $e');
+      debugPrintStack(stackTrace: st);
+      rethrow;
     }
     return scheduledDate;
   }
 
   Future<void> _snoozeNotification(int? id, String? taskId, String? reminderId, int minutes) async {
+    debugPrint('[SNOOZE_NOTIF] Start: id=$id, taskId=$taskId, reminderId=$reminderId, minutes=$minutes');
     if (id == null) return;
     
     // Cancel original escalations
-    await cancelReminder(id);
+    try {
+      debugPrint('[SNOOZE_NOTIF] Calling cancelReminder($id)');
+      await cancelReminder(id);
+      debugPrint('[SNOOZE_NOTIF] cancelReminder finished');
+    } catch (e, st) {
+      debugPrint('[SNOOZE_NOTIF] ERROR cancelling reminder: $e');
+      debugPrintStack(stackTrace: st);
+      rethrow;
+    }
 
     final scheduledDate = tz.TZDateTime.now(tz.local).add(Duration(minutes: minutes));
     final scheduledDateUtc = scheduledDate.toUtc();
@@ -256,6 +323,7 @@ class NotificationService {
     // Update reminder state in database if reminderId is provided
     if (reminderId != null) {
       try {
+        debugPrint('[SNOOZE_NOTIF] Updating DB snooze state for reminderId=$reminderId');
         final db = DatabaseService();
         final userId = db.currentUserId;
         if (userId != null) {
@@ -267,144 +335,212 @@ class NotificationService {
             updatedAt: DateTime.now(),
           );
           await db.upsertLocalReminder(updatedReminder);
+          debugPrint('[SNOOZE_NOTIF] DB update complete');
         }
-      } catch (e) {
-        print("Failed to update reminder snooze state in DB: $e");
+      } catch (e, st) {
+        debugPrint('[SNOOZE_NOTIF] ERROR updating reminder snooze state in DB: $e');
+        debugPrintStack(stackTrace: st);
+        rethrow;
       }
     }
 
-    await flutterLocalNotificationsPlugin.zonedSchedule(
-      id,
-      'Snoozed Reminder',
-      'You snoozed this task. Time to get to it!',
-      scheduledDate,
-      const NotificationDetails(
-        android: AndroidNotificationDetails(
-          'task_reminders',
-          'Task Reminders',
-          channelDescription: 'Reminders for your daily tasks',
-          importance: Importance.max,
-          priority: Priority.high,
+    try {
+      debugPrint('[SNOOZE_NOTIF] Calling zonedSchedule for snoozed notification id=$id');
+      await flutterLocalNotificationsPlugin.zonedSchedule(
+        id,
+        'Snoozed Reminder',
+        'You snoozed this task. Time to get to it!',
+        scheduledDate,
+        const NotificationDetails(
+          android: AndroidNotificationDetails(
+            'task_reminders',
+            'Task Reminders',
+            channelDescription: 'Reminders for your daily tasks',
+            importance: Importance.max,
+            priority: Priority.high,
+          ),
+          iOS: DarwinNotificationDetails(
+            categoryIdentifier: 'task_reminder_category',
+          ),
         ),
-        iOS: DarwinNotificationDetails(
-          categoryIdentifier: 'task_reminder_category',
-        ),
-      ),
-      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
-      uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime,
-      payload: "$taskId|$reminderId",
-    );
+        androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+        uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime,
+        payload: "$taskId|$reminderId",
+      );
+      debugPrint('[SNOOZE_NOTIF] zonedSchedule finished for id=$id');
+    } catch (e, st) {
+      debugPrint('[SNOOZE_NOTIF] ERROR scheduling snoozed zonedSchedule: $e');
+      debugPrintStack(stackTrace: st);
+      rethrow;
+    }
 
     // Schedule snoozed escalation reminders
-    final prefs = await SharedPreferences.getInstance();
-    final bool enableEscalation = prefs.getBool('smart_escalation_enabled') ?? true;
-    if (enableEscalation) {
-      final List<String> intervalStrings = prefs.getStringList('smart_escalation_intervals') ?? ['10', '30'];
-      final List<int> intervals = intervalStrings.map((s) => int.tryParse(s) ?? 0).where((i) => i > 0).toList();
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final bool enableEscalation = prefs.getBool('smart_escalation_enabled') ?? true;
+      if (enableEscalation) {
+        final List<String> intervalStrings = prefs.getStringList('smart_escalation_intervals') ?? ['10', '30'];
+        final List<int> intervals = intervalStrings.map((s) => int.tryParse(s) ?? 0).where((i) => i > 0).toList();
 
-      for (int i = 0; i < intervals.length; i++) {
-        final minutesEsc = intervals[i];
-        final tzEsc = scheduledDate.add(Duration(minutes: minutesEsc));
-        final escalationId = id + (i + 1) * 1000000;
+        for (int i = 0; i < intervals.length; i++) {
+          final minutesEsc = intervals[i];
+          final tzEsc = scheduledDate.add(Duration(minutes: minutesEsc));
+          final escalationId = id + (i + 1) * 1000000;
 
-        await flutterLocalNotificationsPlugin.zonedSchedule(
-          escalationId,
-          i == 0 ? 'Snooze Friendly Reminder' : 'Snooze Final Reminder',
-          i == 0 ? 'Have you completed your snoozed task?' : 'Last call to complete your snoozed task!',
-          tzEsc,
-          NotificationDetails(
-            android: AndroidNotificationDetails(
-              'escalation_reminders',
-              'Escalation Reminders',
-              channelDescription: 'Follow-ups for missed tasks',
-              importance: i == 0 ? Importance.high : Importance.max,
-              priority: Priority.high,
+          debugPrint('[SNOOZE_NOTIF] Scheduling snooze escalation $i (id=$escalationId) at $tzEsc');
+          await flutterLocalNotificationsPlugin.zonedSchedule(
+            escalationId,
+            i == 0 ? 'Snooze Friendly Reminder' : 'Snooze Final Reminder',
+            i == 0 ? 'Have you completed your snoozed task?' : 'Last call to complete your snoozed task!',
+            tzEsc,
+            NotificationDetails(
+              android: AndroidNotificationDetails(
+                'escalation_reminders',
+                'Escalation Reminders',
+                channelDescription: 'Follow-ups for missed tasks',
+                importance: i == 0 ? Importance.high : Importance.max,
+                priority: Priority.high,
+              ),
+              iOS: const DarwinNotificationDetails(
+                categoryIdentifier: 'task_reminder_category',
+              ),
             ),
-            iOS: const DarwinNotificationDetails(
-              categoryIdentifier: 'task_reminder_category',
-            ),
-          ),
-          androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
-          uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime,
-          payload: "$taskId|$reminderId",
-        );
+            androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+            uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime,
+            payload: "$taskId|$reminderId",
+          );
+          debugPrint('[SNOOZE_NOTIF] Snooze escalation $i finished');
+        }
       }
+    } catch (e, st) {
+      debugPrint('[SNOOZE_NOTIF] ERROR scheduling snooze escalation: $e');
+      debugPrintStack(stackTrace: st);
+      rethrow;
     }
   }
 
   Future<void> scheduleReminder(int id, ReminderModel reminder) async {
-    if (reminder.scheduledTime.isBefore(DateTime.now())) return;
+    debugPrint("START: scheduleReminder(id=$id, title='${reminder.title}')");
 
-    tz.TZDateTime tzScheduledTime = tz.TZDateTime.from(reminder.scheduledTime, tz.local);
-    tzScheduledTime = await _applyQuietHours(tzScheduledTime);
+    // S-STATEMENT 1: Date check
+    if (reminder.scheduledTime.isBefore(DateTime.now())) {
+      debugPrint("S-STATEMENT 1: Scheduled time is in the past, skipping.");
+      return;
+    }
 
-    // Determine sound file based on reminder type
+    // S-STATEMENT 2: Timezone conversion
+    tz.TZDateTime tzScheduledTime;
+    try {
+      debugPrint("S-STATEMENT 2: tz.TZDateTime.from(scheduledTime, tz.local)");
+      tzScheduledTime = tz.TZDateTime.from(reminder.scheduledTime, tz.local);
+      debugPrint("S-STATEMENT 2 OK: tzScheduledTime=$tzScheduledTime");
+    } catch (e, st) {
+      debugPrint("S-STATEMENT 2 FAILED");
+      debugPrint(e.toString());
+      debugPrintStack(stackTrace: st);
+      rethrow;
+    }
+
+    // S-STATEMENT 3: Quiet hours application
+    try {
+      debugPrint("S-STATEMENT 3: _applyQuietHours(tzScheduledTime)");
+      tzScheduledTime = await _applyQuietHours(tzScheduledTime);
+      debugPrint("S-STATEMENT 3 OK: tzScheduledTime=$tzScheduledTime");
+    } catch (e, st) {
+      debugPrint("S-STATEMENT 3 FAILED");
+      debugPrint(e.toString());
+      debugPrintStack(stackTrace: st);
+      rethrow;
+    }
+
     String soundFile = 'reminder.wav';
     if (reminder.type == 'ACHIEVEMENT') soundFile = 'achievement.wav';
     else if (reminder.type == 'STREAK') soundFile = 'streak.wav';
 
-    await flutterLocalNotificationsPlugin.zonedSchedule(
-      id,
-      reminder.title,
-      reminder.body,
-      tzScheduledTime,
-      NotificationDetails(
-        android: const AndroidNotificationDetails(
-          'task_reminders',
-          'Task Reminders',
-          channelDescription: 'Reminders for your daily tasks',
-          importance: Importance.max,
-          priority: Priority.high,
-          // Custom sound not yet defined in Android raw
-        ),
-        iOS: DarwinNotificationDetails(
-          categoryIdentifier: 'task_reminder_category',
-          sound: soundFile,
-        ),
-      ),
-      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
-      uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime,
-      payload: "${reminder.taskId}|${reminder.id}",
-      matchDateTimeComponents: reminder.repeatPattern == 'DAILY' ? DateTimeComponents.time : 
-                               reminder.repeatPattern == 'WEEKLY' ? DateTimeComponents.dayOfWeekAndTime : null,
-    );
-
-    // Phase 3: Smart Reminder Escalation (Schedule dynamic follow-ups)
-    final prefs = await SharedPreferences.getInstance();
-    final bool enableEscalation = prefs.getBool('smart_escalation_enabled') ?? true;
-    if (enableEscalation) {
-      final List<String> intervalStrings = prefs.getStringList('smart_escalation_intervals') ?? ['10', '30'];
-      final List<int> intervals = intervalStrings.map((s) => int.tryParse(s) ?? 0).where((i) => i > 0).toList();
-
-      for (int i = 0; i < intervals.length; i++) {
-        final minutesEsc = intervals[i];
-        tz.TZDateTime tzEsc = tzScheduledTime.add(Duration(minutes: minutesEsc));
-        tzEsc = await _applyQuietHours(tzEsc);
-        final escalationId = id + (i + 1) * 1000000;
-
-        await flutterLocalNotificationsPlugin.zonedSchedule(
-          escalationId,
-          i == 0 ? 'Friendly Reminder' : 'Final Reminder',
-          i == 0 ? 'Have you completed "${reminder.title}"?' : 'Last call to complete "${reminder.title}"!',
-          tzEsc,
-          NotificationDetails(
-            android: AndroidNotificationDetails(
-              'escalation_reminders',
-              'Escalation Reminders',
-              channelDescription: 'Follow-ups for missed tasks',
-              importance: i == 0 ? Importance.high : Importance.max,
-              priority: Priority.high,
-            ),
-            iOS: const DarwinNotificationDetails(
-              categoryIdentifier: 'task_reminder_category',
-            ),
+    // S-STATEMENT 4: flutterLocalNotificationsPlugin.zonedSchedule(...)
+    try {
+      debugPrint("S-STATEMENT 4: flutterLocalNotificationsPlugin.zonedSchedule(id=$id)");
+      await flutterLocalNotificationsPlugin.zonedSchedule(
+        id,
+        reminder.title,
+        reminder.body,
+        tzScheduledTime,
+        NotificationDetails(
+          android: const AndroidNotificationDetails(
+            'task_reminders',
+            'Task Reminders',
+            channelDescription: 'Reminders for your daily tasks',
+            importance: Importance.max,
+            priority: Priority.high,
           ),
-          androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
-          uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime,
-          payload: "${reminder.taskId}|${reminder.id}",
-        );
-      }
+          iOS: DarwinNotificationDetails(
+            categoryIdentifier: 'task_reminder_category',
+            sound: soundFile,
+          ),
+        ),
+        androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+        uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime,
+        payload: "${reminder.taskId}|${reminder.id}",
+        matchDateTimeComponents: reminder.repeatPattern == 'DAILY' ? DateTimeComponents.time : 
+                                 reminder.repeatPattern == 'WEEKLY' ? DateTimeComponents.dayOfWeekAndTime : null,
+      );
+      debugPrint("S-STATEMENT 4 OK: zonedSchedule for id=$id completed");
+    } catch (e, st) {
+      debugPrint("S-STATEMENT 4 FAILED");
+      debugPrint(e.toString());
+      debugPrintStack(stackTrace: st);
+      rethrow;
     }
+
+    // S-STATEMENT 5: Smart Escalation
+    try {
+      debugPrint("S-STATEMENT 5: Escalation schedule setup");
+      final prefs = await SharedPreferences.getInstance();
+      final bool enableEscalation = prefs.getBool('smart_escalation_enabled') ?? true;
+      if (enableEscalation) {
+        final List<String> intervalStrings = prefs.getStringList('smart_escalation_intervals') ?? ['10', '30'];
+        final List<int> intervals = intervalStrings.map((s) => int.tryParse(s) ?? 0).where((i) => i > 0).toList();
+
+        for (int i = 0; i < intervals.length; i++) {
+          final minutesEsc = intervals[i];
+          tz.TZDateTime tzEsc = tzScheduledTime.add(Duration(minutes: minutesEsc));
+          tzEsc = await _applyQuietHours(tzEsc);
+          final escalationId = id + (i + 1) * 1000000;
+
+          debugPrint("S-STATEMENT 5-ITEM: zonedSchedule escalation $i (id=$escalationId)");
+          await flutterLocalNotificationsPlugin.zonedSchedule(
+            escalationId,
+            i == 0 ? 'Friendly Reminder' : 'Final Reminder',
+            i == 0 ? 'Have you completed "${reminder.title}"?' : 'Last call to complete "${reminder.title}"!',
+            tzEsc,
+            NotificationDetails(
+              android: AndroidNotificationDetails(
+                'escalation_reminders',
+                'Escalation Reminders',
+                channelDescription: 'Follow-ups for missed tasks',
+                importance: i == 0 ? Importance.high : Importance.max,
+                priority: Priority.high,
+              ),
+              iOS: const DarwinNotificationDetails(
+                categoryIdentifier: 'task_reminder_category',
+              ),
+            ),
+            androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+            uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime,
+            payload: "${reminder.taskId}|${reminder.id}",
+          );
+          debugPrint("S-STATEMENT 5-ITEM OK: escalation $i (id=$escalationId)");
+        }
+      }
+      debugPrint("S-STATEMENT 5 OK");
+    } catch (e, st) {
+      debugPrint("S-STATEMENT 5 FAILED");
+      debugPrint(e.toString());
+      debugPrintStack(stackTrace: st);
+      rethrow;
+    }
+
+    debugPrint("END: scheduleReminder(id=$id) OK");
   }
 
   // Legacy wrapper
