@@ -6,8 +6,11 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:io' show Platform;
 
 import 'package:flutter_timezone/flutter_timezone.dart';
+import 'package:flutter_app_badger/flutter_app_badger.dart';
 import 'database_service.dart';
 import '../models/reminder_model.dart';
+import '../models/notification_history_model.dart';
+import 'package:uuid/uuid.dart';
 
 class NotificationService {
   static final NotificationService _instance = NotificationService._internal();
@@ -57,6 +60,20 @@ class NotificationService {
 
     // Phase 2: Time-zone detection and DST correction
     _checkAndHandleTimezoneChange();
+    
+    // Phase 4: Process missed notifications for accurate history
+    _processMissedNotifications();
+    
+    // Clear badges on launch
+    await clearAppBadge();
+  }
+
+  Future<void> clearAppBadge() async {
+    try {
+      if (await FlutterAppBadger.isAppBadgeSupported()) {
+        await FlutterAppBadger.removeBadge();
+      }
+    } catch (_) {}
   }
 
   Future<void> _checkAndHandleTimezoneChange() async {
@@ -104,6 +121,48 @@ class NotificationService {
     print('[RESTORE] Successfully rebuilt \$restoreCount local notifications from Reminder definitions.');
   }
 
+  Future<void> _processMissedNotifications() async {
+    try {
+      final db = DatabaseService();
+      final userId = db.currentUserId;
+      if (userId == null) return;
+
+      final reminders = await db.getLocalReminders(userId);
+      final now = DateTime.now();
+      int missedCount = 0;
+
+      for (final reminder in reminders) {
+        if (!reminder.isCompleted && reminder.scheduledTime.isBefore(now)) {
+          // Check if this history record already exists to avoid duplicates
+          final historyList = await db.getLocalNotificationHistory(userId);
+          final exists = historyList.any((h) => h.relatedId == reminder.taskId && h.timestamp.isAtSameMomentAs(reminder.scheduledTime));
+          
+          if (!exists) {
+            final history = NotificationHistoryModel(
+              id: const Uuid().v4(),
+              title: reminder.title,
+              body: reminder.body,
+              timestamp: reminder.scheduledTime,
+              type: reminder.type,
+              status: 'MISSED',
+              relatedId: reminder.taskId,
+              category: reminder.category,
+              userId: userId,
+            );
+            await db.insertLocalNotificationHistory(history);
+            missedCount++;
+          }
+        }
+      }
+      
+      if (missedCount > 0) {
+        print('[HISTORY] Processed \$missedCount missed notifications into history.');
+      }
+    } catch (e) {
+      print('Failed to process missed notifications: \$e');
+    }
+  }
+
   void _handleNotificationAction(NotificationResponse response) {
     final payloadStr = response.payload;
     if (payloadStr == null) return;
@@ -111,6 +170,9 @@ class NotificationService {
     final parts = payloadStr.split('|');
     final taskId = parts[0];
     final reminderId = parts.length > 1 ? parts[1] : null;
+    
+    // Log interaction to history
+    _logActionToHistory(taskId, reminderId, response.actionId);
 
     if (response.actionId == 'snooze_10') {
       _snoozeNotification(response.id, taskId, reminderId, 10);
@@ -120,6 +182,31 @@ class NotificationService {
       // Handled by providers later
       print("Task $taskId marked complete via notification.");
     }
+  }
+
+  Future<void> _logActionToHistory(String taskId, String? reminderId, String? actionId) async {
+    try {
+      final db = DatabaseService();
+      final userId = db.currentUserId;
+      if (userId == null) return;
+
+      final history = NotificationHistoryModel(
+        id: const Uuid().v4(),
+        title: 'Interaction',
+        body: actionId == 'mark_complete' ? 'Marked complete from notification' : 'Snoozed from notification',
+        timestamp: DateTime.now(),
+        type: 'ACTION',
+        status: 'DELIVERED',
+        relatedId: taskId,
+        userId: userId,
+      );
+      await db.insertLocalNotificationHistory(history);
+      
+      // Update badge count
+      if (await FlutterAppBadger.isAppBadgeSupported()) {
+        FlutterAppBadger.updateBadgeCount(1);
+      }
+    } catch (_) {}
   }
 
   // --- Phase 2: Quiet Hours Logic ---

@@ -1004,16 +1004,17 @@ class DatabaseService {
       conflictAlgorithm: ConflictAlgorithm.replace,
     );
     
-    // Prune history to keep only the latest 500 records per user
+    // Prune history to keep only the latest 500 records per user or those less than 90 days old
     await db.execute('''
       DELETE FROM local_notification_history 
-      WHERE id NOT IN (
+      WHERE (id NOT IN (
         SELECT id FROM local_notification_history 
         WHERE user_id = ? 
         ORDER BY timestamp DESC 
         LIMIT 500
-      ) AND user_id = ?
-    ''', [history.user_id, history.user_id]);
+      ) AND user_id = ?) 
+      OR (timestamp < datetime('now', '-90 days') AND user_id = ?)
+    ''', [history.userId, history.userId, history.userId]);
   }
 
   Future<void> deleteLocalNotificationHistory(String historyId) async {

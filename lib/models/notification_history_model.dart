@@ -7,6 +7,7 @@ class NotificationHistoryModel {
   final String status; // 'DELIVERED', 'COMPLETED', 'MISSED', 'SNOOZED'
   final String? relatedId; // taskId or goalId
   final String? category;
+  final String userId;
 
   NotificationHistoryModel({
     required this.id,
@@ -17,6 +18,7 @@ class NotificationHistoryModel {
     required this.status,
     this.relatedId,
     this.category,
+    required this.userId,
   });
 
   factory NotificationHistoryModel.fromJson(Map<String, dynamic> json) {
@@ -29,6 +31,7 @@ class NotificationHistoryModel {
       status: json['status'] as String,
       relatedId: json['related_id'] as String?,
       category: json['category'] as String?,
+      userId: json['user_id'] as String,
     );
   }
 
@@ -42,6 +45,7 @@ class NotificationHistoryModel {
       'status': status,
       'related_id': relatedId,
       'category': category,
+      'user_id': userId,
     };
   }
 }

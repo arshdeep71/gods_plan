@@ -5,6 +5,7 @@ import 'sync_status_view.dart';
 import 'app_icon_view.dart';
 import 'theme_picker_view.dart';
 import 'privacy_export_view.dart';
+import 'smart_reminder_view.dart';
 
 class MasterSettingsView extends StatelessWidget {
   const MasterSettingsView({super.key});
@@ -51,6 +52,13 @@ class MasterSettingsView extends StatelessWidget {
             icon: Icons.vibration_rounded,
             color: Colors.purpleAccent,
             destination: const SoundHapticsView(), // From Phase 3
+          ),
+          _buildSettingsTile(
+            context: context,
+            title: 'Smart Reminders',
+            icon: Icons.notification_important_rounded,
+            color: Colors.cyanAccent,
+            destination: const SmartReminderView(), 
           ),
           
           const SizedBox(height: 24),

@@ -46,6 +46,11 @@ dependencies:
   # iOS Live Activities
   live_activities: ^1.2.0
 
+  # Phase 4 UI & Notifications Polish
+  flutter_animate: ^4.5.0
+  flutter_app_badger: ^1.5.0
+  flutter_slidable: ^3.1.0
+
   # App Icon Manager
   flutter_dynamic_icon_plus: ^1.4.1
   path_provider: ^2.1.3
