@@ -148,6 +148,26 @@ class DatabaseService {
           );
         } catch (_) {}
       }
+
+      // Migrate offline_sync_queue (add retry_count and next_retry_at if missing)
+      final syncQueueTables = await db.rawQuery(
+        "SELECT name FROM sqlite_master WHERE type='table' AND name='offline_sync_queue'",
+      );
+      if (syncQueueTables.isNotEmpty) {
+        final syncQueueCols = await db.rawQuery('PRAGMA table_info(offline_sync_queue)');
+        final syncQueueColNames = syncQueueCols.map((c) => c['name']?.toString().toLowerCase()).toList();
+
+        if (!syncQueueColNames.contains('retry_count')) {
+          try {
+            await db.execute("ALTER TABLE offline_sync_queue ADD COLUMN retry_count INTEGER DEFAULT 0");
+          } catch (_) {}
+        }
+        if (!syncQueueColNames.contains('next_retry_at')) {
+          try {
+            await db.execute("ALTER TABLE offline_sync_queue ADD COLUMN next_retry_at TEXT");
+          } catch (_) {}
+        }
+      }
     } catch (_) {}
 
     return db;

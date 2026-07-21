@@ -275,6 +275,11 @@ class SyncService {
 
         // Insert or update remote tasks
         for (final row in remoteTasks) {
+          final remoteTaskId = row['id'] as String;
+          if (pendingIds.contains(remoteTaskId)) {
+             print("[SYNC] Skipping remote task overwrite for '$remoteTaskId' due to pending local mutation.");
+             continue;
+          }
           final remoteTask = Task.fromJson(row as Map<String, dynamic>);
           await txn.insert('local_tasks', remoteTask.toSqliteMap(), conflictAlgorithm: ConflictAlgorithm.replace);
         }
