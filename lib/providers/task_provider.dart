@@ -686,21 +686,29 @@ class TaskProvider extends ChangeNotifier {
     NotificationService().cancelReminder(task.id.hashCode);
     notifyListeners();
 
-    await _dbService.deleteLocalTask(task.id);
+    try {
+      await _dbService.deleteLocalTask(task.id);
 
-    // Queue mutation for sync
-    final syncItem = SyncItem(
-      actionType: 'DELETE',
-      tableName: 'tasks',
-      recordId: task.id,
-    );
-    await _dbService.queueMutation(syncItem);
+      // Queue mutation for sync
+      final syncItem = SyncItem(
+        actionType: 'DELETE',
+        tableName: 'tasks',
+        recordId: task.id,
+      );
+      await _dbService.queueMutation(syncItem);
 
-    // Trigger background sync flush
-    _syncService.sync(task.userId).then((_) async {
+      // Await sync fully before reloading to avoid concurrent SQLite access on web
+      try {
+        await _syncService.sync(task.userId);
+      } catch (_) {}
       _tasks = await _dbService.getLocalTasks(task.userId);
+      _completions = await _dbService.getLocalTaskCompletions(task.userId);
+      _exceptions = await _dbService.getLocalTaskExceptions(task.userId);
       notifyListeners();
-    });
+    } catch (e, stack) {
+      print("Error deleting task: $e");
+      print(stack);
+    }
   }
   // Delete a specific occurrence
   Future<void> deleteTaskOccurrence(Task task, DateTime date) async {
