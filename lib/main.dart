@@ -56,38 +56,53 @@ void main() async {
   };
 
   try {
-    // 0. Initialize Encryption Service for secure local storage
+    debugPrint("STEP 1: Starting EncryptionService initialization");
     await EncryptionService().initialize();
+    debugPrint("STEP 1: EncryptionService initialized");
 
-    // 1. Initialize local cache Hive and SQLite databases
+    debugPrint("STEP 2: Starting DatabaseService initialization");
     final dbService = DatabaseService();
     await dbService.initDatabase();
+    debugPrint("STEP 2: DatabaseService initialized");
     
-    // Initialize Local Notifications
+    debugPrint("STEP 3: Starting NotificationService init");
     await NotificationService().init();
+    debugPrint("STEP 3: NotificationService initialized");
+
+    debugPrint("STEP 4: Restoring Scheduled Notifications");
     await NotificationService().restoreScheduledNotifications();
+    debugPrint("STEP 4: Scheduled Notifications restored");
     
-    // Initialize Live Activities & end any stuck ones
+    debugPrint("STEP 5: Starting LiveActivityService initialization");
     final liveActivityService = LiveActivityService();
     await liveActivityService.init();
-    await liveActivityService.endAllActivities();
+    debugPrint("STEP 5: LiveActivityService init finished");
 
-    // 2. Safely check and initialize Supabase credentials
+    debugPrint("STEP 6: LiveActivityService ending all activities");
+    await liveActivityService.endAllActivities();
+    debugPrint("STEP 6: LiveActivityService ended all activities");
+
+    debugPrint("STEP 7: Checking Supabase Configuration");
     bool isSupabaseConfigured = false;
     if (SupabaseConstants.supabaseUrl != 'YOUR_SUPABASE_PROJECT_URL' &&
         SupabaseConstants.supabaseAnonKey != 'YOUR_SUPABASE_ANON_KEY' &&
         SupabaseConstants.supabaseUrl.isNotEmpty &&
         SupabaseConstants.supabaseAnonKey.isNotEmpty) {
       try {
+        debugPrint("STEP 8: Initializing Supabase");
         await Supabase.initialize(
           url: SupabaseConstants.supabaseUrl,
           anonKey: SupabaseConstants.supabaseAnonKey,
         );
         isSupabaseConfigured = true;
+        debugPrint("STEP 8: Supabase Initialized");
       } catch (e) {
+        debugPrint("STEP 8: Supabase initialization failed: \$e");
         isSupabaseConfigured = false;
       }
     }
+    
+    debugPrint("STEP 9: Starting runApp");
 
     runApp(
       MultiProvider(
