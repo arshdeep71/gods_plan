@@ -22,23 +22,43 @@ class LiveActivityService {
     } catch (_) {}
   }
 
-  Future<void> startTaskActivity(String taskTitle, DateTime deadline) async {
+  Future<void> startTaskActivity(
+    String taskTitle,
+    DateTime deadline, {
+    int? streakDays,
+    int? completedTasks,
+    int? totalTasks,
+    int? xpAmount,
+  }) async {
     if (!_isSupported) return;
     try {
       if (!await _liveActivitiesPlugin.areActivitiesEnabled()) return;
+
+      final streakText = streakDays != null && streakDays > 0 ? "🔥 Streak: $streakDays days" : "";
+      final tasksText = (completedTasks != null && totalTasks != null)
+          ? "📅 Today: $completedTasks/$totalTasks completed"
+          : (xpAmount != null && xpAmount > 0 ? "🎯 XP today: $xpAmount" : "");
+
+      final subtitleText = [streakText, tasksText].where((s) => s.isNotEmpty).join(" • ");
 
       final activityData = {
         'taskTitle': taskTitle,
         'deadline': deadline.toUtc().toIso8601String(),
         'progress': 0.0,
+        'streakDays': streakDays ?? 0,
+        'completedTasks': completedTasks ?? 0,
+        'totalTasks': totalTasks ?? 0,
+        'xpAmount': xpAmount ?? 0,
+        'subtitle': subtitleText.isNotEmpty ? subtitleText : "Stay ready 💪",
+        'statusText': 'left to start',
       };
 
       _currentActivityId = await _liveActivitiesPlugin.createActivity(
         activityData,
       );
-      print("Live Activity started: \$_currentActivityId");
+      print("[LIVE_ACTIVITY] Started activity for '$taskTitle' (id: $_currentActivityId)");
     } catch (e) {
-      print("Failed to start Live Activity: \$e");
+      print("Failed to start Live Activity: $e");
     }
   }
 
