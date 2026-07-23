@@ -964,9 +964,13 @@ class DatabaseService {
 
   Future<void> upsertLocalReminder(ReminderModel reminder) async {
     final db = await database;
+    final map = reminder.toSqliteMap();
+    if ((map['user_id'] == null || (map['user_id'] as String).isEmpty) && currentUserId != null) {
+      map['user_id'] = currentUserId;
+    }
     await db.insert(
       'local_reminders',
-      reminder.toSqliteMap(),
+      map,
       conflictAlgorithm: ConflictAlgorithm.replace,
     );
   }

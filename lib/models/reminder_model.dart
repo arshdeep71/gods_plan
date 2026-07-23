@@ -1,5 +1,6 @@
 class ReminderModel {
   final String id;
+  final String userId;
   final String taskId;
   final String? goalId;
   final DateTime scheduledTime;
@@ -18,6 +19,7 @@ class ReminderModel {
 
   ReminderModel({
     required this.id,
+    required this.userId,
     required this.taskId,
     this.goalId,
     required this.scheduledTime,
@@ -37,6 +39,7 @@ class ReminderModel {
 
   factory ReminderModel.fromJson(Map<String, dynamic> json) {
     final String? id = json['id'] as String?;
+    final String? userId = json['user_id'] as String?;
     final String? taskId = json['task_id'] as String?;
     final String? scheduledTimeRaw = json['scheduled_time'] as String?;
     final String? title = json['title'] as String?;
@@ -61,6 +64,7 @@ class ReminderModel {
 
     return ReminderModel(
       id: id,
+      userId: userId ?? '',
       taskId: taskId,
       goalId: json['goal_id'] as String?,
       scheduledTime: scheduledTimeParsed.toLocal(),
@@ -86,6 +90,7 @@ class ReminderModel {
   Map<String, dynamic> toSqliteMap() {
     return {
       'id': id,
+      'user_id': userId,
       'task_id': taskId,
       'goal_id': goalId,
       'scheduled_time': scheduledTime.toUtc().toIso8601String(),
@@ -107,6 +112,7 @@ class ReminderModel {
   Map<String, dynamic> toJson() {
     return {
       'id': id,
+      'user_id': userId,
       'task_id': taskId,
       'goal_id': goalId,
       'scheduled_time': scheduledTime.toUtc().toIso8601String(),
@@ -127,6 +133,7 @@ class ReminderModel {
 
   ReminderModel copyWith({
     String? id,
+    String? userId,
     String? taskId,
     String? goalId,
     DateTime? scheduledTime,
@@ -145,6 +152,7 @@ class ReminderModel {
   }) {
     return ReminderModel(
       id: id ?? this.id,
+      userId: userId ?? this.userId,
       taskId: taskId ?? this.taskId,
       goalId: goalId ?? this.goalId,
       scheduledTime: scheduledTime ?? this.scheduledTime,

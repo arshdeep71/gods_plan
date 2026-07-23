@@ -493,7 +493,8 @@ User request/schedule to plan:
   }
 
   Future<void> _processImport(BuildContext context, List<ParsedTask> parsedTasks) async {
-    debugPrint("[AI IMPORT] Processing import for ${parsedTasks.length} tasks");
+    debugPrint("========== [AI PLAN IMPORT STARTED] ==========");
+    debugPrint("[AI IMPORT] Parsed tasks total: ${parsedTasks.length}");
     final taskProvider = Provider.of<TaskProvider>(context, listen: false);
     final user = Provider.of<AuthProvider>(context, listen: false).user;
     if (user == null) {
@@ -503,10 +504,16 @@ User request/schedule to plan:
 
     int importedCount = 0;
     int skippedCount = 0;
+    int failedCount = 0;
+    final List<String> failureReasons = [];
 
-    try {
-      debugPrint("[AI IMPORT] Visible task count before import: ${taskProvider.tasks.length}");
-      for (var importedTask in parsedTasks) {
+    debugPrint("[AI IMPORT] Visible task count before import: ${taskProvider.tasks.length}");
+    
+    for (int i = 0; i < parsedTasks.length; i++) {
+      final importedTask = parsedTasks[i];
+      debugPrint("[AI IMPORT] [Task ${i + 1}/${parsedTasks.length}] Preparing to insert: '${importedTask.title}' (date: ${importedTask.date}, start: ${importedTask.start}, end: ${importedTask.end})");
+
+      try {
         // Search for duplicates
         Task? duplicate;
         for (var t in taskProvider.tasks) {
@@ -517,30 +524,53 @@ User request/schedule to plan:
         }
 
         if (duplicate != null) {
-          debugPrint("[AI IMPORT] Duplicate found for task '${importedTask.title}'");
+          debugPrint("[AI IMPORT] [Task ${i + 1}/${parsedTasks.length}] Duplicate found for task '${importedTask.title}'");
           final choice = await _showConflictDialog(context, importedTask);
           debugPrint("[AI IMPORT] User conflict choice: $choice");
           if (choice == 'skip' || choice == null) {
             skippedCount++;
+            debugPrint("[AI IMPORT] [Task ${i + 1}/${parsedTasks.length}] SKIPPED duplicate '${importedTask.title}'");
             continue;
           } else if (choice == 'replace') {
             await taskProvider.deleteTask(duplicate);
             await _insertImportedTask(taskProvider, importedTask, user.id, triggerSync: false);
             importedCount++;
+            debugPrint("[AI IMPORT] [Task ${i + 1}/${parsedTasks.length}] SUCCESS: Replaced task '${importedTask.title}'");
           } else if (choice == 'keep_both') {
             await _insertImportedTask(taskProvider, importedTask, user.id, triggerSync: false);
             importedCount++;
+            debugPrint("[AI IMPORT] [Task ${i + 1}/${parsedTasks.length}] SUCCESS: Kept both '${importedTask.title}'");
           }
         } else {
-          debugPrint("[AI IMPORT] No duplicate for task '${importedTask.title}', inserting...");
+          debugPrint("[AI IMPORT] [Task ${i + 1}/${parsedTasks.length}] Inserting task '${importedTask.title}'...");
           await _insertImportedTask(taskProvider, importedTask, user.id, triggerSync: false);
           importedCount++;
+          debugPrint("[AI IMPORT] [Task ${i + 1}/${parsedTasks.length}] SUCCESS: Inserted '${importedTask.title}'");
         }
+      } catch (taskErr, stackTrace) {
+        failedCount++;
+        final reason = "Task ${i + 1} ('${importedTask.title}'): $taskErr";
+        failureReasons.add(reason);
+        debugPrint("[AI IMPORT ERROR] [Task ${i + 1}/${parsedTasks.length}] FAILED to import '${importedTask.title}': $taskErr");
+        debugPrintStack(stackTrace: stackTrace);
+        // Continue processing remaining tasks!
       }
+    }
 
-      debugPrint("[AI IMPORT] Import processing complete. Imported: $importedCount, Skipped: $skippedCount");
-      debugPrint("[AI IMPORT] Visible task count after import (before sync): ${taskProvider.tasks.length}");
+    debugPrint("========== [AI PLAN IMPORT SUMMARY] ==========");
+    debugPrint("[AI IMPORT] Parsed tasks: ${parsedTasks.length}");
+    debugPrint("[AI IMPORT] Successfully imported: $importedCount");
+    debugPrint("[AI IMPORT] Skipped duplicates: $skippedCount");
+    debugPrint("[AI IMPORT] Failed tasks: $failedCount");
+    if (failureReasons.isNotEmpty) {
+      debugPrint("[AI IMPORT] Failure Details:");
+      for (var r in failureReasons) {
+        debugPrint("  ❌ $r");
+      }
+    }
+    debugPrint("==============================================");
 
+    try {
       if (importedCount > 0) {
         debugPrint("[AI IMPORT] Triggering single synchronization session for user ${user.id}");
         await taskProvider.triggerSync(user.id);
@@ -550,10 +580,7 @@ User request/schedule to plan:
         _showSuccessSummaryDialog(context, importedCount, skippedCount);
       }
     } catch (e) {
-      debugPrint("[AI IMPORT] Exception in _processImport: $e");
-      if (context.mounted) {
-        _showErrorDialog(context, "Error during import: ${e.toString()}");
-      }
+      debugPrint("[AI IMPORT] Exception during sync/dialog: $e");
     }
   }
 

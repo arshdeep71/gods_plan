@@ -552,6 +552,7 @@ class NotificationService {
   Future<void> scheduleTaskReminder(int id, String title, DateTime scheduledTime, String taskId) async {
     final reminder = ReminderModel(
       id: id.toString(),
+      userId: DatabaseService().currentUserId ?? '',
       taskId: taskId,
       scheduledTime: scheduledTime,
       type: 'REMINDER',

@@ -526,33 +526,39 @@ class TaskProvider extends ChangeNotifier {
       // Schedule offsets: 15m before, 5m before, and exact time
       final offsets = [15, 5, 0];
       for (final offset in offsets) {
-        final scheduledTime = DateTime(date.year, date.month, date.day, hour, minute).subtract(Duration(minutes: offset));
-        
-        if (scheduledTime.isAfter(now)) {
-          final reminderId = "${task.id}_${offset}_$dateStr";
+        try {
+          final scheduledTime = DateTime(date.year, date.month, date.day, hour, minute).subtract(Duration(minutes: offset));
           
-          final reminder = ReminderModel(
-            id: reminderId,
-            taskId: task.id,
-            scheduledTime: scheduledTime,
-            type: 'REMINDER',
-            title: offset == 0 ? 'Task Reminder' : '$offset min warning: ${task.title}',
-            body: offset == 0 ? task.title : 'Task starts in $offset minutes.',
-            repeatPattern: 'ONCE', // We pre-generate, so each scheduled item is a one-time reminder
-            createdAt: DateTime.now(),
-            updatedAt: DateTime.now(),
-          );
+          if (scheduledTime.isAfter(now)) {
+            final reminderId = "${task.id}_${offset}_$dateStr";
+            
+            final reminder = ReminderModel(
+              id: reminderId,
+              userId: task.userId,
+              taskId: task.id,
+              scheduledTime: scheduledTime,
+              type: 'REMINDER',
+              title: offset == 0 ? 'Task Reminder' : '$offset min warning: ${task.title}',
+              body: offset == 0 ? task.title : 'Task starts in $offset minutes.',
+              repeatPattern: 'ONCE', // We pre-generate, so each scheduled item is a one-time reminder
+              createdAt: DateTime.now(),
+              updatedAt: DateTime.now(),
+            );
 
-          await _dbService.upsertLocalReminder(reminder);
-          
-          await _dbService.queueMutation(SyncItem(
-            actionType: 'INSERT',
-            tableName: 'reminders',
-            recordId: reminder.id,
-            payload: reminder.toJson(),
-          ));
+            await _dbService.upsertLocalReminder(reminder);
+            
+            await _dbService.queueMutation(SyncItem(
+              actionType: 'INSERT',
+              tableName: 'reminders',
+              recordId: reminder.id,
+              payload: reminder.toJson(),
+            ));
 
-          await NotificationService().scheduleReminder(reminder.id.hashCode & 0x7FFFFFFF, reminder);
+            await NotificationService().scheduleReminder(reminder.id.hashCode & 0x7FFFFFFF, reminder);
+          }
+        } catch (e, st) {
+          debugPrint("[REMINDER ERROR] Non-fatal error scheduling reminder for task ${task.id} (offset $offset): $e");
+          debugPrintStack(stackTrace: st);
         }
       }
     }
