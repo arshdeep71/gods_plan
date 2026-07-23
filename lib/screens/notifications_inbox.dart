@@ -80,7 +80,8 @@ class _NotificationsInboxScreenState extends State<NotificationsInboxScreen> wit
         
         if (mounted) {
           setState(() {
-            _history = history;
+            _history = history.where((h) => h.timestamp.isBefore(now)).toList();
+            _history.sort((a, b) => b.timestamp.compareTo(a.timestamp));
             _upcoming = reminders.where((r) => r.scheduledTime.isAfter(now) && !r.isCompleted).toList();
             _upcoming.sort((a, b) => a.scheduledTime.compareTo(b.scheduledTime));
             _isLoading = false;
@@ -122,7 +123,11 @@ class _NotificationsInboxScreenState extends State<NotificationsInboxScreen> wit
   }
 
   List<NotificationHistoryModel> _getFilteredHistory() {
+    final now = DateTime.now();
     return _history.where((h) {
+      // STRICT RULE: History tab ONLY contains past events
+      if (h.timestamp.isAfter(now)) return false;
+
       if (_searchQuery.isNotEmpty) {
         final matchesTitle = h.title.toLowerCase().contains(_searchQuery);
         final matchesBody = h.body.toLowerCase().contains(_searchQuery);
@@ -433,7 +438,7 @@ class _NotificationsInboxScreenState extends State<NotificationsInboxScreen> wit
 
   Widget _buildUpcomingList() {
     final filtered = _getFilteredUpcoming();
-    if (filtered.isEmpty) return _buildEmptyState('No upcoming reminders 🎉', CupertinoIcons.calendar);
+    if (filtered.isEmpty) return _buildEmptyState('No upcoming tasks 🎉', CupertinoIcons.calendar);
 
     return ListView.builder(
       padding: const EdgeInsets.all(16),
@@ -442,6 +447,7 @@ class _NotificationsInboxScreenState extends State<NotificationsInboxScreen> wit
         final item = filtered[index];
         Color color = _getColorForType(item.type, '');
         IconData icon = _getIconForType(item.type);
+        final nextNotifStr = _getUpcomingNextNotificationText(item.scheduledTime);
 
         return Slidable(
           key: ValueKey(item.id),
@@ -451,7 +457,6 @@ class _NotificationsInboxScreenState extends State<NotificationsInboxScreen> wit
               SlidableAction(
                 onPressed: (_) {
                   HapticService().selectionClick();
-                  // Snooze logic goes here if integrated with UI
                 },
                 backgroundColor: Colors.orangeAccent,
                 foregroundColor: Colors.white,
@@ -460,16 +465,126 @@ class _NotificationsInboxScreenState extends State<NotificationsInboxScreen> wit
               ),
             ],
           ),
-          child: _buildNotificationCard(
+          child: _buildUpcomingTaskCard(
             title: item.title,
-            message: item.body,
-            timeStr: _formatDate(item.scheduledTime),
+            scheduledTimeStr: _formatDate(item.scheduledTime),
+            nextNotificationStr: nextNotifStr,
             icon: icon,
             color: color,
-            isUpcoming: true,
           ).animate().fadeIn(duration: 200.ms, delay: (index * 50).ms).slideX(begin: -0.1, end: 0, curve: Curves.easeOut),
         );
       },
+    );
+  }
+
+  String _getUpcomingNextNotificationText(DateTime scheduledTime) {
+    final diff = scheduledTime.difference(DateTime.now());
+    if (diff.inMinutes > 15) {
+      return 'Next reminder: 15 min before';
+    } else if (diff.inMinutes > 5) {
+      return 'Next reminder: 5 min before';
+    } else if (diff.inMinutes > 1) {
+      return 'Next reminder: 1 min before';
+    } else if (diff.inMinutes > 0) {
+      return 'Next notification in 1 minute';
+    } else {
+      return 'Starting now!';
+    }
+  }
+
+  Widget _buildUpcomingTaskCard({
+    required String title,
+    required String scheduledTimeStr,
+    required String nextNotificationStr,
+    required IconData icon,
+    required Color color,
+  }) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color(0xFF161622),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: Colors.blueAccent.withOpacity(0.2),
+          width: 1,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.blueAccent.withOpacity(0.04),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.blueAccent.withOpacity(0.15),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(icon, color: Colors.blueAccent, size: 22),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Row(
+                  children: [
+                    const Icon(CupertinoIcons.clock, size: 13, color: Colors.white54),
+                    const SizedBox(width: 4),
+                    Text(
+                      scheduledTimeStr,
+                      style: const TextStyle(
+                        color: Colors.white70,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: Colors.blueAccent.withOpacity(0.15),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.blueAccent.withOpacity(0.3), width: 0.8),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(CupertinoIcons.bell_fill, size: 11, color: Colors.blueAccent),
+                      const SizedBox(width: 6),
+                      Text(
+                        nextNotificationStr,
+                        style: const TextStyle(
+                          color: Colors.blueAccent,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -595,23 +710,28 @@ class _NotificationsInboxScreenState extends State<NotificationsInboxScreen> wit
 
   String _formatDate(DateTime dt) {
     final now = DateTime.now();
+    final localNow = DateTime(now.year, now.month, now.day);
+    final localDt = DateTime(dt.year, dt.month, dt.day);
+    final dayDiff = localDt.difference(localNow).inDays;
+
+    final timeStr = DateFormat.jm().format(dt.toLocal());
     final difference = now.difference(dt);
-    
-    if (difference.isNegative) {
-      // Future
-      if (dt.year == now.year && dt.month == now.month && dt.day == now.day) {
-        return 'Today, ${DateFormat.jm().format(dt)}';
-      } else if (dt.year == now.year && dt.month == now.month && dt.day == now.day + 1) {
-        return 'Tomorrow, ${DateFormat.jm().format(dt)}';
-      }
-      return DateFormat('MMM d, h:mm a').format(dt);
+
+    if (dayDiff == 0) {
+      return 'Today, $timeStr';
+    } else if (dayDiff == 1) {
+      return 'Tomorrow, $timeStr';
+    } else if (dayDiff == -1) {
+      return 'Yesterday, $timeStr';
+    } else if (dayDiff > 1) {
+      return DateFormat('MMM d, h:mm a').format(dt.toLocal());
     } else {
-      // Past
+      // Past dates beyond yesterday
       if (difference.inMinutes < 1) return 'Just now';
       if (difference.inMinutes < 60) return '${difference.inMinutes}m ago';
       if (difference.inHours < 24) return '${difference.inHours}h ago';
       if (difference.inDays < 7) return '${difference.inDays}d ago';
-      return DateFormat('MMM d, h:mm a').format(dt);
+      return DateFormat('MMM d, h:mm a').format(dt.toLocal());
     }
   }
 }

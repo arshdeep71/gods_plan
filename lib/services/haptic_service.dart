@@ -135,4 +135,40 @@ class HapticService {
       if (_hapticsEnabled) HapticFeedback.heavyImpact();
     });
   }
+
+  // Category & Notification Specific Haptics
+  void softPulse() {
+    if (!_hapticsEnabled) return;
+    HapticFeedback.lightImpact();
+    Future.delayed(const Duration(milliseconds: 100), () {
+      if (_hapticsEnabled) HapticFeedback.lightImpact();
+    });
+  }
+
+  void urgentTwoTaps() {
+    if (!_hapticsEnabled) return;
+    HapticFeedback.mediumImpact();
+    Future.delayed(const Duration(milliseconds: 80), () {
+      if (_hapticsEnabled) HapticFeedback.heavyImpact();
+    });
+  }
+
+  void itsTime() {
+    if (!_hapticsEnabled) return;
+    HapticFeedback.heavyImpact();
+    Future.delayed(const Duration(milliseconds: 120), () {
+      if (_hapticsEnabled) HapticFeedback.heavyImpact();
+    });
+  }
+
+  void missedTaskWarning() {
+    if (!_hapticsEnabled) return;
+    HapticFeedback.heavyImpact();
+    Future.delayed(const Duration(milliseconds: 150), () {
+      if (_hapticsEnabled) HapticFeedback.heavyImpact();
+    });
+    Future.delayed(const Duration(milliseconds: 300), () {
+      if (_hapticsEnabled) HapticFeedback.mediumImpact();
+    });
+  }
 }

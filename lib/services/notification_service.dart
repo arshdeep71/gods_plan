@@ -1,3 +1,4 @@
+import 'dart:math';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:timezone/data/latest_all.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
@@ -8,9 +9,12 @@ import 'dart:io' show Platform;
 
 import 'package:flutter_timezone/flutter_timezone.dart';
 import 'package:flutter_app_badger/flutter_app_badger.dart';
+import 'package:intl/intl.dart';
 import 'database_service.dart';
+import 'live_activity_service.dart';
 import '../models/reminder_model.dart';
 import '../models/notification_history_model.dart';
+import '../utils/notification_templates.dart';
 import 'package:uuid/uuid.dart';
 
 class NotificationService {
@@ -549,41 +553,227 @@ class NotificationService {
     debugPrint("END: scheduleReminder(id=$id) OK");
   }
 
-  /// Schedule 3 random daily motivation notifications (Morning, Afternoon, Evening)
+  void _logScheduledNotification({
+    required int id,
+    required String taskTitle,
+    required String type,
+    required DateTime fireTime,
+  }) {
+    final formattedFireTime = DateFormat('d MMM h:mm a').format(fireTime);
+    debugPrint("----------------------------------------");
+    debugPrint("Scheduling notification");
+    debugPrint("ID: $id");
+    debugPrint("Task: $taskTitle");
+    debugPrint("Type: $type");
+    debugPrint("Fire time: $formattedFireTime");
+    debugPrint("----------------------------------------");
+  }
+
+  Future<void> logPendingNotifications() async {
+    if (kIsWeb) return;
+    try {
+      final List<PendingNotificationRequest> pending = await flutterLocalNotificationsPlugin.pendingNotificationRequests();
+      debugPrint("=== PENDING NOTIFICATIONS CHECK (${pending.length} active) ===");
+      for (final req in pending) {
+        debugPrint("ID: ${req.id} | Title: '${req.title}' | Payload: ${req.payload}");
+      }
+      debugPrint("=================================================");
+    } catch (e) {
+      debugPrint("Failed to dump pending notifications: $e");
+    }
+  }
+
+  /// Smart Countdown Scheduling Algorithm
+  /// Evaluates remaining time to task scheduled start:
+  /// - 0–3 mins: Instant confirmation (~5-10s) + 1m & 0m countdown
+  /// - 3–20 mins: Instant confirmation (~5-10s) + remaining valid countdowns + Live Activity
+  /// - >20 mins: Standard scheduled countdowns
+  /// Includes Missed-task follow-up 5 mins post-start (cancelled if task completed).
+  Future<void> scheduleTaskSmartCountdown({
+    required String taskId,
+    required String taskTitle,
+    required DateTime taskScheduledTime,
+    required String userId,
+  }) async {
+    if (kIsWeb) return;
+    final now = DateTime.now();
+    final remainingMinutes = taskScheduledTime.difference(now).inMinutes;
+    final baseId = taskId.hashCode & 0x7FFFFFFF;
+
+    // Instant Confirmation for tasks 0–20 mins away
+    if (remainingMinutes <= 3 && remainingMinutes >= 0) {
+      _scheduleInstantConfirmation(baseId, taskId, taskTitle, remainingMinutes);
+    } else if (remainingMinutes > 3 && remainingMinutes <= 20) {
+      _scheduleInstantConfirmation(baseId, taskId, taskTitle, remainingMinutes);
+      LiveActivityService().startTaskActivity(taskTitle, taskScheduledTime);
+    }
+
+    // Schedule remaining valid countdown alarms
+    List<int> offsets = [];
+    if (remainingMinutes > 15) {
+      offsets = [15, 5, 1, 0];
+    } else if (remainingMinutes > 5) {
+      offsets = [5, 1, 0];
+    } else if (remainingMinutes > 1) {
+      offsets = [1, 0];
+    } else if (remainingMinutes >= 0) {
+      offsets = [0];
+    }
+
+    for (final offset in offsets) {
+      try {
+        final reminderTime = taskScheduledTime.subtract(Duration(minutes: offset));
+        if (reminderTime.isBefore(now)) continue;
+
+        final int notifId = (baseId + offset * 100) & 0x7FFFFFFF;
+        final template = NotificationTemplates.getCountdownTemplate(offset, taskTitle);
+        final tzTime = tz.TZDateTime.from(reminderTime, tz.local);
+
+        await flutterLocalNotificationsPlugin.zonedSchedule(
+          notifId,
+          template.title,
+          template.body,
+          tzTime,
+          const NotificationDetails(
+            android: AndroidNotificationDetails(
+              'task_reminders',
+              'Task Reminders',
+              channelDescription: 'Reminders for your daily tasks',
+              importance: Importance.max,
+              priority: Priority.high,
+            ),
+            iOS: DarwinNotificationDetails(
+              categoryIdentifier: 'task_reminder_category',
+            ),
+          ),
+          androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+          uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime,
+          payload: "$taskId|countdown_$offset",
+        );
+
+        _logScheduledNotification(
+          id: notifId,
+          taskTitle: taskTitle,
+          type: offset == 0 ? "0-minute (Start)" : "$offset-minute warning",
+          fireTime: reminderTime,
+        );
+      } catch (e) {
+        debugPrint("[SMART_COUNTDOWN_ERROR] Failed offset $offset for task $taskId: $e");
+      }
+    }
+
+    // Missed-task follow-up notification (5 minutes after task start)
+    try {
+      final followUpTime = taskScheduledTime.add(const Duration(minutes: 5));
+      if (followUpTime.isAfter(now)) {
+        final int followUpId = (baseId + 999) & 0x7FFFFFFF;
+        final tzFollowUp = tz.TZDateTime.from(followUpTime, tz.local);
+
+        await flutterLocalNotificationsPlugin.zonedSchedule(
+          followUpId,
+          '⏳ Haven\'t started yet?',
+          'You can still keep today\'s streak alive with "$taskTitle".',
+          tzFollowUp,
+          const NotificationDetails(
+            android: AndroidNotificationDetails(
+              'escalation_reminders',
+              'Follow-up Reminders',
+              channelDescription: 'Follow-ups for uncompleted tasks',
+              importance: Importance.high,
+              priority: Priority.high,
+            ),
+            iOS: DarwinNotificationDetails(
+              categoryIdentifier: 'task_reminder_category',
+            ),
+          ),
+          androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+          uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime,
+          payload: "$taskId|missed_followup",
+        );
+
+        _logScheduledNotification(
+          id: followUpId,
+          taskTitle: taskTitle,
+          type: "Missed Task Follow-up (5-min after start)",
+          fireTime: followUpTime,
+        );
+      }
+    } catch (e) {
+      debugPrint("[MISSED_FOLLOWUP_ERROR] Failed to schedule follow-up for task $taskId: $e");
+    }
+
+    await logPendingNotifications();
+  }
+
+  Future<void> _scheduleInstantConfirmation(int baseId, String taskId, String taskTitle, int remainingMinutes) async {
+    try {
+      final int instantId = (baseId + 99) & 0x7FFFFFFF;
+      final fireTime = tz.TZDateTime.now(tz.local).add(const Duration(seconds: 5));
+
+      final String bodyText = remainingMinutes <= 3
+          ? 'Starts in ${remainingMinutes <= 0 ? 1 : remainingMinutes} minute(s). Stay ready 💪'
+          : 'Starts in $remainingMinutes minutes';
+
+      await flutterLocalNotificationsPlugin.zonedSchedule(
+        instantId,
+        '🏋 $taskTitle added successfully',
+        bodyText,
+        fireTime,
+        const NotificationDetails(
+          android: AndroidNotificationDetails(
+            'task_reminders',
+            'Task Confirmations',
+            channelDescription: 'Instant confirmation for newly created short-term tasks',
+            importance: Importance.max,
+            priority: Priority.high,
+          ),
+          iOS: DarwinNotificationDetails(
+            categoryIdentifier: 'task_reminder_category',
+          ),
+        ),
+        androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+        uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime,
+        payload: "$taskId|instant_confirmation",
+      );
+
+      _logScheduledNotification(
+        id: instantId,
+        taskTitle: taskTitle,
+        type: "Instant Confirmation (5s delay)",
+        fireTime: DateTime.now().add(const Duration(seconds: 5)),
+      );
+    } catch (e) {
+      debugPrint("[INSTANT_CONFIRMATION_ERROR] Failed instant confirmation for task $taskId: $e");
+    }
+  }
+
+  /// Schedule 3 randomized daily motivation notifications (Morning, Afternoon, Evening)
   Future<void> scheduleDailyMotivationNotifications(String userId) async {
     if (kIsWeb) return;
     try {
-      final List<Map<String, String>> quotes = [
-        {'title': '💪 Stay Consistent', 'body': "Keep going. Every small step counts!"},
-        {'title': '🔥 Maintain Your Streak', 'body': "Don't break today's streak. You've got this!"},
-        {'title': '🚀 Build Your Future', 'body': "You're building your future right now. Stay focused."},
-        {'title': '✨ One Task at a Time', 'body': "One task at a time. Quality over rush."},
-        {'title': '🎯 Mindful Focus', 'body': "Stay focused on what matters most today."},
-        {'title': '🌟 Remember Your Why', 'body': "You started for a reason. Keep pushing!"},
-      ];
-
+      final random = Random();
       final now = DateTime.now();
-      
-      // Slot 1: Morning (9:00 AM)
-      final morningTime = DateTime(now.year, now.month, now.day, 9, 0);
-      // Slot 2: Afternoon (2:00 PM)
-      final afternoonTime = DateTime(now.year, now.month, now.day, 14, 0);
-      // Slot 3: Evening (7:00 PM)
-      final eveningTime = DateTime(now.year, now.month, now.day, 19, 0);
+
+      // Morning window: random minute between 8:00 AM and 10:30 AM (150 min span)
+      final morningTime = DateTime(now.year, now.month, now.day, 8, 0).add(Duration(minutes: random.nextInt(150)));
+      // Afternoon window: random minute between 1:00 PM and 3:30 PM (150 min span)
+      final afternoonTime = DateTime(now.year, now.month, now.day, 13, 0).add(Duration(minutes: random.nextInt(150)));
+      // Evening window: random minute between 6:30 PM and 9:00 PM (150 min span)
+      final eveningTime = DateTime(now.year, now.month, now.day, 18, 30).add(Duration(minutes: random.nextInt(150)));
 
       final times = [morningTime, afternoonTime, eveningTime];
 
       for (int i = 0; i < times.length; i++) {
         final targetTime = times[i].isBefore(now) ? times[i].add(const Duration(days: 1)) : times[i];
-        final quote = quotes[i % quotes.length];
+        final template = NotificationTemplates.getRandomMotivation();
         final id = 990000 + i;
 
         final tzTime = tz.TZDateTime.from(targetTime, tz.local);
         
         await flutterLocalNotificationsPlugin.zonedSchedule(
           id,
-          quote['title']!,
-          quote['body']!,
+          template.title,
+          template.body,
           tzTime,
           const NotificationDetails(
             android: AndroidNotificationDetails(
@@ -601,20 +791,8 @@ class NotificationService {
           uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime,
           matchDateTimeComponents: DateTimeComponents.time,
         );
-
-        // Record motivation history
-        final history = NotificationHistoryModel(
-          id: const Uuid().v4(),
-          title: quote['title']!,
-          body: quote['body']!,
-          timestamp: targetTime,
-          type: 'MOTIVATION',
-          status: 'DELIVERED',
-          userId: userId,
-        );
-        await DatabaseService().insertLocalNotificationHistory(history);
       }
-      debugPrint("[MOTIVATION] 3 daily motivation notifications scheduled successfully.");
+      debugPrint("[MOTIVATION] 3 randomized daily motivation notifications scheduled successfully.");
     } catch (e) {
       debugPrint("[MOTIVATION ERROR] Failed to schedule daily motivation: $e");
     }
@@ -677,5 +855,21 @@ class NotificationService {
     for (int i = 1; i <= 5; i++) {
       await flutterLocalNotificationsPlugin.cancel(id + i * 1000000);
     }
+  }
+
+  Future<void> cancelTaskNotifications(String taskId) async {
+    final baseId = taskId.hashCode & 0x7FFFFFFF;
+    await cancelReminder(baseId);
+    
+    // Cancel smart countdown offsets (15m, 5m, 1m, 0m), instant (99), missed task follow-up (999)
+    final offsets = [1500, 500, 100, 0, 99, 999];
+    for (final offset in offsets) {
+      final notifId = (baseId + offset) & 0x7FFFFFFF;
+      await flutterLocalNotificationsPlugin.cancel(notifId);
+    }
+    
+    // End Live Activity if running
+    LiveActivityService().endTaskActivity();
+    debugPrint("[CANCEL_NOTIFS] Cancelled all scheduled notifications & follow-ups for task '$taskId'");
   }
 }

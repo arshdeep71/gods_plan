@@ -10,6 +10,7 @@ import '../models/reminder_model.dart';
 import '../services/audio_service.dart';
 import '../services/haptic_service.dart';
 import '../services/live_activity_service.dart';
+import '../utils/notification_templates.dart';
 
 enum DayStreakStatus {
   perfect,    // 100%
@@ -524,7 +525,7 @@ class TaskProvider extends ChangeNotifier {
     final now = DateTime.now();
     final emoji = _getTaskEmoji(task.title);
 
-    // Schedule countdown offsets: 15m, 5m, 1m before, and 0m (exact time)
+    // Schedule 1 reminder per task occurrence and trigger smart countdown system push alarms
     for (final date in occurrenceDates) {
       final dateStr = "${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}";
       
@@ -536,57 +537,44 @@ class TaskProvider extends ChangeNotifier {
         continue;
       }
 
-      final offsets = [15, 5, 1, 0];
-      for (final offset in offsets) {
+      final taskStart = DateTime(date.year, date.month, date.day, hour, minute);
+
+      if (taskStart.isAfter(now)) {
         try {
-          final scheduledTime = DateTime(date.year, date.month, date.day, hour, minute).subtract(Duration(minutes: offset));
+          final reminderId = "${task.id}_$dateStr";
+          final template = NotificationTemplates.getCountdownTemplate(0, task.title);
+
+          final reminder = ReminderModel(
+            id: reminderId,
+            userId: task.userId,
+            taskId: task.id,
+            scheduledTime: taskStart,
+            type: 'REMINDER',
+            title: "$emoji ${task.title}",
+            body: template.body,
+            repeatPattern: task.isRecurring ? task.repeatType.toUpperCase() : 'ONCE',
+            createdAt: DateTime.now(),
+            updatedAt: DateTime.now(),
+          );
+
+          await _dbService.upsertLocalReminder(reminder);
           
-          if (scheduledTime.isAfter(now)) {
-            final reminderId = "${task.id}_${offset}_$dateStr";
-            
-            String titleText;
-            String bodyText;
+          await _dbService.queueMutation(SyncItem(
+            actionType: 'INSERT',
+            tableName: 'reminders',
+            recordId: reminder.id,
+            payload: reminder.toJson(),
+          ));
 
-            if (offset == 15) {
-              titleText = "$emoji 15m Warning: ${task.title}";
-              bodyText = "Starts in 15 minutes. Stay consistent 💪";
-            } else if (offset == 5) {
-              titleText = "$emoji 5m Warning: ${task.title}";
-              bodyText = "Starts in 5 minutes. Get ready! 🚀";
-            } else if (offset == 1) {
-              titleText = "🚨 1m Warning: ${task.title}";
-              bodyText = "Starts in 1 minute. Almost time!";
-            } else {
-              titleText = "$emoji It's Time: ${task.title}";
-              bodyText = "Your task starts now. You got this! 🔥";
-            }
-
-            final reminder = ReminderModel(
-              id: reminderId,
-              userId: task.userId,
-              taskId: task.id,
-              scheduledTime: scheduledTime,
-              type: 'REMINDER',
-              title: titleText,
-              body: bodyText,
-              repeatPattern: 'ONCE',
-              createdAt: DateTime.now(),
-              updatedAt: DateTime.now(),
-            );
-
-            await _dbService.upsertLocalReminder(reminder);
-            
-            await _dbService.queueMutation(SyncItem(
-              actionType: 'INSERT',
-              tableName: 'reminders',
-              recordId: reminder.id,
-              payload: reminder.toJson(),
-            ));
-
-            await NotificationService().scheduleReminder(reminder.id.hashCode & 0x7FFFFFFF, reminder);
-          }
+          // Schedule intelligent countdown push alarms (15m, 5m, 1m, 0m dynamically based on remaining time)
+          await NotificationService().scheduleTaskSmartCountdown(
+            taskId: task.id,
+            taskTitle: task.title,
+            taskScheduledTime: taskStart,
+            userId: task.userId,
+          );
         } catch (e, st) {
-          debugPrint("[REMINDER ERROR] Non-fatal error scheduling reminder for task ${task.id} (offset $offset): $e");
+          debugPrint("[REMINDER ERROR] Non-fatal error scheduling reminder for task ${task.id}: $e");
           debugPrintStack(stackTrace: st);
         }
       }
@@ -732,8 +720,8 @@ class TaskProvider extends ChangeNotifier {
       AudioService().playSuccess();
       HapticService().success();
 
-      // End Live Activity if this task was the active one
-      await LiveActivityService().endTaskActivity();
+      // End Live Activity and cancel all pending reminders & follow-ups for this task
+      await NotificationService().cancelTaskNotifications(task.id);
 
       final completionId = _uuid.v4();
       final completion = {
