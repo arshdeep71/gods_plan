@@ -82,6 +82,7 @@ class DatabaseService {
   }
 
   Future<Database> _initSqlite() async {
+    debugPrint("[DB_INIT] Opening SQLite database...");
     final dbPath = await getSqliteDatabasesPath();
     final pathString = join(dbPath, 'gods_plan.db');
     
@@ -89,17 +90,26 @@ class DatabaseService {
       pathString,
       version: 1,
       onCreate: (db, version) async {
+        debugPrint("[DB_INIT] onCreate triggered for fresh database");
         await _createTables(db);
       },
     );
 
-    // Apply incremental migrations for tasks table by checking existing columns first.
-    // NOTE: We do NOT call _createTables() again here — doing so caused concurrent
-    // sqlite3_exec/sqlite3_step calls in the sqflite WASM worker on web, producing
-    // the "Uncaught Error" in sqflite_sw.js. The onCreate callback handles creation
-    // for fresh databases, and CREATE TABLE IF NOT EXISTS is idempotent for existing ones.
+    // Ensure all tables (including local_reminders & local_notification_history) exist for existing databases
+    debugPrint("[DB_INIT] Running schema verification pass (_createTables)...");
+    await _createTables(db);
+
+    // Log all verified tables in sqlite_master
     try {
-      // Only run migration if local_tasks already exists (onCreate may have just built it)
+      final verifiedTables = await db.rawQuery("SELECT name FROM sqlite_master WHERE type='table'");
+      final tableNames = verifiedTables.map((t) => t['name']?.toString()).whereType<String>().toList();
+      debugPrint("[DB_INIT] VERIFIED SQLITE TABLES IN DATABASE: $tableNames");
+    } catch (e) {
+      debugPrint("[DB_INIT] Table verification query error: $e");
+    }
+
+    // Apply incremental migrations for tasks table by checking existing columns first.
+    try {
       final tables = await db.rawQuery(
         "SELECT name FROM sqlite_master WHERE type='table' AND name='local_tasks'",
       );
@@ -130,7 +140,8 @@ class DatabaseService {
             'local_task_completions', 'local_task_exceptions', 'local_workouts', 
             'local_sleep_logs', 'local_food_logs', 'local_water_logs', 
             'local_addiction_logs', 'local_finance_transactions', 
-            'local_social_contacts', 'local_learning_subjects', 'local_study_logs'
+            'local_social_contacts', 'local_learning_subjects', 'local_study_logs',
+            'local_reminders', 'local_notification_history'
         ];
         
         for (final t in otherTables) {
@@ -138,7 +149,7 @@ class DatabaseService {
             if (tCheck.isNotEmpty) {
                 final tCols = await db.rawQuery('PRAGMA table_info($t)');
                 final tColNames = tCols.map((c) => c['name']?.toString().toLowerCase()).toList();
-                if (!tColNames.contains('deleted_at')) {
+                if (!tColNames.contains('deleted_at') && t != 'local_notification_history') {
                     try { await db.execute("ALTER TABLE $t ADD COLUMN deleted_at TEXT"); } catch (_) {}
                 }
             }
@@ -175,7 +186,9 @@ class DatabaseService {
       try {
         await db.execute("DROP TABLE IF EXISTS reminders");
       } catch (_) {}
-    } catch (_) {}
+    } catch (e) {
+      debugPrint("[DB_INIT] Migration error: $e");
+    }
 
     return db;
   }
