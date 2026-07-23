@@ -263,9 +263,9 @@ class _AppLockWrapperState extends State<AppLockWrapper> with WidgetsBindingObse
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    // Lock the app immediately when it goes to the background
-    if (state == AppLifecycleState.paused) {
-      final userId = Supabase.instance.client.auth.currentUser?.id;
+    // Lock the app immediately when minimized, paused, inactive, or hidden
+    if (state == AppLifecycleState.paused || state == AppLifecycleState.hidden || state == AppLifecycleState.inactive) {
+      final userId = Supabase.instance.client.auth.currentUser?.id ?? _dbService.currentUserId;
       final pin = userId != null ? _dbService.settingsBox.get('app_lock_pin_$userId') as String? : null;
       if (pin != null && pin.isNotEmpty) {
         setState(() {

@@ -528,6 +528,7 @@ class NotificationService {
               ),
               iOS: const DarwinNotificationDetails(
                 categoryIdentifier: 'task_reminder_category',
+                interruptionLevel: InterruptionLevel.timeSensitive,
               ),
             ),
             androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
@@ -546,6 +547,77 @@ class NotificationService {
     }
 
     debugPrint("END: scheduleReminder(id=$id) OK");
+  }
+
+  /// Schedule 3 random daily motivation notifications (Morning, Afternoon, Evening)
+  Future<void> scheduleDailyMotivationNotifications(String userId) async {
+    if (kIsWeb) return;
+    try {
+      final List<Map<String, String>> quotes = [
+        {'title': '💪 Stay Consistent', 'body': "Keep going. Every small step counts!"},
+        {'title': '🔥 Maintain Your Streak', 'body': "Don't break today's streak. You've got this!"},
+        {'title': '🚀 Build Your Future', 'body': "You're building your future right now. Stay focused."},
+        {'title': '✨ One Task at a Time', 'body': "One task at a time. Quality over rush."},
+        {'title': '🎯 Mindful Focus', 'body': "Stay focused on what matters most today."},
+        {'title': '🌟 Remember Your Why', 'body': "You started for a reason. Keep pushing!"},
+      ];
+
+      final now = DateTime.now();
+      
+      // Slot 1: Morning (9:00 AM)
+      final morningTime = DateTime(now.year, now.month, now.day, 9, 0);
+      // Slot 2: Afternoon (2:00 PM)
+      final afternoonTime = DateTime(now.year, now.month, now.day, 14, 0);
+      // Slot 3: Evening (7:00 PM)
+      final eveningTime = DateTime(now.year, now.month, now.day, 19, 0);
+
+      final times = [morningTime, afternoonTime, eveningTime];
+
+      for (int i = 0; i < times.length; i++) {
+        final targetTime = times[i].isBefore(now) ? times[i].add(const Duration(days: 1)) : times[i];
+        final quote = quotes[i % quotes.length];
+        final id = 990000 + i;
+
+        final tzTime = tz.TZDateTime.from(targetTime, tz.local);
+        
+        await flutterLocalNotificationsPlugin.zonedSchedule(
+          id,
+          quote['title']!,
+          quote['body']!,
+          tzTime,
+          const NotificationDetails(
+            android: AndroidNotificationDetails(
+              'motivation_channel',
+              'Daily Motivation',
+              channelDescription: 'Daily motivational quotes and reminders',
+              importance: Importance.defaultImportance,
+              priority: Priority.defaultPriority,
+            ),
+            iOS: DarwinNotificationDetails(
+              interruptionLevel: InterruptionLevel.active,
+            ),
+          ),
+          androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+          uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime,
+          matchDateTimeComponents: DateTimeComponents.time,
+        );
+
+        // Record motivation history
+        final history = NotificationHistoryModel(
+          id: const Uuid().v4(),
+          title: quote['title']!,
+          body: quote['body']!,
+          timestamp: targetTime,
+          type: 'MOTIVATION',
+          status: 'DELIVERED',
+          userId: userId,
+        );
+        await DatabaseService().insertLocalNotificationHistory(history);
+      }
+      debugPrint("[MOTIVATION] 3 daily motivation notifications scheduled successfully.");
+    } catch (e) {
+      debugPrint("[MOTIVATION ERROR] Failed to schedule daily motivation: $e");
+    }
   }
 
   // Legacy wrapper
@@ -589,6 +661,7 @@ class NotificationService {
         ),
         iOS: DarwinNotificationDetails(
           categoryIdentifier: 'task_reminder_category',
+          interruptionLevel: InterruptionLevel.timeSensitive,
         ),
       ),
       androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,

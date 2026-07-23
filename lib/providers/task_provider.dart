@@ -426,6 +426,18 @@ class TaskProvider extends ChangeNotifier {
     return days[month];
   }
 
+  String _getTaskEmoji(String title) {
+    final lower = title.toLowerCase();
+    if (lower.contains('gym') || lower.contains('workout') || lower.contains('exercise') || lower.contains('run') || lower.contains('fitness')) return '🏋️';
+    if (lower.contains('study') || lower.contains('read') || lower.contains('learn') || lower.contains('book') || lower.contains('dsa') || lower.contains('exam')) return '📚';
+    if (lower.contains('eat') || lower.contains('lunch') || lower.contains('dinner') || lower.contains('breakfast') || lower.contains('food') || lower.contains('meal')) return '🍽️';
+    if (lower.contains('water') || lower.contains('drink') || lower.contains('hydrate')) return '💧';
+    if (lower.contains('sleep') || lower.contains('bed') || lower.contains('rest')) return '😴';
+    if (lower.contains('code') || lower.contains('dev') || lower.contains('project') || lower.contains('work')) return '💻';
+    if (lower.contains('meditat') || lower.contains('yoga') || lower.contains('mindful')) return '🧘';
+    return '⏰';
+  }
+
   Future<void> _syncRemindersForTask(Task task) async {
     // First, delete existing reminders for this task to recreate them cleanly
     final existingReminders = await _dbService.getLocalReminders(task.userId);
@@ -510,8 +522,9 @@ class TaskProvider extends ChangeNotifier {
     }
 
     final now = DateTime.now();
+    final emoji = _getTaskEmoji(task.title);
 
-    // Schedule reminders for each occurrence
+    // Schedule countdown offsets: 15m, 5m, 1m before, and 0m (exact time)
     for (final date in occurrenceDates) {
       final dateStr = "${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}";
       
@@ -523,8 +536,7 @@ class TaskProvider extends ChangeNotifier {
         continue;
       }
 
-      // Schedule offsets: 15m before, 5m before, and exact time
-      final offsets = [15, 5, 0];
+      final offsets = [15, 5, 1, 0];
       for (final offset in offsets) {
         try {
           final scheduledTime = DateTime(date.year, date.month, date.day, hour, minute).subtract(Duration(minutes: offset));
@@ -532,15 +544,32 @@ class TaskProvider extends ChangeNotifier {
           if (scheduledTime.isAfter(now)) {
             final reminderId = "${task.id}_${offset}_$dateStr";
             
+            String titleText;
+            String bodyText;
+
+            if (offset == 15) {
+              titleText = "$emoji 15m Warning: ${task.title}";
+              bodyText = "Starts in 15 minutes. Stay consistent 💪";
+            } else if (offset == 5) {
+              titleText = "$emoji 5m Warning: ${task.title}";
+              bodyText = "Starts in 5 minutes. Get ready! 🚀";
+            } else if (offset == 1) {
+              titleText = "🚨 1m Warning: ${task.title}";
+              bodyText = "Starts in 1 minute. Almost time!";
+            } else {
+              titleText = "$emoji It's Time: ${task.title}";
+              bodyText = "Your task starts now. You got this! 🔥";
+            }
+
             final reminder = ReminderModel(
               id: reminderId,
               userId: task.userId,
               taskId: task.id,
               scheduledTime: scheduledTime,
               type: 'REMINDER',
-              title: offset == 0 ? 'Task Reminder' : '$offset min warning: ${task.title}',
-              body: offset == 0 ? task.title : 'Task starts in $offset minutes.',
-              repeatPattern: 'ONCE', // We pre-generate, so each scheduled item is a one-time reminder
+              title: titleText,
+              body: bodyText,
+              repeatPattern: 'ONCE',
               createdAt: DateTime.now(),
               updatedAt: DateTime.now(),
             );
