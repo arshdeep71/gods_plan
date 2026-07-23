@@ -11,9 +11,9 @@ The following plugins do not support Swift Package Manager for ios:
   - flutter_timezone
   - live_activities
 This will become an error in a future version of Flutter. Please contact the plugin maintainers to request Swift Package Manager adoption.
-Running pod install...                                           1,089ms
+Running pod install...                                           1,520ms
 Running Xcode build...                                          
-Xcode build done.                                           55.9s
+Xcode build done.                                           86.0s
 Failed to build iOS app
 Error output from Xcode build:
 ↳
@@ -23,7 +23,7 @@ Error output from Xcode build:
 Xcode's output:
 ↳
     Writing result bundle at path:
-    	/var/folders/g3/pffjr_y96bq06blnkf72x_hw0000gn/T/flutter_tools.wNJN3z/flutter_ios_build_temp_dirUqlDy5/temporary_xcresult_bundle
+    	/var/folders/g3/pffjr_y96bq06blnkf72x_hw0000gn/T/flutter_tools.UKjsAc/flutter_ios_build_temp_dirs4moI8/temporary_xcresult_bundle
 
     /Users/runner/.pub-cache/hosted/pub.dev/live_activities-1.9.5/ios/Classes/SwiftLiveActivitiesPlugin.swift:270:13: warning: variable 'state' was never mutated; consider changing to 'let' constant
             var state = activityStateToString(activityState: matchingActivity.activityState)
@@ -138,73 +138,76 @@ Xcode's output:
     - (void)registerUserNotificationSettings:(UIUserNotificationSettings *)notificationSettings API_DEPRECATED("Use UserNotifications Framework's -[UNUserNotificationCenter requestAuthorizationWithOptions:completionHandler:] and -[UNUserNotificationCenter setNotificationCategories:]", ios(8.0, 10.0)) API_UNAVAILABLE(visionos) API_UNAVAILABLE(tvos);
     ^
     7 warnings generated.
-    lib/services/encryption_service.dart:13:3: Error: 'encrypt.Key' can't be used as a type because 'encrypt' doesn't refer to an import prefix.
-      encrypt.Key? _key;
-      ^^^^^^^^^^^
-    lib/services/encryption_service.dart:24:36: Error: The getter 'Key' isn't defined for the type 'String Function(String)'.
-    Try correcting the name to the name of an existing getter, or defining a getter or field named 'Key'.
-              final keyBytes = encrypt.Key.fromSecureRandom(32);
-                                       ^^^
-    lib/services/encryption_service.dart:28:24: Error: The getter 'Key' isn't defined for the type 'String Function(String)'.
-    Try correcting the name to the name of an existing getter, or defining a getter or field named 'Key'.
-            _key = encrypt.Key.fromBase64(keyBase64);
-                           ^^^
-    lib/services/encryption_service.dart:36:34: Error: The getter 'Key' isn't defined for the type 'String Function(String)'.
-    Try correcting the name to the name of an existing getter, or defining a getter or field named 'Key'.
-            final keyBytes = encrypt.Key.fromSecureRandom(32);
-                                     ^^^
-    lib/services/encryption_service.dart:41:22: Error: The getter 'Key' isn't defined for the type 'String Function(String)'.
-    Try correcting the name to the name of an existing getter, or defining a getter or field named 'Key'.
-          _key = encrypt.Key.fromBase64(keyBase64);
-                         ^^^
-    lib/services/encryption_service.dart:48:36: Error: The getter 'Key' isn't defined for the type 'String Function(String)'.
-    Try correcting the name to the name of an existing getter, or defining a getter or field named 'Key'.
-              final keyBytes = encrypt.Key.fromSecureRandom(32);
-                                       ^^^
-    lib/services/encryption_service.dart:52:24: Error: The getter 'Key' isn't defined for the type 'String Function(String)'.
-    Try correcting the name to the name of an existing getter, or defining a getter or field named 'Key'.
-            _key = encrypt.Key.fromBase64(keyBase64);
-                           ^^^
-    lib/services/encryption_service.dart:55:24: Error: The getter 'Key' isn't defined for the type 'String Function(String)'.
-    Try correcting the name to the name of an existing getter, or defining a getter or field named 'Key'.
-            _key = encrypt.Key.fromBase64(base64Encode(List.filled(32, 0)));
-                           ^^^
-    lib/services/encryption_service.dart:65:26: Error: The getter 'IV' isn't defined for the type 'String Function(String)'.
-    Try correcting the name to the name of an existing getter, or defining a getter or field named 'IV'.
-          final iv = encrypt.IV.fromSecureRandom(16);
-                             ^^
-    lib/services/encryption_service.dart:66:76: Error: The getter 'AESMode' isn't defined for the type 'String Function(String)'.
-    Try correcting the name to the name of an existing getter, or defining a getter or field named 'AESMode'.
-          final encrypter = encrypt.Encrypter(encrypt.AES(_key!, mode: encrypt.AESMode.cbc));
-                                                                               ^^^^^^^
-    lib/services/encryption_service.dart:66:51: Error: The method 'AES' isn't defined for the type 'String Function(String)'.
-    Try correcting the name to the name of an existing method, or defining a method named 'AES'.
-          final encrypter = encrypt.Encrypter(encrypt.AES(_key!, mode: encrypt.AESMode.cbc));
-                                                      ^^^
-    lib/services/encryption_service.dart:66:33: Error: The method 'Encrypter' isn't defined for the type 'String Function(String)'.
-    Try correcting the name to the name of an existing method, or defining a method named 'Encrypter'.
-          final encrypter = encrypt.Encrypter(encrypt.AES(_key!, mode: encrypt.AESMode.cbc));
-                                    ^^^^^^^^^
-    lib/services/encryption_service.dart:89:26: Error: The getter 'IV' isn't defined for the type 'String Function(String)'.
-    Try correcting the name to the name of an existing getter, or defining a getter or field named 'IV'.
-          final iv = encrypt.IV.fromBase64(parts[2]);
-                             ^^
-    lib/services/encryption_service.dart:92:76: Error: The getter 'AESMode' isn't defined for the type 'String Function(String)'.
-    Try correcting the name to the name of an existing getter, or defining a getter or field named 'AESMode'.
-          final encrypter = encrypt.Encrypter(encrypt.AES(_key!, mode: encrypt.AESMode.cbc));
-                                                                               ^^^^^^^
-    lib/services/encryption_service.dart:92:51: Error: The method 'AES' isn't defined for the type 'String Function(String)'.
-    Try correcting the name to the name of an existing method, or defining a method named 'AES'.
-          final encrypter = encrypt.Encrypter(encrypt.AES(_key!, mode: encrypt.AESMode.cbc));
-                                                      ^^^
-    lib/services/encryption_service.dart:92:33: Error: The method 'Encrypter' isn't defined for the type 'String Function(String)'.
-    Try correcting the name to the name of an existing method, or defining a method named 'Encrypter'.
-          final encrypter = encrypt.Encrypter(encrypt.AES(_key!, mode: encrypt.AESMode.cbc));
-                                    ^^^^^^^^^
-    lib/services/encryption_service.dart:93:33: Error: The getter 'Encrypted' isn't defined for the type 'String Function(String)'.
-    Try correcting the name to the name of an existing getter, or defining a getter or field named 'Encrypted'.
-          final encrypted = encrypt.Encrypted.fromBase64(cipherText);
-                                    ^^^^^^^^^
+    lib/services/database_service.dart:956:5: Error: The method 'debugPrint' isn't defined for the type 'DatabaseService'.
+     - 'DatabaseService' is from 'package:gods_plan/services/database_service.dart' ('lib/services/database_service.dart').
+    Try correcting the name to the name of an existing method, or defining a method named 'debugPrint'.
+        debugPrint("[DB_REMINDERS] STEP A: Querying local_reminders for userId=$userId");
+        ^^^^^^^^^^
+    lib/services/database_service.dart:964:7: Error: The method 'debugPrint' isn't defined for the type 'DatabaseService'.
+     - 'DatabaseService' is from 'package:gods_plan/services/database_service.dart' ('lib/services/database_service.dart').
+    Try correcting the name to the name of an existing method, or defining a method named 'debugPrint'.
+          debugPrint("[DB_REMINDERS] STEP A OK: Fetched ${maps.length} raw rows from local_reminders");
+          ^^^^^^^^^^
+    lib/services/database_service.dart:970:11: Error: The method 'debugPrint' isn't defined for the type 'DatabaseService'.
+     - 'DatabaseService' is from 'package:gods_plan/services/database_service.dart' ('lib/services/database_service.dart').
+    Try correcting the name to the name of an existing method, or defining a method named 'debugPrint'.
+              debugPrint("[DB_REMINDERS] ERROR deserializing row #$i (${maps[i]['id']}): $itemErr");
+              ^^^^^^^^^^
+    lib/services/database_service.dart:971:11: Error: The method 'debugPrintStack' isn't defined for the type 'DatabaseService'.
+     - 'DatabaseService' is from 'package:gods_plan/services/database_service.dart' ('lib/services/database_service.dart').
+    Try correcting the name to the name of an existing method, or defining a method named 'debugPrintStack'.
+              debugPrintStack(stackTrace: st);
+              ^^^^^^^^^^^^^^^
+    lib/services/database_service.dart:974:7: Error: The method 'debugPrint' isn't defined for the type 'DatabaseService'.
+     - 'DatabaseService' is from 'package:gods_plan/services/database_service.dart' ('lib/services/database_service.dart').
+    Try correcting the name to the name of an existing method, or defining a method named 'debugPrint'.
+          debugPrint("[DB_REMINDERS] STEP B OK: Successfully parsed ${results.length} ReminderModel objects");
+          ^^^^^^^^^^
+    lib/services/database_service.dart:977:7: Error: The method 'debugPrint' isn't defined for the type 'DatabaseService'.
+     - 'DatabaseService' is from 'package:gods_plan/services/database_service.dart' ('lib/services/database_service.dart').
+    Try correcting the name to the name of an existing method, or defining a method named 'debugPrint'.
+          debugPrint("[DB_REMINDERS] FAILED: $e");
+          ^^^^^^^^^^
+    lib/services/database_service.dart:978:7: Error: The method 'debugPrintStack' isn't defined for the type 'DatabaseService'.
+     - 'DatabaseService' is from 'package:gods_plan/services/database_service.dart' ('lib/services/database_service.dart').
+    Try correcting the name to the name of an existing method, or defining a method named 'debugPrintStack'.
+          debugPrintStack(stackTrace: st);
+          ^^^^^^^^^^^^^^^
+    lib/services/database_service.dart:1010:5: Error: The method 'debugPrint' isn't defined for the type 'DatabaseService'.
+     - 'DatabaseService' is from 'package:gods_plan/services/database_service.dart' ('lib/services/database_service.dart').
+    Try correcting the name to the name of an existing method, or defining a method named 'debugPrint'.
+        debugPrint("[DB_NOTIF_HIST] STEP A: Querying local_notification_history for userId=$userId");
+        ^^^^^^^^^^
+    lib/services/database_service.dart:1020:7: Error: The method 'debugPrint' isn't defined for the type 'DatabaseService'.
+     - 'DatabaseService' is from 'package:gods_plan/services/database_service.dart' ('lib/services/database_service.dart').
+    Try correcting the name to the name of an existing method, or defining a method named 'debugPrint'.
+          debugPrint("[DB_NOTIF_HIST] STEP A OK: Fetched ${maps.length} raw rows from local_notification_history");
+          ^^^^^^^^^^
+    lib/services/database_service.dart:1026:11: Error: The method 'debugPrint' isn't defined for the type 'DatabaseService'.
+     - 'DatabaseService' is from 'package:gods_plan/services/database_service.dart' ('lib/services/database_service.dart').
+    Try correcting the name to the name of an existing method, or defining a method named 'debugPrint'.
+              debugPrint("[DB_NOTIF_HIST] ERROR deserializing row #$i (${maps[i]['id']}): $itemErr");
+              ^^^^^^^^^^
+    lib/services/database_service.dart:1027:11: Error: The method 'debugPrintStack' isn't defined for the type 'DatabaseService'.
+     - 'DatabaseService' is from 'package:gods_plan/services/database_service.dart' ('lib/services/database_service.dart').
+    Try correcting the name to the name of an existing method, or defining a method named 'debugPrintStack'.
+              debugPrintStack(stackTrace: st);
+              ^^^^^^^^^^^^^^^
+    lib/services/database_service.dart:1030:7: Error: The method 'debugPrint' isn't defined for the type 'DatabaseService'.
+     - 'DatabaseService' is from 'package:gods_plan/services/database_service.dart' ('lib/services/database_service.dart').
+    Try correcting the name to the name of an existing method, or defining a method named 'debugPrint'.
+          debugPrint("[DB_NOTIF_HIST] STEP B OK: Successfully parsed ${results.length} NotificationHistoryModel objects");
+          ^^^^^^^^^^
+    lib/services/database_service.dart:1033:7: Error: The method 'debugPrint' isn't defined for the type 'DatabaseService'.
+     - 'DatabaseService' is from 'package:gods_plan/services/database_service.dart' ('lib/services/database_service.dart').
+    Try correcting the name to the name of an existing method, or defining a method named 'debugPrint'.
+          debugPrint("[DB_NOTIF_HIST] FAILED: $e");
+          ^^^^^^^^^^
+    lib/services/database_service.dart:1034:7: Error: The method 'debugPrintStack' isn't defined for the type 'DatabaseService'.
+     - 'DatabaseService' is from 'package:gods_plan/services/database_service.dart' ('lib/services/database_service.dart').
+    Try correcting the name to the name of an existing method, or defining a method named 'debugPrintStack'.
+          debugPrintStack(stackTrace: st);
+          ^^^^^^^^^^^^^^^
     Target kernel_snapshot_program failed: Exception
     Failed to package /Users/runner/work/gods_plan/gods_plan.
     Command PhaseScriptExecution failed with a nonzero exit code
