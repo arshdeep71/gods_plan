@@ -30,13 +30,23 @@ class _NotificationsInboxScreenState extends State<NotificationsInboxScreen> wit
 
   @override
   void initState() {
+    debugPrint("[NOTIF_INBOX_FLOW] STEP 1: NotificationsInboxScreen initState()");
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
-    _tabController.addListener(() {
-      if (!_tabController.indexIsChanging) {
-        setState(() {}); // Rebuild for filter logic if needed
-      }
-    });
+    try {
+      debugPrint("[NOTIF_INBOX_FLOW] STEP 2: Initializing TabController");
+      _tabController = TabController(length: 2, vsync: this);
+      _tabController.addListener(() {
+        if (!_tabController.indexIsChanging) {
+          if (mounted) setState(() {});
+        }
+      });
+      debugPrint("[NOTIF_INBOX_FLOW] STEP 2 OK: TabController initialized");
+    } catch (e, st) {
+      debugPrint("[NOTIF_INBOX_FLOW] STEP 2 FAILED: $e");
+      debugPrintStack(stackTrace: st);
+    }
+    
+    debugPrint("[NOTIF_INBOX_FLOW] STEP 3: Calling _loadData()");
     _loadData();
   }
 
@@ -48,21 +58,53 @@ class _NotificationsInboxScreenState extends State<NotificationsInboxScreen> wit
   }
 
   Future<void> _loadData() async {
-    setState(() => _isLoading = true);
-    final userId = _db.currentUserId;
-    if (userId != null) {
-      final history = await _db.getLocalNotificationHistory(userId);
-      final reminders = await _db.getLocalReminders(userId);
+    debugPrint("[NOTIF_INBOX_FLOW] STEP 4: _loadData() start");
+    if (mounted) {
+      setState(() => _isLoading = true);
+    }
+    try {
+      debugPrint("[NOTIF_INBOX_FLOW] STEP 5: Getting currentUserId from DatabaseService");
+      final userId = _db.currentUserId;
+      debugPrint("[NOTIF_INBOX_FLOW] STEP 5 OK: currentUserId = $userId");
       
-      final now = DateTime.now();
-      
-      setState(() {
-        _history = history;
-        _upcoming = reminders.where((r) => r.scheduledTime.isAfter(now) && !r.isCompleted).toList();
-        // Sort upcoming closest first
-        _upcoming.sort((a, b) => a.scheduledTime.compareTo(b.scheduledTime));
-        _isLoading = false;
-      });
+      if (userId != null && userId.isNotEmpty) {
+        debugPrint("[NOTIF_INBOX_FLOW] STEP 6: Querying getLocalNotificationHistory");
+        final history = await _db.getLocalNotificationHistory(userId);
+        debugPrint("[NOTIF_INBOX_FLOW] STEP 6 OK: Loaded ${history.length} history records");
+
+        debugPrint("[NOTIF_INBOX_FLOW] STEP 7: Querying getLocalReminders");
+        final reminders = await _db.getLocalReminders(userId);
+        debugPrint("[NOTIF_INBOX_FLOW] STEP 7 OK: Loaded ${reminders.length} reminder records");
+
+        final now = DateTime.now();
+        
+        if (mounted) {
+          setState(() {
+            _history = history;
+            _upcoming = reminders.where((r) => r.scheduledTime.isAfter(now) && !r.isCompleted).toList();
+            _upcoming.sort((a, b) => a.scheduledTime.compareTo(b.scheduledTime));
+            _isLoading = false;
+          });
+        }
+        debugPrint("[NOTIF_INBOX_FLOW] STEP 8 OK: State updated with upcoming=${_upcoming.length}, history=${_history.length}");
+      } else {
+        debugPrint("[NOTIF_INBOX_FLOW] STEP 5 WARN: userId is null or empty!");
+        if (mounted) {
+          setState(() {
+            _history = [];
+            _upcoming = [];
+            _isLoading = false;
+          });
+        }
+      }
+    } catch (e, st) {
+      debugPrint("[NOTIF_INBOX_FLOW] _loadData FAILED: $e");
+      debugPrintStack(stackTrace: st);
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
   }
 

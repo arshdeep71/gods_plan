@@ -953,13 +953,31 @@ class DatabaseService {
   // ==========================================
 
   Future<List<ReminderModel>> getLocalReminders(String userId) async {
-    final db = await database;
-    final List<Map<String, dynamic>> maps = await db.query(
-      'local_reminders',
-      where: 'user_id = ? AND deleted_at IS NULL',
-      whereArgs: [userId],
-    );
-    return maps.map((e) => ReminderModel.fromJson(e)).toList();
+    debugPrint("[DB_REMINDERS] STEP A: Querying local_reminders for userId=$userId");
+    try {
+      final db = await database;
+      final List<Map<String, dynamic>> maps = await db.query(
+        'local_reminders',
+        where: 'user_id = ? AND deleted_at IS NULL',
+        whereArgs: [userId],
+      );
+      debugPrint("[DB_REMINDERS] STEP A OK: Fetched ${maps.length} raw rows from local_reminders");
+      final results = <ReminderModel>[];
+      for (int i = 0; i < maps.length; i++) {
+        try {
+          results.add(ReminderModel.fromJson(maps[i]));
+        } catch (itemErr, st) {
+          debugPrint("[DB_REMINDERS] ERROR deserializing row #$i (${maps[i]['id']}): $itemErr");
+          debugPrintStack(stackTrace: st);
+        }
+      }
+      debugPrint("[DB_REMINDERS] STEP B OK: Successfully parsed ${results.length} ReminderModel objects");
+      return results;
+    } catch (e, st) {
+      debugPrint("[DB_REMINDERS] FAILED: $e");
+      debugPrintStack(stackTrace: st);
+      return [];
+    }
   }
 
   Future<void> upsertLocalReminder(ReminderModel reminder) async {
@@ -989,15 +1007,33 @@ class DatabaseService {
   // ==========================================
 
   Future<List<NotificationHistoryModel>> getLocalNotificationHistory(String userId) async {
-    final db = await database;
-    final List<Map<String, dynamic>> maps = await db.query(
-      'local_notification_history',
-      where: 'user_id = ?',
-      whereArgs: [userId],
-      orderBy: 'timestamp DESC',
-      limit: 500,
-    );
-    return maps.map((e) => NotificationHistoryModel.fromJson(e)).toList();
+    debugPrint("[DB_NOTIF_HIST] STEP A: Querying local_notification_history for userId=$userId");
+    try {
+      final db = await database;
+      final List<Map<String, dynamic>> maps = await db.query(
+        'local_notification_history',
+        where: 'user_id = ?',
+        whereArgs: [userId],
+        orderBy: 'timestamp DESC',
+        limit: 500,
+      );
+      debugPrint("[DB_NOTIF_HIST] STEP A OK: Fetched ${maps.length} raw rows from local_notification_history");
+      final results = <NotificationHistoryModel>[];
+      for (int i = 0; i < maps.length; i++) {
+        try {
+          results.add(NotificationHistoryModel.fromJson(maps[i]));
+        } catch (itemErr, st) {
+          debugPrint("[DB_NOTIF_HIST] ERROR deserializing row #$i (${maps[i]['id']}): $itemErr");
+          debugPrintStack(stackTrace: st);
+        }
+      }
+      debugPrint("[DB_NOTIF_HIST] STEP B OK: Successfully parsed ${results.length} NotificationHistoryModel objects");
+      return results;
+    } catch (e, st) {
+      debugPrint("[DB_NOTIF_HIST] FAILED: $e");
+      debugPrintStack(stackTrace: st);
+      return [];
+    }
   }
 
   Future<void> insertLocalNotificationHistory(NotificationHistoryModel history) async {

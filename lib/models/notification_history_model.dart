@@ -22,16 +22,24 @@ class NotificationHistoryModel {
   });
 
   factory NotificationHistoryModel.fromJson(Map<String, dynamic> json) {
+    DateTime parsedTimestamp;
+    try {
+      final tsStr = json['timestamp'] as String?;
+      parsedTimestamp = tsStr != null ? (DateTime.tryParse(tsStr)?.toLocal() ?? DateTime.now()) : DateTime.now();
+    } catch (_) {
+      parsedTimestamp = DateTime.now();
+    }
+
     return NotificationHistoryModel(
-      id: json['id'] as String,
-      title: json['title'] as String,
-      body: json['body'] as String,
-      timestamp: DateTime.parse(json['timestamp'] as String).toLocal(),
-      type: json['type'] as String,
-      status: json['status'] as String,
+      id: (json['id'] as String?) ?? '',
+      title: (json['title'] as String?) ?? '',
+      body: (json['body'] as String?) ?? '',
+      timestamp: parsedTimestamp,
+      type: (json['type'] as String?) ?? 'REMINDER',
+      status: (json['status'] as String?) ?? 'DELIVERED',
       relatedId: json['related_id'] as String?,
       category: json['category'] as String?,
-      userId: json['user_id'] as String,
+      userId: (json['user_id'] as String?) ?? '',
     );
   }
 

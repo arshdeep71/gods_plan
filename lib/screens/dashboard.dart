@@ -907,10 +907,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   IconButton(
                     icon: const Icon(Icons.notifications_none_rounded, color: Colors.white, size: 28),
                     onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (_) => const NotificationsInboxScreen()),
-                      );
+                      debugPrint("[NOTIF_INBOX_FLOW] STEP 0: Home Notification Icon Tapped");
+                      try {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (_) => const NotificationsInboxScreen()),
+                        );
+                        debugPrint("[NOTIF_INBOX_FLOW] STEP 0 OK: Navigator.push launched NotificationsInboxScreen");
+                      } catch (e, st) {
+                        debugPrint("[NOTIF_INBOX_FLOW] STEP 0 FAILED: $e");
+                        debugPrintStack(stackTrace: st);
+                      }
                     },
                   ),
                   const SizedBox(width: 12),
