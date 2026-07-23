@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:sqflite_common/sqlite_api.dart';
 import 'sqlite_factory.dart';
