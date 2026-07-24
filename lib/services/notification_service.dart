@@ -553,11 +553,13 @@ class NotificationService {
     debugPrint("END: scheduleReminder(id=$id) OK");
   }
 
-  // Deduplication set to track scheduled task occurrences per session
+  // Mutex Lock to serialize scheduling transactions and eliminate race conditions
+  bool _isSchedulingLock = false;
   final Set<String> _scheduledOccurrenceIds = {};
 
   void _logScheduledNotification({
     required String taskId,
+    required String occurrenceId,
     required int id,
     required String taskTitle,
     required String type,
@@ -565,17 +567,20 @@ class NotificationService {
     required String caller,
     required String reason,
   }) {
-    final formattedFireTime = DateFormat('d MMM h:mm a').format(fireTime.toLocal());
-    debugPrint("----------------------------------------");
-    debugPrint("[NOTIFICATION_SCHEDULED]");
+    final nowStr = DateFormat('d MMM h:mm:ss a').format(DateTime.now());
+    final formattedFireTime = DateFormat('d MMM h:mm:ss a').format(fireTime.toLocal());
+    debugPrint("==================================");
+    debugPrint("NOTIFICATION SCHEDULED");
     debugPrint("Task ID: $taskId");
+    debugPrint("Occurrence ID: $occurrenceId");
     debugPrint("Notification ID: $id");
     debugPrint("Task Name: $taskTitle");
     debugPrint("Notification Type: $type");
     debugPrint("Scheduled Time: $formattedFireTime");
+    debugPrint("Current Time: $nowStr");
+    debugPrint("Caller Function: $caller");
     debugPrint("Reason: $reason");
-    debugPrint("Caller: $caller");
-    debugPrint("----------------------------------------");
+    debugPrint("==================================");
   }
 
   Future<void> logPendingNotifications() async {
@@ -592,8 +597,9 @@ class NotificationService {
     }
   }
 
-  /// Smart Countdown Scheduling Algorithm (Duolingo / Apple Reminders style)
-  /// Prevents duplicates, cancels old IDs, logs caller/reason context, and uses human premium copy.
+  /// Smart Countdown Scheduling Algorithm (Single Source of Truth)
+  /// Serialized via Scheduler Lock, prevents duplicates, cancels old IDs,
+  /// uses versioned payloads (v1|taskId|occurrenceId|action), and selective timeSensitive interruption levels.
   Future<void> scheduleTaskSmartCountdown({
     required String taskId,
     required String taskTitle,
@@ -601,142 +607,171 @@ class NotificationService {
     required String userId,
     String caller = 'UnknownCaller',
     String reason = 'Task created/synced',
+    bool force = false,
   }) async {
     if (kIsWeb) return;
 
-    final occurrenceKey = "${taskId}_${taskScheduledTime.toIso8601String()}";
-    
-    // 1. Cancel old notifications for this task to guarantee no duplicates
-    await cancelTaskNotifications(taskId);
-
-    final now = DateTime.now();
-    final remainingMinutes = taskScheduledTime.difference(now).inMinutes;
-
-    // Do not schedule reminders if the task start time is already in the past
-    if (taskScheduledTime.isBefore(now.subtract(const Duration(minutes: 1)))) {
-      debugPrint("[SMART_COUNTDOWN] Skipping task '$taskTitle' ($taskId) as taskScheduledTime is in the past.");
-      return;
+    // Mutex Lock: Wait until any active scheduling transaction completes
+    while (_isSchedulingLock) {
+      await Future.delayed(const Duration(milliseconds: 50));
     }
+    _isSchedulingLock = true;
 
-    _scheduledOccurrenceIds.add(occurrenceKey);
-
-    final baseId = taskId.hashCode & 0x1FFFFFFF;
-
-    // 2. Instant Confirmation for tasks 0–20 mins away
-    if (remainingMinutes <= 3 && remainingMinutes >= 0) {
-      _scheduleInstantConfirmation(baseId, taskId, taskTitle, remainingMinutes, caller, reason);
-    } else if (remainingMinutes > 3 && remainingMinutes <= 20) {
-      _scheduleInstantConfirmation(baseId, taskId, taskTitle, remainingMinutes, caller, reason);
-      LiveActivityService().startTaskActivity(taskTitle, taskScheduledTime);
-    }
-
-    // 3. Schedule remaining valid countdown alarms
-    List<int> offsets = [];
-    if (remainingMinutes > 15) {
-      offsets = [15, 5, 1, 0];
-    } else if (remainingMinutes > 5) {
-      offsets = [5, 1, 0];
-    } else if (remainingMinutes > 1) {
-      offsets = [1, 0];
-    } else if (remainingMinutes >= 0) {
-      offsets = [0];
-    }
-
-    for (final offset in offsets) {
-      try {
-        final reminderTime = taskScheduledTime.subtract(Duration(minutes: offset));
-        if (reminderTime.isBefore(now)) continue;
-
-        final int notifId = (baseId + offset * 100) & 0x7FFFFFFF;
-        final template = NotificationTemplates.getCountdownTemplate(offset, taskTitle);
-        final tzTime = tz.TZDateTime.from(reminderTime, tz.local);
-
-        await flutterLocalNotificationsPlugin.zonedSchedule(
-          notifId,
-          template.title,
-          template.body,
-          tzTime,
-          const NotificationDetails(
-            android: AndroidNotificationDetails(
-              'task_reminders',
-              'Task Reminders',
-              channelDescription: 'Reminders for your daily tasks',
-              importance: Importance.max,
-              priority: Priority.high,
-            ),
-            iOS: DarwinNotificationDetails(
-              categoryIdentifier: 'task_reminder_category',
-            ),
-          ),
-          androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
-          uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime,
-          payload: "$taskId|countdown_$offset",
-        );
-
-        _logScheduledNotification(
-          taskId: taskId,
-          id: notifId,
-          taskTitle: taskTitle,
-          type: offset == 0 ? "0-minute (Start)" : "$offset-minute warning",
-          fireTime: reminderTime,
-          caller: caller,
-          reason: reason,
-        );
-      } catch (e) {
-        debugPrint("[SMART_COUNTDOWN_ERROR] Failed offset $offset for task $taskId: $e");
-      }
-    }
-
-    // 4. Missed-task follow-up notification (5 minutes post-start)
     try {
-      final followUpTime = taskScheduledTime.add(const Duration(minutes: 5));
-      if (followUpTime.isAfter(now)) {
-        final int followUpId = (baseId + 9999) & 0x7FFFFFFF;
-        final template = NotificationTemplates.getMissedFollowUpTemplate(taskTitle);
-        final tzFollowUp = tz.TZDateTime.from(followUpTime, tz.local);
+      final dateStr = "${taskScheduledTime.year}-${taskScheduledTime.month.toString().padLeft(2, '0')}-${taskScheduledTime.day.toString().padLeft(2, '0')}";
+      final occurrenceId = "${taskId}_$dateStr";
 
-        await flutterLocalNotificationsPlugin.zonedSchedule(
-          followUpId,
-          template.title,
-          template.body,
-          tzFollowUp,
-          const NotificationDetails(
-            android: AndroidNotificationDetails(
-              'escalation_reminders',
-              'Follow-up Reminders',
-              channelDescription: 'Follow-ups for uncompleted tasks',
-              importance: Importance.high,
-              priority: Priority.high,
-            ),
-            iOS: DarwinNotificationDetails(
-              categoryIdentifier: 'task_reminder_category',
-            ),
-          ),
-          androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
-          uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime,
-          payload: "$taskId|missed_followup",
-        );
+      // Check session registry unless forced
+      if (!force && _scheduledOccurrenceIds.contains(occurrenceId)) {
+        debugPrint("[SCHEDULER_LOCK] Skipping occurrence '$occurrenceId' - already scheduled in this session.");
+        return;
+      }
 
-        _logScheduledNotification(
+      // 1. Execute cancelTaskNotifications before scheduling any occurrence
+      await cancelTaskNotifications(taskId);
+
+      final now = DateTime.now();
+      final remainingMinutes = taskScheduledTime.difference(now).inMinutes;
+
+      // Never schedule reminders whose fire time is already in the past
+      if (taskScheduledTime.isBefore(now.subtract(const Duration(minutes: 1)))) {
+        debugPrint("[SMART_COUNTDOWN] Skipping task '$taskTitle' ($occurrenceId) as target deadline has passed.");
+        return;
+      }
+
+      _scheduledOccurrenceIds.add(occurrenceId);
+      final baseId = occurrenceId.hashCode & 0x1FFFFFFF;
+
+      // 2. Instant Confirmation for tasks 0–20 mins away
+      if (remainingMinutes <= 3 && remainingMinutes >= 0) {
+        await _scheduleInstantConfirmation(baseId, taskId, occurrenceId, taskTitle, remainingMinutes, caller, reason);
+      } else if (remainingMinutes > 3 && remainingMinutes <= 20) {
+        await _scheduleInstantConfirmation(baseId, taskId, occurrenceId, taskTitle, remainingMinutes, caller, reason);
+        LiveActivityService().startTaskActivity(
           taskId: taskId,
-          id: followUpId,
           taskTitle: taskTitle,
-          type: "Missed Task Follow-up (5-min after start)",
-          fireTime: followUpTime,
-          caller: caller,
-          reason: reason,
+          deadline: taskScheduledTime,
         );
       }
-    } catch (e) {
-      debugPrint("[MISSED_FOLLOWUP_ERROR] Failed to schedule follow-up for task $taskId: $e");
-    }
 
-    await logPendingNotifications();
+      // 3. Schedule remaining valid countdown alarms
+      List<int> offsets = [];
+      if (remainingMinutes > 15) {
+        offsets = [15, 5, 1, 0];
+      } else if (remainingMinutes > 5) {
+        offsets = [5, 1, 0];
+      } else if (remainingMinutes > 1) {
+        offsets = [1, 0];
+      } else if (remainingMinutes >= 0) {
+        offsets = [0];
+      }
+
+      for (final offset in offsets) {
+        try {
+          final reminderTime = taskScheduledTime.subtract(Duration(minutes: offset));
+          if (reminderTime.isBefore(now)) continue;
+
+          final int notifId = (baseId + offset * 100) & 0x7FFFFFFF;
+          final template = NotificationTemplates.getCountdownTemplate(offset, taskTitle);
+          final tzTime = tz.TZDateTime.from(reminderTime, tz.local);
+
+          // Selective interruption level: timeSensitive ONLY for 1m and 0m start reminders
+          final isTimeSensitive = (offset == 1 || offset == 0);
+
+          await flutterLocalNotificationsPlugin.zonedSchedule(
+            notifId,
+            template.title,
+            template.body,
+            tzTime,
+            NotificationDetails(
+              android: const AndroidNotificationDetails(
+                'task_reminders',
+                'Task Reminders',
+                channelDescription: 'Reminders for your daily tasks',
+                importance: Importance.max,
+                priority: Priority.high,
+              ),
+              iOS: DarwinNotificationDetails(
+                categoryIdentifier: 'task_reminder_category',
+                interruptionLevel: isTimeSensitive ? InterruptionLevel.timeSensitive : InterruptionLevel.active,
+              ),
+            ),
+            androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+            uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime,
+            payload: "v1|$taskId|$occurrenceId|countdown_$offset", // Versioned payload
+          );
+
+          _logScheduledNotification(
+            taskId: taskId,
+            occurrenceId: occurrenceId,
+            id: notifId,
+            taskTitle: taskTitle,
+            type: offset == 0 ? "0-minute (Start)" : "$offset-minute warning",
+            fireTime: reminderTime,
+            caller: caller,
+            reason: reason,
+          );
+        } catch (e) {
+          debugPrint("[SMART_COUNTDOWN_ERROR] Failed offset $offset for task $occurrenceId: $e");
+        }
+      }
+
+      // 4. Missed-task follow-up notification (5 minutes post-start)
+      try {
+        final followUpTime = taskScheduledTime.add(const Duration(minutes: 5));
+        if (followUpTime.isAfter(now)) {
+          final int followUpId = (baseId + 9999) & 0x7FFFFFFF;
+          final template = NotificationTemplates.getMissedFollowUpTemplate(taskTitle);
+          final tzFollowUp = tz.TZDateTime.from(followUpTime, tz.local);
+
+          await flutterLocalNotificationsPlugin.zonedSchedule(
+            followUpId,
+            template.title,
+            template.body,
+            tzFollowUp,
+            const NotificationDetails(
+              android: AndroidNotificationDetails(
+                'escalation_reminders',
+                'Follow-up Reminders',
+                channelDescription: 'Follow-ups for uncompleted tasks',
+                importance: Importance.high,
+                priority: Priority.high,
+              ),
+              iOS: DarwinNotificationDetails(
+                categoryIdentifier: 'task_reminder_category',
+                interruptionLevel: InterruptionLevel.active,
+              ),
+            ),
+            androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+            uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime,
+            payload: "v1|$taskId|$occurrenceId|missed_followup", // Versioned payload
+          );
+
+          _logScheduledNotification(
+            taskId: taskId,
+            occurrenceId: occurrenceId,
+            id: followUpId,
+            taskTitle: taskTitle,
+            type: "Missed Task Follow-up (5-min post-start)",
+            fireTime: followUpTime,
+            caller: caller,
+            reason: reason,
+          );
+        }
+      } catch (e) {
+        debugPrint("[MISSED_FOLLOWUP_ERROR] Failed follow-up for task $occurrenceId: $e");
+      }
+
+      await logPendingNotifications();
+    } finally {
+      _isSchedulingLock = false; // Release Transaction Lock
+    }
   }
 
   Future<void> _scheduleInstantConfirmation(
     int baseId,
     String taskId,
+    String occurrenceId,
     String taskTitle,
     int remainingMinutes,
     String caller,
@@ -762,15 +797,17 @@ class NotificationService {
           ),
           iOS: DarwinNotificationDetails(
             categoryIdentifier: 'task_reminder_category',
+            interruptionLevel: InterruptionLevel.active,
           ),
         ),
         androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
         uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime,
-        payload: "$taskId|instant_confirmation",
+        payload: "v1|$taskId|$occurrenceId|instant_confirmation", // Versioned payload
       );
 
       _logScheduledNotification(
         taskId: taskId,
+        occurrenceId: occurrenceId,
         id: instantId,
         taskTitle: taskTitle,
         type: "Instant Confirmation (~5s delay)",

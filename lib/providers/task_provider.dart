@@ -393,12 +393,46 @@ class TaskProvider extends ChangeNotifier {
       _completions = await _dbService.getLocalTaskCompletions(userId);
       _exceptions = await _dbService.getLocalTaskExceptions(userId);
       print("[STATE CHANGE] Function: fetchTasks (After background sync), Previous count: $beforeReload, New count: ${_tasks.length}");
+      _restoreLiveActivityIfEligible(userId);
     } catch (e) {
       print("Error loading tasks: $e");
     } finally {
       _isLoading = false;
       _isSyncing = false;
       notifyListeners();
+    }
+  }
+
+  void _restoreLiveActivityIfEligible(String userId) {
+    try {
+      final now = DateTime.now();
+      for (final task in _tasks) {
+        if (task.isPaused || task.reminderTime == null || task.scheduledDate == null) continue;
+        final taskDate = DateTime.tryParse(task.scheduledDate!);
+        final timeOfDay = _parseTimeOfDay(task.reminderTime!);
+        if (taskDate == null || timeOfDay == null) continue;
+
+        final taskStart = DateTime(taskDate.year, taskDate.month, taskDate.day, timeOfDay.hour, timeOfDay.minute);
+        final dateStr = "${taskStart.year}-${taskStart.month.toString().padLeft(2, '0')}-${taskStart.day.toString().padLeft(2, '0')}";
+        
+        // Guard 1: Verify task is not completed today
+        if (isTaskCompletedOnDate(task.id, dateStr)) continue;
+
+        final remainingMinutes = taskStart.difference(now).inMinutes;
+
+        // Guard 2: Verify task is within 20 minutes and deadline hasn't passed
+        if (remainingMinutes >= 0 && remainingMinutes <= 20) {
+          debugPrint("[LIVE_ACTIVITY_RESTORE] Task '${task.title}' ($dateStr) is eligible for restoration ($remainingMinutes mins remaining).");
+          LiveActivityService().startTaskActivity(
+            taskId: task.id,
+            taskTitle: task.title,
+            deadline: taskStart,
+          );
+          break; // Single Active Live Activity Policy: Restore highest priority (earliest) task only
+        }
+      }
+    } catch (e) {
+      debugPrint("[LIVE_ACTIVITY_RESTORE_ERROR] Failed to restore Live Activity: $e");
     }
   }
 
