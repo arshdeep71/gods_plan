@@ -149,6 +149,10 @@ class NotificationService {
         return;
       }
 
+      // Load all tasks to find the active task title
+      final tasks = await db.getLocalTasks(userId);
+      final Map<String, String> taskTitles = {for (var t in tasks) t.id: t.title};
+
       int restoreCount = 0;
       final now = DateTime.now();
       debugPrint("STATEMENT D: Loop over ${reminders.length} reminders (now=$now)");
@@ -157,11 +161,19 @@ class NotificationService {
         try {
           debugPrint("STATEMENT D-ITEM: Processing reminder id=${reminder.id}");
           if (!reminder.isCompleted && !reminder.isSnoozed && reminder.scheduledTime.isAfter(now)) {
-            final int stableId = reminder.id.hashCode & 0x7FFFFFFF;
-            debugPrint("STATEMENT D-SCHEDULE: Calling scheduleReminder for id=${reminder.id}");
-            await scheduleReminder(stableId, reminder);
+            final taskTitle = taskTitles[reminder.taskId] ?? reminder.title;
+            debugPrint("STATEMENT D-SCHEDULE: Calling scheduleTaskSmartCountdown for task=${reminder.taskId}");
+            await scheduleTaskSmartCountdown(
+              taskId: reminder.taskId,
+              taskTitle: taskTitle,
+              taskScheduledTime: reminder.scheduledTime,
+              userId: userId,
+              caller: 'NotificationService.restoreScheduledNotifications',
+              reason: 'Automatic restoration after app restart',
+              force: true, // Force to ignore in-memory registry on startup/restart
+            );
             restoreCount++;
-            debugPrint("STATEMENT D-SCHEDULE OK: Finished id=${reminder.id}");
+            debugPrint("STATEMENT D-SCHEDULE OK: Finished task=${reminder.taskId}");
           } else if (reminder.isSnoozed && reminder.snoozeUntil != null && reminder.snoozeUntil!.isAfter(now)) {
             final int stableId = reminder.id.hashCode & 0x7FFFFFFF;
             debugPrint("STATEMENT D-SNOOZE: Calling _snoozeNotification for id=${reminder.id}");
