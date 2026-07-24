@@ -572,6 +572,8 @@ class TaskProvider extends ChangeNotifier {
             taskTitle: task.title,
             taskScheduledTime: taskStart,
             userId: task.userId,
+            caller: 'TaskProvider._syncRemindersForTask',
+            reason: 'Task created or updated occurrence scheduling',
           );
         } catch (e, st) {
           debugPrint("[REMINDER ERROR] Non-fatal error scheduling reminder for task ${task.id}: $e");
@@ -886,6 +888,7 @@ class TaskProvider extends ChangeNotifier {
 
     // Optimistic UI update - delete from memory
     _tasks.removeWhere((t) => t.id == task.id);
+    await NotificationService().cancelTaskNotifications(task.id);
     await _syncRemindersForTask(task.copyWith(reminderTime: null, dueTime: null));
     notifyListeners();
 

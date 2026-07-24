@@ -152,7 +152,11 @@ class _NotificationsInboxScreenState extends State<NotificationsInboxScreen> wit
   }
 
   List<ReminderModel> _getFilteredUpcoming() {
+    final now = DateTime.now();
     return _upcoming.where((r) {
+      // STRICT RULE: Upcoming tab ONLY contains future scheduled reminders
+      if (r.scheduledTime.isBefore(now)) return false;
+
       if (_searchQuery.isNotEmpty) {
         final matchesTitle = r.title.toLowerCase().contains(_searchQuery);
         final matchesBody = r.body.toLowerCase().contains(_searchQuery);
