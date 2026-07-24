@@ -1,5 +1,6 @@
 import 'package:live_activities/live_activities.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'dart:io' show Platform;
 
 /// Single Active Live Activity Priority Manager
@@ -12,6 +13,8 @@ class LiveActivityService {
   LiveActivityService._internal();
 
   final _liveActivitiesPlugin = LiveActivities();
+  static const MethodChannel _nativeChannel = MethodChannel("com.godsplan.app/live_activity");
+
   String? _currentActivityId;
   String? _activeTaskId;
   DateTime? _activeDeadline;
@@ -23,7 +26,7 @@ class LiveActivityService {
     try {
       debugPrint("[LIVE_ACTIVITY] Initializing ActivityKit plugin...");
       await _liveActivitiesPlugin.init(
-        appGroupId: 'group.com.godsplan.app', // Update with actual App Group ID in Xcode
+        appGroupId: 'group.com.godsplan.app',
       );
       debugPrint("[LIVE_ACTIVITY] ActivityKit plugin initialized successfully.");
     } catch (e, st) {
@@ -46,8 +49,8 @@ class LiveActivityService {
       }
       return true;
     } catch (e) {
-      debugPrint("[LIVE_ACTIVITY_CHECK_ERROR] Capability check failed: $e. Falling back to standard notifications.");
-      return false;
+      debugPrint("[LIVE_ACTIVITY_CHECK_ERROR] Capability check failed: $e. Falling back to native channel.");
+      return true; // Attempt native platform channel even if plugin check fails
     }
   }
 
@@ -65,12 +68,20 @@ class LiveActivityService {
     required String taskId,
     required String taskTitle,
     required DateTime deadline,
+    String? occurrenceId,
     int? streakDays,
     int? completedTasks,
     int? totalTasks,
     int? xpAmount,
   }) async {
-    debugPrint("[LIVE_ACTIVITY] Requested for task '$taskTitle' ($taskId) at $deadline");
+    final effectiveOccurrenceId = occurrenceId ?? taskId;
+    debugPrint("==================================");
+    debugPrint("[LIVE_ACTIVITY] Activity Requested");
+    debugPrint("Task Title: '$taskTitle'");
+    debugPrint("Task ID: $taskId");
+    debugPrint("Occurrence ID: $effectiveOccurrenceId");
+    debugPrint("Deadline: ${deadline.toIso8601String()}");
+    debugPrint("==================================");
 
     final capable = await checkCapability();
     if (!capable) return;
@@ -79,7 +90,7 @@ class LiveActivityService {
     // If an activity is already active, check if the new task is earlier/more urgent.
     if (_currentActivityId != null && _activeDeadline != null) {
       if (_activeTaskId == taskId) {
-        // Same task: update state if deadline unchanged
+        // Same task: update state
         await updateTaskActivityState(taskId: taskId, taskTitle: taskTitle, deadline: deadline);
         return;
       }
@@ -104,12 +115,13 @@ class LiveActivityService {
 
     final subtitleText = [streakText, tasksText].where((s) => s.isNotEmpty).join(" • ");
 
-    // Payload keys for Swift SwiftUI Widget Extension
-    final activityData = {
+    // Payload keys matching Swift ActivityAttributes & SwiftUI Widget Extension
+    final activityData = <String, dynamic>{
       'v': 'v1',
       'taskId': taskId,
+      'occurrenceId': effectiveOccurrenceId,
       'taskTitle': taskTitle,
-      'deadline': deadline.toUtc().toIso8601String(), // ActivityKit Native Timer Source
+      'deadline': deadline.toUtc().toIso8601String(), // Native ActivityKit Countdown Source
       'headerStatus': headerStatus,
       'progress': 0.0,
       'streakDays': streakDays ?? 0,
@@ -120,23 +132,37 @@ class LiveActivityService {
     };
 
     try {
+      // 1. Try Native Swift Platform Channel Bridge
+      try {
+        final Map<dynamic, dynamic>? nativeRes = await _nativeChannel.invokeMethod('startTaskActivity', activityData);
+        if (nativeRes != null && nativeRes.containsKey('activityId')) {
+          _currentActivityId = nativeRes['activityId'] as String;
+          _activeTaskId = taskId;
+          _activeDeadline = deadline;
+          debugPrint("[LIVE_ACTIVITY] Activity Started (via Native Swift Bridge)");
+          debugPrint("Activity ID: $_currentActivityId");
+          return;
+        }
+      } catch (nativeErr) {
+        debugPrint("[LIVE_ACTIVITY_BRIDGE_INFO] Native channel fallback to plugin: $nativeErr");
+      }
+
+      // 2. Fallback to live_activities plugin
       _currentActivityId = await _liveActivitiesPlugin.createActivity(activityData);
       _activeTaskId = taskId;
       _activeDeadline = deadline;
-      debugPrint("==================================");
-      debugPrint("[LIVE_ACTIVITY] SUCCESS");
+
+      debugPrint("[LIVE_ACTIVITY] Activity Started (via live_activities plugin)");
       debugPrint("Activity ID: $_currentActivityId");
-      debugPrint("Task ID: $taskId");
       debugPrint("Header Status: $headerStatus");
       debugPrint("Deadline (Native Timer): ${deadline.toIso8601String()}");
-      debugPrint("==================================");
     } catch (e, st) {
-      debugPrint("[LIVE_ACTIVITY_ERROR] Failed Activity.request() for task '$taskTitle': $e");
+      debugPrint("[LIVE_ACTIVITY_ERROR] Exception in Activity.request() for task '$taskTitle': $e");
       debugPrintStack(stackTrace: st);
     }
   }
 
-  /// Updates Live Activity state ONLY at discrete state transitions (minimizing battery usage)
+  /// Updates Live Activity state at discrete state transitions
   Future<void> updateTaskActivityState({
     required String taskId,
     required String taskTitle,
@@ -148,39 +174,54 @@ class LiveActivityService {
       final remainingMinutes = deadline.difference(DateTime.now()).inMinutes;
       final headerStatus = customHeaderStatus ?? _getHeaderStatus(remainingMinutes);
 
-      final updateData = {
-        'headerStatus': headerStatus,
+      final updateData = <String, dynamic>{
+        'taskId': taskId,
         'taskTitle': taskTitle,
+        'headerStatus': headerStatus,
         'deadline': deadline.toUtc().toIso8601String(),
       };
+
+      try {
+        await _nativeChannel.invokeMethod('updateTaskActivity', updateData);
+      } catch (_) {}
+
       await _liveActivitiesPlugin.updateActivity(_currentActivityId!, updateData);
-      debugPrint("[LIVE_ACTIVITY] Updated state for task '$taskId' -> Header: '$headerStatus'");
+      debugPrint("[LIVE_ACTIVITY] Activity Updated for task '$taskId' -> Header: '$headerStatus'");
     } catch (e) {
       debugPrint("[LIVE_ACTIVITY_ERROR] Failed to update Live Activity: $e");
     }
   }
 
-  /// Support focus session progress updates
+  /// Focus session progress updates
   Future<void> updateTaskActivity(double progress) async {
     if (!_isSupported || _currentActivityId == null) return;
     try {
-      final updateData = {
+      final updateData = <String, dynamic>{
         'progress': progress,
       };
+
+      try {
+        await _nativeChannel.invokeMethod('updateTaskActivity', updateData);
+      } catch (_) {}
+
       await _liveActivitiesPlugin.updateActivity(_currentActivityId!, updateData);
-      debugPrint("[LIVE_ACTIVITY] Updated focus progress value: $progress");
+      debugPrint("[LIVE_ACTIVITY] Activity Updated focus progress: $progress");
     } catch (e) {
-      debugPrint("[LIVE_ACTIVITY_ERROR] Failed to update progress value: $e");
+      debugPrint("[LIVE_ACTIVITY_ERROR] Failed to update progress: $e");
     }
   }
 
-  /// Immediately ends active Live Activity upon task completion, deletion, or pause
+  /// Ends active Live Activity upon completion, deletion, or pause
   Future<void> endTaskActivity() async {
     if (!_isSupported || _currentActivityId == null) return;
     try {
       final endingId = _currentActivityId;
+      try {
+        await _nativeChannel.invokeMethod('endTaskActivity');
+      } catch (_) {}
+
       await _liveActivitiesPlugin.endActivity(endingId!);
-      debugPrint("[LIVE_ACTIVITY] Ended activity ID: $endingId for task '$_activeTaskId'");
+      debugPrint("[LIVE_ACTIVITY] Activity Ended | Activity ID: $endingId for task '$_activeTaskId'");
       _currentActivityId = null;
       _activeTaskId = null;
       _activeDeadline = null;
@@ -189,15 +230,43 @@ class LiveActivityService {
     }
   }
 
+  /// Restores active Live Activity state on app launch if eligible
+  Future<void> restoreTaskActivity() async {
+    if (!_isSupported) return;
+    try {
+      try {
+        final Map<dynamic, dynamic>? res = await _nativeChannel.invokeMethod('restoreTaskActivity');
+        if (res != null && res['status'] == 'restored') {
+          _currentActivityId = res['activityId'] as String?;
+          _activeTaskId = res['taskId'] as String?;
+          debugPrint("[LIVE_ACTIVITY] Restored active activity ID: $_currentActivityId for task: $_activeTaskId");
+          return;
+        }
+      } catch (_) {}
+
+      final activities = await _liveActivitiesPlugin.getAllActivities();
+      if (activities.isNotEmpty) {
+        _currentActivityId = activities.first;
+        debugPrint("[LIVE_ACTIVITY] Restored active activity ID: $_currentActivityId via plugin.");
+      }
+    } catch (e) {
+      debugPrint("[LIVE_ACTIVITY_ERROR] Failed to restore Live Activity: $e");
+    }
+  }
+
   /// Clears all orphaned Live Activities on app launch, logout, or reinstall
   Future<void> endAllActivities() async {
     if (!_isSupported) return;
     try {
+      try {
+        await _nativeChannel.invokeMethod('endAllActivities');
+      } catch (_) {}
+
       await _liveActivitiesPlugin.endAllActivities();
       _currentActivityId = null;
       _activeTaskId = null;
       _activeDeadline = null;
-      debugPrint("[LIVE_ACTIVITY] All orphaned Live Activities ended successfully.");
+      debugPrint("[LIVE_ACTIVITY] Ended all active activities successfully.");
     } catch (e) {
       debugPrint("[LIVE_ACTIVITY_ERROR] Failed to end all Live Activities: $e");
     }

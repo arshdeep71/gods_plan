@@ -47,12 +47,16 @@ def main():
     with open(PLIST_PATH, "rb") as f:
         plist = plistlib.load(f)
 
-    # ── 1. Photo library usage description ───────────────────────────────────
+    # ── 1. Photo library usage description & Live Activities ─────────────────
     if "NSPhotoLibraryUsageDescription" not in plist:
         plist["NSPhotoLibraryUsageDescription"] = (
             "God's Plan needs access to your photo library to let you select a custom app icon."
         )
         print("[patch_ios_plist] Added NSPhotoLibraryUsageDescription.")
+
+    if "NSSupportsLiveActivities" not in plist or not plist["NSSupportsLiveActivities"]:
+        plist["NSSupportsLiveActivities"] = True
+        print("[patch_ios_plist] Added/Verified NSSupportsLiveActivities = True.")
 
     # ── 2. CFBundleAlternateIcons Dynamic Registration ───────────────────────
     # Initialize dictionary structure for alternate icons (iPhone)
@@ -128,6 +132,10 @@ def main():
 
     verified_bundle_icons_ipad = verified_plist.get("CFBundleIcons~ipad", {})
     verified_alt_icons_ipad = verified_bundle_icons_ipad.get("CFBundleAlternateIcons", {})
+
+    if not verified_plist.get("NSSupportsLiveActivities", False):
+        print("[patch_ios_plist] VERIFICATION FAILED: NSSupportsLiveActivities is missing or False in Info.plist")
+        sys.exit(1)
 
     for icon in alternate_icons:
         icon_id = icon["id"]

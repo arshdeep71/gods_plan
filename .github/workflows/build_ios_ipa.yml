@@ -68,6 +68,15 @@ jobs:
      - name: Verify iOS Alternate Icon Packaging
        run: python3 verify_ios_bundle.py
 
+     - name: Verify Widget Extension Target Packaging
+       run: |
+         if [ ! -d "build/ios/iphoneos/Runner.app/PlugIns/GodsPlanWidget.appex" ]; then
+           echo "::error::Widget Extension target GodsPlanWidget.appex was not found in build/ios/iphoneos/Runner.app/PlugIns/. Live Activities will not function."
+           exit 1
+         else
+           echo "::notice::GodsPlanWidget.appex verified inside Runner.app/PlugIns/"
+         fi
+
      - name: Upload Build Log on Failure
        if: failure()
        uses: actions/upload-artifact@v4

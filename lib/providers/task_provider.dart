@@ -405,6 +405,7 @@ class TaskProvider extends ChangeNotifier {
 
   void _restoreLiveActivityIfEligible(String userId) {
     try {
+      LiveActivityService().restoreTaskActivity();
       final now = DateTime.now();
       for (final task in _tasks) {
         if (task.isPaused || task.reminderTime == null || task.scheduledDate == null) continue;
@@ -414,7 +415,8 @@ class TaskProvider extends ChangeNotifier {
 
         final taskStart = DateTime(taskDate.year, taskDate.month, taskDate.day, timeOfDay.hour, timeOfDay.minute);
         final dateStr = "${taskStart.year}-${taskStart.month.toString().padLeft(2, '0')}-${taskStart.day.toString().padLeft(2, '0')}";
-        
+        final occurrenceId = "$dateStr:${task.id}";
+
         // Guard 1: Verify task is not completed today
         if (isTaskCompletedOnDate(task.id, dateStr)) continue;
 
@@ -425,6 +427,7 @@ class TaskProvider extends ChangeNotifier {
           debugPrint("[LIVE_ACTIVITY_RESTORE] Task '${task.title}' ($dateStr) is eligible for restoration ($remainingMinutes mins remaining).");
           LiveActivityService().startTaskActivity(
             taskId: task.id,
+            occurrenceId: occurrenceId,
             taskTitle: task.title,
             deadline: taskStart,
           );
