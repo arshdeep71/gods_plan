@@ -160,6 +160,20 @@ class LiveActivityService {
     }
   }
 
+  /// Support focus session progress updates
+  Future<void> updateTaskActivity(double progress) async {
+    if (!_isSupported || _currentActivityId == null) return;
+    try {
+      final updateData = {
+        'progress': progress,
+      };
+      await _liveActivitiesPlugin.updateActivity(_currentActivityId!, updateData);
+      debugPrint("[LIVE_ACTIVITY] Updated focus progress value: $progress");
+    } catch (e) {
+      debugPrint("[LIVE_ACTIVITY_ERROR] Failed to update progress value: $e");
+    }
+  }
+
   /// Immediately ends active Live Activity upon task completion, deletion, or pause
   Future<void> endTaskActivity() async {
     if (!_isSupported || _currentActivityId == null) return;

@@ -705,7 +705,11 @@ class TaskProvider extends ChangeNotifier {
 
   Future<void> startFocusSession(Task task, {int durationMinutes = 25}) async {
     final deadline = DateTime.now().add(Duration(minutes: durationMinutes));
-    await LiveActivityService().startTaskActivity(task.title, deadline);
+    await LiveActivityService().startTaskActivity(
+      taskId: task.id,
+      taskTitle: task.title,
+      deadline: deadline,
+    );
     HapticService().selectionClick();
   }
 
@@ -1022,8 +1026,30 @@ class TaskProvider extends ChangeNotifier {
       _syncService.sync(_tasks.first.userId);
     }
   }
+  TimeOfDay? _parseTimeOfDay(String timeString) {
+    try {
+      final timeParts = timeString.split(' ');
+      if (timeParts.isEmpty) return null;
+      
+      final hm = timeParts[0].split(':');
+      if (hm.length < 2) return null;
+      
+      int hour = int.tryParse(hm[0]) ?? 12;
+      int minute = int.tryParse(hm[1]) ?? 0;
+      
+      if (timeParts.length > 1) {
+        if (timeParts[1].toLowerCase() == 'pm' && hour < 12) hour += 12;
+        if (timeParts[1].toLowerCase() == 'am' && hour == 12) hour = 0;
+      }
+      return TimeOfDay(hour: hour, minute: minute);
+    } catch (_) {
+      return null;
+    }
+  }
 
-
+  bool isTaskCompletedOnDate(String taskId, String occurrenceDate) {
+    return _completions.any((c) => c['task_id'] == taskId && c['completed_date'] == occurrenceDate);
+  }
 
   void clear() {
     _tasks = [];
