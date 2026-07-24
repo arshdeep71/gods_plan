@@ -11,9 +11,9 @@ The following plugins do not support Swift Package Manager for ios:
   - flutter_timezone
   - live_activities
 This will become an error in a future version of Flutter. Please contact the plugin maintainers to request Swift Package Manager adoption.
-Running pod install...                                             841ms
+Running pod install...                                           1,158ms
 Running Xcode build...                                          
-Xcode build done.                                           50.6s
+Xcode build done.                                           69.2s
 Failed to build iOS app
 Error output from Xcode build:
 ↳
@@ -23,12 +23,15 @@ Error output from Xcode build:
 Xcode's output:
 ↳
     Writing result bundle at path:
-    	/var/folders/g3/pffjr_y96bq06blnkf72x_hw0000gn/T/flutter_tools.RdofN4/flutter_ios_build_temp_dirYihjlY/temporary_xcresult_bundle
+    	/var/folders/g3/pffjr_y96bq06blnkf72x_hw0000gn/T/flutter_tools.rR1rdt/flutter_ios_build_temp_dirmmdW3L/temporary_xcresult_bundle
 
     /Users/runner/.pub-cache/hosted/pub.dev/live_activities-1.9.5/ios/Classes/SwiftLiveActivitiesPlugin.swift:270:13: warning: variable 'state' was never mutated; consider changing to 'let' constant
             var state = activityStateToString(activityState: matchingActivity.activityState)
             ~~~ ^
             let
+    /Users/runner/.pub-cache/hosted/pub.dev/audioplayers_darwin-5.0.2/ios/Classes/AudioContext.swift:72:15: warning: 'audioProcessing' was deprecated in iOS 10.0: No longer supported
+          return .audioProcessing
+                  ^
     /Users/runner/.pub-cache/hosted/pub.dev/flutter_native_image-0.0.6+1/ios/Classes/UIImage+RoundedCorner.m:60:1: warning: category is implementing a method which will also be implemented by its primary class [-Wobjc-protocol-method-implementation]
     - (void)addRoundedRectToPath:(CGRect)rect context:(CGContextRef)context ovalWidth:(CGFloat)ovalWidth ovalHeight:(CGFloat)ovalHeight {
     ^
@@ -135,9 +138,6 @@ Xcode's output:
     - (void)registerUserNotificationSettings:(UIUserNotificationSettings *)notificationSettings API_DEPRECATED("Use UserNotifications Framework's -[UNUserNotificationCenter requestAuthorizationWithOptions:completionHandler:] and -[UNUserNotificationCenter setNotificationCategories:]", ios(8.0, 10.0)) API_UNAVAILABLE(visionos) API_UNAVAILABLE(tvos);
     ^
     7 warnings generated.
-    /Users/runner/.pub-cache/hosted/pub.dev/audioplayers_darwin-5.0.2/ios/Classes/AudioContext.swift:72:15: warning: 'audioProcessing' was deprecated in iOS 10.0: No longer supported
-          return .audioProcessing
-                  ^
     lib/providers/task_provider.dart:412:27: Error: The method '_parseTimeOfDay' isn't defined for the type 'TaskProvider'.
      - 'TaskProvider' is from 'package:gods_plan/providers/task_provider.dart' ('lib/providers/task_provider.dart').
     Try correcting the name to the name of an existing method, or defining a method named '_parseTimeOfDay'.
