@@ -36,10 +36,14 @@ jobs:
          python -m pip install Pillow --quiet
          python generate_app_icon_manifest.py
 
-     - name: Ensure iOS project exists
+     - name: Ensure iOS project and workspace exist
        run: |
          if [ ! -d "ios" ]; then
            flutter create --org com.godsplan --project-name gods_plan .
+         fi
+         if [ ! -d "ios/Runner.xcworkspace" ]; then
+           mkdir -p ios/Runner.xcworkspace
+           echo '<?xml version="1.0" encoding="UTF-8"?><Workspace version="1.0"><FileRef location="group:Runner.xcodeproj"></FileRef></Workspace>' > ios/Runner.xcworkspace/contents.xcworkspacedata
          fi
 
      - name: Install Dependencies
