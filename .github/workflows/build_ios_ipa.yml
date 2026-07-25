@@ -70,12 +70,24 @@ jobs:
 
      - name: Verify Widget Extension Target Packaging
        run: |
-         if [ ! -d "build/ios/iphoneos/Runner.app/PlugIns/GodsPlanWidget.appex" ]; then
-           echo "::error::Widget Extension target GodsPlanWidget.appex was not found in build/ios/iphoneos/Runner.app/PlugIns/. Live Activities will not function."
+         APPEX_DIR="build/ios/iphoneos/Runner.app/PlugIns/GodsPlanWidget.appex"
+         if [ ! -d "$APPEX_DIR" ]; then
+           echo "::error::Widget Extension target GodsPlanWidget.appex was not found in Runner.app/PlugIns/."
            exit 1
-         else
-           echo "::notice::GodsPlanWidget.appex verified inside Runner.app/PlugIns/"
          fi
+         if [ ! -f "$APPEX_DIR/Info.plist" ]; then
+           echo "::error::GodsPlanWidget.appex/Info.plist is missing!"
+           exit 1
+         fi
+         if ! grep -q "com.apple.widgetkit-extension" "$APPEX_DIR/Info.plist" && ! plutil -extract NSExtension.NSExtensionPointIdentifier raw "$APPEX_DIR/Info.plist" | grep -q "com.apple.widgetkit-extension"; then
+           echo "::error::GodsPlanWidget.appex Info.plist does not specify com.apple.widgetkit-extension!"
+           exit 1
+         fi
+         if [ ! -f "$APPEX_DIR/GodsPlanWidget" ]; then
+           echo "::error::GodsPlanWidget.appex binary executable is missing!"
+           exit 1
+         fi
+         echo "::notice::GodsPlanWidget.appex verified: Directory, Info.plist (com.apple.widgetkit-extension), and binary executable present!"
 
      - name: Upload Build Log on Failure
        if: failure()

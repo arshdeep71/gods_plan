@@ -29,7 +29,7 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXCopyFilesBuildPhase section */
-		97C146F01CF9000F007C117D /* Embed Frameworks */ = {
+		E20000012C50000000000001 /* Embed Frameworks */ = {
 			isa = PBXCopyFilesBuildPhase;
 			buildActionMask = 2147483647;
 			dstPath = "";
@@ -60,7 +60,8 @@
 		B10000022C50000000000002 /* LiveActivityPluginBridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveActivityPluginBridge.swift; sourceTree = "<group>"; };
 		B10000032C50000000000003 /* GodsPlanWidgetLiveActivity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GodsPlanWidgetLiveActivity.swift; sourceTree = "<group>"; };
 		B10000042C50000000000004 /* GodsPlanWidgetBundle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GodsPlanWidgetBundle.swift; sourceTree = "<group>"; };
-		B10000052C50000000000005 /* GodsPlanWidget/Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = GodsPlanWidget/Info.plist; sourceTree = "<group>"; };
+		B10000052C50000000000005 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		B10000062C50000000000006 /* GodsPlanWidgetExtension.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = GodsPlanWidgetExtension.entitlements; sourceTree = "<group>"; };
 		C10000012C50000000000001 /* GodsPlanWidget.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = GodsPlanWidget.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		F10000012C50000000000001 /* WidgetKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WidgetKit.framework; path = System/Library/Frameworks/WidgetKit.framework; sourceTree = SDKROOT; };
 		F10000022C50000000000002 /* ActivityKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = ActivityKit.framework; path = System/Library/Frameworks/ActivityKit.framework; sourceTree = SDKROOT; };
@@ -123,7 +124,8 @@
 			children = (
 				B10000032C50000000000003 /* GodsPlanWidgetLiveActivity.swift */,
 				B10000042C50000000000004 /* GodsPlanWidgetBundle.swift */,
-				B10000052C50000000000005 /* GodsPlanWidget/Info.plist */,
+				B10000052C50000000000005 /* Info.plist */,
+				B10000062C50000000000006 /* GodsPlanWidgetExtension.entitlements */,
 			);
 			path = GodsPlanWidget;
 			sourceTree = "<group>";
@@ -147,7 +149,7 @@
 			buildPhases = (
 				97C146EA1CF9000F007C117D /* Sources */,
 				97C146EB1CF9000F007C117D /* Frameworks */,
-				97C146F01CF9000F007C117D /* Embed Frameworks */,
+				E20000012C50000000000001 /* Embed Frameworks */,
 				E10000012C50000000000001 /* Embed Foundation Extensions */,
 			);
 			buildRules = (
@@ -162,7 +164,7 @@
 		};
 		T10000012C50000000000001 /* GodsPlanWidget */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = W10000012C50000000000001 /* Build configuration list for PBXNativeTarget "GodsPlanWidget" */;
+			buildConfigurationList = L10000012C50000000000001 /* Build configuration list for PBXNativeTarget "GodsPlanWidget" */;
 			buildPhases = (
 				S10000012C50000000000001 /* Sources */,
 				F20000012C50000000000001 /* Frameworks */,
@@ -356,6 +358,7 @@
 				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGNING_REQUIRED = NO;
 				CODE_SIGN_IDENTITY = "";
+				CODE_SIGN_ENTITLEMENTS = GodsPlanWidget/GodsPlanWidgetExtension.entitlements;
 				CURRENT_PROJECT_VERSION = "$(FLUTTER_BUILD_NUMBER)";
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = GodsPlanWidget/Info.plist;
@@ -373,6 +376,7 @@
 				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGNING_REQUIRED = NO;
 				CODE_SIGN_IDENTITY = "";
+				CODE_SIGN_ENTITLEMENTS = GodsPlanWidget/GodsPlanWidgetExtension.entitlements;
 				CURRENT_PROJECT_VERSION = "$(FLUTTER_BUILD_NUMBER)";
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = GodsPlanWidget/Info.plist;
@@ -405,7 +409,7 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		W10000012C50000000000001 /* Build configuration list for PBXNativeTarget "GodsPlanWidget" */ = {
+		L10000012C50000000000001 /* Build configuration list for PBXNativeTarget "GodsPlanWidget" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				W10000012C50000000000001 /* Debug */,
