@@ -5,7 +5,7 @@ class NotificationHistoryModel {
   final DateTime timestamp;
   final String type; // 'REMINDER', 'ACHIEVEMENT', etc.
   final String status; // 'DELIVERED', 'COMPLETED', 'MISSED', 'SNOOZED'
-  final String? relatedId; // taskId or goalId
+  final String? relatedId; // taskId or goalId  
   final String? category;
   final String userId;
 
