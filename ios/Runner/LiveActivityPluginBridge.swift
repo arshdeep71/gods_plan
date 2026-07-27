@@ -23,7 +23,7 @@ import ActivityKit
             return
         }
 
-        switch call.method {
+        switch call.method {  
         case "startTaskActivity":
             startTaskActivity(call: call, result: result)
         case "updateTaskActivity":
