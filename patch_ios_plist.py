@@ -32,7 +32,7 @@ def main():
         print(f"[patch_ios_plist] ERROR: Manifest file not found at '{MANIFEST_PATH}'.")
         sys.exit(1)
 
-    # ── Read manifest ─────────────────────────────────────────────────────────
+    # ── Read manifest --─────────────────────────────────────────────────────────
     try:
         with open(MANIFEST_PATH, "r", encoding="utf-8") as f:
             manifest = json.load(f)
