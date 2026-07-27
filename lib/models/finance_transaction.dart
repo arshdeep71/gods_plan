@@ -33,7 +33,7 @@ class FinanceTransaction {
     };
   }
 
-  // Convert to Map for Local SQLite DB
+  // Convert to Map for Local SQLite DB//
   Map<String, dynamic> toSqliteMap() {
     return {
       'id': id,
