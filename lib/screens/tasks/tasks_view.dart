@@ -124,7 +124,7 @@ class _TasksViewState extends State<TasksView> {
                     color: Colors.white,
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
-                  ),
+                  ),  
                 ),
               ),
               const Divider(color: Colors.white10, height: 1),
